@@ -523,6 +523,23 @@ const testCode = `
   var ovR1=document.body.children[document.body.children.length-1];
   var bMat=ovR1.querySelector('#ra-mat'); fire(bMat,'click',{target:bMat});
   ok(ejById('r1').stade==='engage', "popup risque: Matérialiser transforme le risque en EJ engagé (r1.stade=engage)");
+  // ---- check tri-état : jamais « ok » quand rien n'a été saisi (EJ sans CP -> « CP à saisir ») ----
+  state = demoState(); recomputeProfils(state);
+  state.ejs.push({id:'eX',affaireId:'a1',numero:'EJ-TEST',libelle:'Test',stade:'prog',mois:'2026-11',montant:0});
+  state.profils['eX']={type:'perso'}; recomputeProfils(state);
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afC0=htmlOf('affaire');
+  var iX0=afC0.indexOf('EJ-TEST');
+  ok(afC0.slice(iX0,iX0+500).indexOf('montant ?')>=0, "check: EJ créé sans montant -> 'montant ?' (pas 'ok')");
+  ejById('eX').montant=500000; recomputeProfils(state); render(); var afC1=htmlOf('affaire');
+  var iX1=afC1.indexOf('EJ-TEST');
+  ok(afC1.slice(iX1,iX1+500).indexOf('CP à saisir')>=0, "check: EJ avec montant mais aucun CP saisi -> 'CP à saisir' (pas 'ok')");
+  var alsC=computeAlerts('','');
+  var cohX=alsC.filter(function(x){ return x.col==='eX'; });
+  ok(cohX.length===1 && cohX[0].txt.indexOf('AUCUN CP')>=0, "alerte cohérence: EJ sans CP -> AUCUN CP saisi/prévu (pas ok)");
+  state.cps['eX|2026-11']=500000; recomputeProfils(state); render(); var afC2=htmlOf('affaire');
+  var iX2=afC2.indexOf('EJ-TEST');
+  ok(afC2.slice(iX2,iX2+500).indexOf('badge ok')>=0 && afC2.slice(iX2,iX2+500).indexOf('CP à saisir')<0, "check: CP saisis = montant -> 'ok'");
+  // (alerte cohérence vérifiée plus haut, avant la saisie du CP)
   state = demoState(); recomputeProfils(state);
 
   // ---- ordre des onglets + filtres globaux en en-tête ----

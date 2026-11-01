@@ -17,7 +17,7 @@ function computeAlerts(opId, affId){
     var som=cpSumOf(e.id), mt=montantOf(e), tol=Math.max(1,mt*0.001);
     if(Math.abs(mt-som)>tol){
       out.push({level:'over', view:'affaire', col:e.id, ej:e,
-        txt:'EJ « '+e.numero+' » ('+affaireName(e.affaireId)+') : montant '+fmt(mt)+' mais somme des CP '+fmt(som)+' — écart de '+fmt(mt-som)+'.'});
+        txt:'EJ « '+e.numero+' » ('+affaireName(e.affaireId)+') : montant '+fmt(mt)+(som<=0?' mais AUCUN CP saisi/prévu':' mais somme des CP '+fmt(som))+' — écart de '+fmt(mt-som)+'.'});
     }
   });
   ejs.forEach(function(e){

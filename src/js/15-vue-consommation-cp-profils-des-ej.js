@@ -100,12 +100,16 @@ function renderConso(){
       rB+='<th class="dcol hlB rev-h-aff" colspan="'+(c.le.length+1)+'"><button type="button" class="btn btn-prof" data-affbtn="'+c.a.id+'" title="Voir tous les EJ de l\'affaire « '+esc(c.a.nom)+' », avec leurs dates (popup)">'+esc(c.a.nom)+'</button></th>';
       c.le.forEach(function(e){
         var foc=(state.ui.focusCol===e.id?' col-focus':'');
-        var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
+        var somCp=cpSumOf(e.id), mtE=montantOf(e);
+        /* check tri-état : rien saisi -> « CP à saisir » / « montant ? », jamais « ok » à vide */
+        var cohOk=mtE>0&&somCp>0&&Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
+        var cohWarn=mtE>0&&somCp<=0;
         var ejTip='Fiche de l\'EJ '+esc(e.numero)+' : n°, libellé, montant, date et profil CP modifiables — Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+(cohOk?' (cohérent)':' — ÉCART '+fmt0(mtE-somCp)+' = alerte tableau de bord');
         r2+='<th class="dcol hl2'+foc+'"><button type="button" class="ej-btn" data-ejpop="'+e.id+'" title="'+ejTip+'">'+esc(e.numero)+(e.libelle?' — '+esc(e.libelle):'')+'</button>'+colRsH(e.id)+'</th>';
         r3+='<th class="dcol hl3'+foc+'"><button type="button" class="ej-btn" data-ejpop="'+e.id+'" title="Date de l\'EJ : '+(e.mois?mLong(e.mois):'—')+' — modifier dans la fiche EJ">'+(e.mois?mLabel(e.mois):'—')+'</button>'+colRsH(e.id)+'</th>';
         r4+='<th class="dcol hl4 hl-mont'+foc+'"><button type="button" class="ej-btn ej-btn-mont" data-ejpop="'+e.id+'" title="Montant de l\'EJ : '+fmt0(mtE)+' — modifier dans la fiche EJ">'+fmt0(mtE)+'</button>'+colRsH(e.id)+'</th>';
-        r5+='<th class="dcol hl5 hl-cp'+foc+'" data-ejhdr="'+e.id+'"><button type="button" class="ej-btn ej-btn-cp" data-ejpop="'+e.id+'" title="Check Σ CP saisis (calculé) : '+fmt0(somCp)+(cohOk?' — cohérent':' — ÉCART '+fmt0(mtE-somCp)+' = alerte')+' — clic = fiche EJ">'+ '<span class="hdr-sub'+(cohOk?'':' coh-bad')+'">Σ CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart '+fmt0(mtE-somCp)+'</span>')+'</span></button>'+colRsH(e.id)+'</th>';
+        var chkBadge=(!cohOk&&!cohWarn)?'<span class="badge warn">montant ?</span>':(cohWarn?'<span class="badge warn">CP à saisir</span>':(Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001)?'<span class="badge ok">ok</span>':'<span class="badge over">écart '+fmt0(mtE-somCp)+'</span>'));
+        r5+='<th class="dcol hl5 hl-cp'+foc+'" data-ejhdr="'+e.id+'"><button type="button" class="ej-btn ej-btn-cp" data-ejpop="'+e.id+'" title="Check Σ CP saisis (calculé) : '+fmt0(somCp)+(cohOk?' — cohérent':' — ÉCART '+fmt0(mtE-somCp)+' = alerte')+' — clic = fiche EJ">'+ '<span class="hdr-sub'+(cohOk?'':' coh-bad')+'">Σ CP '+fmt0(somCp)+' '+chkBadge+'</span></button>'+colRsH(e.id)+'</th>';
       });
       var tA='Total CP de l\'affaire '+esc(c.a.nom)+' (non modifiable)';
       r2+='<th class="dcol hl2 tot-h" title="'+tA+'">Σ'+colRsH('a:'+c.a.id)+'</th>';

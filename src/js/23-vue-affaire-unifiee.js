@@ -148,7 +148,10 @@ function renderAffaire(){
 
   /* ---- UN SEUL tableau mensuel : 1 colonne par EJ/risque/aléa + colonnes de synthèse ---- */
   function fmtS(n){ return (n>0?'+':'')+fmt0(n); }
-  function badgeEcart(val,tol,kind){
+  /* badge d'écart uniquement s'il y a quelque chose à comparer (prévu > 0 ou réalisé saisi) ;
+     sinon « — » (pas un « ok » quand rien n'a été saisi) */
+  function badgeEcart(val,tol,kind,show){
+    if(!show) return '<span class="badge">—</span>';
     if(Math.abs(val)<=tol) return '<span class="badge ok">'+kind+' ok</span>';
     if(val<0) return '<span class="badge over">'+kind+' retard '+fmtM(-val)+'</span>';
     return '<span class="badge warn">'+kind+' avance '+fmtM(val)+'</span>';
@@ -156,13 +159,21 @@ function renderAffaire(){
   /* en-tête : colonne Mois, puis par EJ/risque/aléa : n° (fiche/popup), date · montant, check Σ CP */
   var head='<tr><th class="scol sc1">Mois</th>';
   ejs.forEach(function(e){
-    var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=!isMaterialise(e)||Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
+    var somCp=cpSumOf(e.id), mtE=montantOf(e);
+    /* check tri-état : pas de montant -> « montant ? » ; montant mais aucun CP -> « CP à saisir » ;
+       Σ CP == montant -> « ok » ; sinon « écart » (jamais « ok » si rien n'a été saisi) */
+    var check;
+    if(!isMaterialise(e)) check='—';
+    else if(mtE<=0) check='<span class="badge warn" title="Montant de l\'EJ non saisi">montant ?</span>';
+    else if(somCp<=0) check='<span class="badge warn" title="Aucun CP saisi/calculé pour cet EJ">CP à saisir</span>';
+    else if(Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001)) check='<span class="badge ok" title="Σ CP = montant">ok</span>';
+    else check='<span class="badge over" title="Écart Σ CP − montant">écart '+fmt0(mtE-somCp)+'</span>';
     var mtTxt=isRisque(e)?('esp. '+fmt0(espDist(e))+' · haut '+fmt0(montantHaut(e))+' · pond. '+fmt0(risquePondere(e))):fmt0(mtE);
     var popAttr=(isRisque(e)||isAlea(e))?('data-rkpop="'+e.id+'" title="Popup '+(isRisque(e)?'risque':'aléa')+' : modifier la distribution / le % et lire la conséquence EJ/CP"'):('data-ejpop="'+e.id+'" title="Fiche de l\'EJ '+esc(e.numero)+' (n°, libellé, montant, date, profil CP modifiables)"');
     head+='<th class="dcol'+(foc===e.id?' col-focus':'')+'" style="min-width:170px">'+stadeBadge(e)+
       '<button type="button" class="ej-btn" '+popAttr+'>'+esc(e.numero)+'</button>'+
       '<div class="hdr-sub">'+(e.mois?mLabel(e.mois):'—')+' · '+mtTxt+'</div>'+
-      '<div class="hdr-sub'+(cohOk?'':' coh-bad')+'" title="Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+'">Σ CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart</span>')+'</div></th>';
+      '<div class="hdr-sub" title="Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+'">Σ CP '+fmt0(somCp)+' '+check+'</div></th>';
   });
   /* colonnes de synthèse de l'affaire */
   head+='<th class="num tot-h" title="EJ engagés à ce mois (somme des colonnes EJ)">EJ engagé</th>'+
@@ -199,9 +210,11 @@ function renderAffaire(){
     var tolEj=Math.max(1,ejM*0.01), tolCp=Math.max(1,cpM*0.02);
     var inco=past&&hasR&&(Math.abs(eEj)>tolEj||Math.abs(eCp)>tolCp);
     var statut;
+    var showEj=ejM>0||(hasR&&Object.prototype.hasOwnProperty.call(r,'ej'));
+    var showCp=cpM>0||(hasR&&Object.prototype.hasOwnProperty.call(r,'cp'));
     if(past&&!hasR) statut='<span class="badge warn" title="Mois écoulé sans réalisé saisi (saisi à 0 = constatation)">non saisi</span>';
-    else if(past) statut=badgeEcart(eEj,tolEj,'EJ')+' '+badgeEcart(eCp,tolCp,'CP');
-    else if(m===cur) statut=hasR?(badgeEcart(eEj,tolEj,'EJ')+' '+badgeEcart(eCp,tolCp,'CP')):'<span class="badge info">à saisir</span>';
+    else if(past) statut=badgeEcart(eEj,tolEj,'EJ',showEj)+' '+badgeEcart(eCp,tolCp,'CP',showCp);
+    else if(m===cur) statut=hasR?(badgeEcart(eEj,tolEj,'EJ',showEj)+' '+badgeEcart(eCp,tolCp,'CP',showCp)):'<span class="badge info">à saisir</span>';
     else statut='';
     var actions='';
     if(inco){
