@@ -1092,7 +1092,10 @@ const testCode = `
   // ---- les tableaux de saisie commencent au moins à la date de réf. de l'affaire la plus ancienne ----
   state = demoState(); recomputeProfils(state);
   var oldestRef=state.affaires.map(function(a){ return a.dateRefRev; }).filter(Boolean).sort()[0];
-  ok(scopeMonths('','')[0] <= oldestRef, "scopeMonths démarre au moins à la date de réf. de l'affaire la plus ancienne ("+oldestRef+") ; début="+scopeMonths('','')[0]);
+  ok(scopeMonths('','')[0] >= oldestRef, "scopeMonths: jamais de date avant la date de réf. la plus ancienne ("+oldestRef+") ; début="+scopeMonths('','')[0]);
+  state.ui.extBefore=240;
+  ok(scopeMonths('','')[0]===oldestRef, "bouton avant: on remonte JUSQU'AU PLANCHER (date de réf. la plus ancienne "+oldestRef+") ; début="+scopeMonths('','')[0]);
+  state.ui.extBefore=0;
   ok(idxGridMonths()[0] <= oldestRef, "grille indices idem ("+idxGridMonths()[0]+" <= "+oldestRef+")");
   var firstM0=scopeMonths('','')[0];
   ['conso','realise','gp','revisions'].forEach(function(v){
@@ -1105,17 +1108,20 @@ const testCode = `
   state = demoState(); recomputeProfils(state);
   state.affaires[5].dateRefRev='2021-03';
   state.ui.op='op2'; state.ui.aff='a4'; // filtre actif : l'affaire 2021 (a6, op2) est dans op2; test avec filtre sur op1 aussi
-  ok(scopeMonths('op1','')[0] <= '2021-03', "scopeMonths filtré op1: début <= dateRefRev affaire la plus ancienne (2021-03), début="+scopeMonths('op1','')[0]);
+  ok(scopeMonths('op1','')[0] >= '2021-03', "scopeMonths filtré op1: jamais avant le plancher 2021-03, début="+scopeMonths('op1','')[0]);
   state.ui.op=''; state.ui.aff='';
-  ok(scopeMonths('','')[0]==='2021-03', "scopeMonths sans filtre: début = 2021-03");
+  state.ui.extBefore=240;
+  ok(scopeMonths('','')[0]==='2021-03', "bouton avant (extBefore): sans filtre, on remonte jusqu'au plancher 2021-03");
   state.ui.view='conso'; renderConso(); var co5=htmlOf('conso');
-  ok(co5.indexOf('03/21')>=0, "conso: mois 03/2021 affiché (affaire avec dateRefRev 2021)");
+  ok(co5.indexOf('03/21')>=0, "conso: mois 03/2021 affiché après 'développer avant' (plancher = dateRefRev 2021)");
   ok((co5.match(/class="extrow"/g)||[]).length===2 && co5.indexOf('data-ext="before"')>=0 && co5.indexOf('data-ext="after"')>=0, "conso: boutons −12 mois avant / +12 mois après (1ère et dernière ligne)");
   var bExt=makeEl('button'); bExt.dataset.ext='before'; bExt._closest=bExt;
+  state.ui.extBefore=0; renderConso();
   var m0b=scopeMonths('','')[0];
   fireDoc('click',{target:bExt});
   var minRefAll2=null; state.affaires.forEach(function(a){ if(a.dateRefRev&&(!minRefAll2||a.dateRefRev<minRefAll2)) minRefAll2=a.dateRefRev; });
   ok(state.ui.extBefore===12 && scopeMonths('','')[0]===(mAdd(m0b,-12)<minRefAll2?minRefAll2:mAdd(m0b,-12)), "bouton avant: extension vers le passé JUSQU'À LA LIMITE (date de réf. la plus ancienne "+minRefAll2+") : "+m0b+" -> "+scopeMonths('','')[0]);
+  ok(m0b>minRefAll2 && scopeMonths('','')[0]===mAdd(m0b,-12), "bouton avant: extension réelle vers le passé ("+m0b+" -> "+scopeMonths('','')[0]+"), jusqu'au plancher "+minRefAll2);
   var bShr=makeEl('button'); bShr.dataset.extshrink='before'; bShr._closest=bShr;
   fireDoc('click',{target:bShr});
   ok(state.ui.extBefore===0, "bouton replier avant: on retire les 12 mois ajoutés (extBefore=0)");
