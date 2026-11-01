@@ -10,6 +10,37 @@ function mAdd(m,n){ var a=mParse(m), t=a.y*12+(a.mm-1)+n;
 function mDiff(a,b){ var A=mParse(a),B=mParse(b); return (B.y*12+B.mm)-(A.y*12+A.mm); }
 function mRange(a,b){ var out=[],m=a; while(mDiff(m,b)>=0){ out.push(m); m=mAdd(m,1); if(out.length>500) break; } return out; }
 function mLabel(m){ var a=mParse(m); return String(a.mm).padStart(2,'0') + '/' + String(a.y).slice(2); }
+/* Champ mois custom (remplace les input type="month" peu pratiques) : texte MM/AAAA
+   + bouton ▾ ouvrant un petit sélecteur de mois. L'input garde id/data-* -> handlers inchangés. */
+function monthInputHTML(id, value, cls, title, attrs){
+  var v=value?mLabel(value):'';
+  return '<span class="month-wrap"><input type="text" inputmode="numeric" class="month-in'+(cls?' '+cls:'')+'"'+(id?' id="'+id+'"':'')+' placeholder="MM/AAAA" value="'+esc(v)+'" title="'+esc(title||'Mois au format MM/AAAA')+'"'+(attrs?' '+attrs:'')+'><button type="button" class="month-btn" tabindex="-1" title="Choisir un mois dans le calendrier">▾</button></span>';
+}
+/* Petit calendrier mensuel (popup) : navigue par année, clique un mois -> renseigne l'input et déclenche son change */
+function openMonthPicker(input){
+  var cur=parseIdxDate(input.value)||curMois();
+  var y=+cur.slice(0,4);
+  var ov=document.createElement('div'); ov.className='modal-ov';
+  function render(){
+    var noms=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+    var h='<div class="modal month-pick"><div class="mp-head"><button type="button" class="btn small" id="mp-prev">−</button><strong>'+y+'</strong><button type="button" class="btn small" id="mp-next">+</button></div><div class="mp-grid">';
+    for(var mm=1;mm<=12;mm++){ h+='<button type="button" class="btn small mp-m" data-m="'+y+'-'+String(mm).padStart(2,'0')+'">'+noms[mm-1]+'</button>'; }
+    h+='</div><div class="formrow"><button type="button" class="btn" id="mp-close">Fermer</button></div></div>';
+    ov.innerHTML=h;
+    ov.querySelector('#mp-prev').onclick=function(){ y--; render(); };
+    ov.querySelector('#mp-next').onclick=function(){ y++; render(); };
+    ov.querySelector('#mp-close').onclick=function(){ ov.remove(); };
+    var btns=ov.querySelectorAll('.mp-m');
+    for(var i=0;i<btns.length;i++){ btns[i].onclick=function(){
+      input.value=mLabel(this.dataset.m);
+      ov.remove();
+      if(input.dispatchEvent){ try{ input.dispatchEvent(new Event('change')); }catch(e){} }
+    }; }
+  }
+  render();
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(ev){ if(ev.target===ov) ov.remove(); });
+}
 function mLong(m){ var noms=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
   var a=mParse(m); return noms[a.mm-1]+' '+a.y; }
 function curMois(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }

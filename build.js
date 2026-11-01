@@ -1,6 +1,5 @@
 /* Build : compile les sources src/ en UN SEUL fichier HTML autonome.
    - par défaut : dist/index.html (CSS DSFR @gouvfr/dsfr + app.css + blocs JS inline)
-     + copie synchronisée de index-2.html (toujours la version la plus à jour)
    - options : --watch (rebuild auto à chaque modif de src/), --no-dsfr, --out <fichier>
    Usage : npm run build | npm run watch | node build.js --watch */
 const fs = require('fs');
@@ -51,9 +50,7 @@ function writeAll(out, outFile) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.writeFileSync(dest, out);
   const rel = path.relative(root, dest);
-  // index-2.html = toujours la copie à jour du build (sauf --out explicite)
-  if (!outFile && outIdx < 0) fs.writeFileSync(path.join(root, 'index-2.html'), out);
-  console.log('build OK -> ' + rel + (outIdx < 0 && !outFile ? ' + index-2.html' : '') +
+  console.log('build OK -> ' + rel +
     '  (' + out.length + ' cars ; ' + fs.readdirSync(path.join(root, 'src/js')).filter(f => f.endsWith('.js')).length + ' blocs JS' +
     (args.indexOf('--no-dsfr') >= 0 ? ' ; sans DSFR' : ' ; DSFR inline') + ')');
 }
@@ -74,7 +71,7 @@ if (args.indexOf('--watch') >= 0) {
     try { fs.watch(t, { recursive: fs.statSync(t).isDirectory() }, rebuild); }
     catch (e) { try { fs.watch(t, rebuild); } catch (e2) { console.error('[watch] impossible de surveiller', t, e2.message); } }
   });
-  console.log('watch actif : toute modif de src/ régénère dist/index.html + index-2.html (Ctrl+C pour arrêter)');
+  console.log('watch actif : toute modif de src/ régénère dist/index.html (Ctrl+C pour arrêter)');
 } else {
   writeAll(build());
 }

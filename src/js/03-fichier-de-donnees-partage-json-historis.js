@@ -52,6 +52,7 @@ function applyDataPayload(p){
   if(!d||typeof d!=='object'||Array.isArray(d)) throw new Error('format de fichier inconnu');
   var st=defaultState();
   st.ui=(state&&state.ui)||st.ui;
+  if(st.ui&&st.ui.gpAleaDec!==undefined){ st.ui.gpARDec=!!st.ui.gpAleaDec; delete st.ui.gpAleaDec; } /* compat ancien nom */
   if(d.indices!==undefined) st.indices=d.indices;
   /* migration ancien format cosi (contrats -> affaires) */
   if(d.contrats&&!d.affaires){

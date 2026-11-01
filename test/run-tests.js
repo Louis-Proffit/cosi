@@ -1,5 +1,5 @@
 /* Harnais v4 : stubs DOM evenementiels + execution du script + assertions.
-   Usage: node cosi-h4.js "C:/Users/louis/Bureau/git/cosi/index-2.html" */
+   Usage: node test/run-tests.js [dist/index.html] */
 const fs = require('fs');
 const htmlPath = process.argv[2] || require('path').join(__dirname, '..', 'dist', 'index.html');
 const html = fs.readFileSync(htmlPath, 'utf8');
@@ -507,6 +507,7 @@ const testCode = `
   state = demoState(); render();
   ok(global.__HDR__.top, "header DSFR: fr-header__body (haut) puis fr-header__menu (bas)");
   ok(global.__HDR__.gouv, "header: AUCUN logo (ni fr-logo, ni img, ni logo-min)");
+  ok(global.__HDR__.min && !hdr0hasSvgLogo(), "header: plus de logo Armées ni PNG embarqué (tout lien avec les armées retiré)");
   ok(global.__HDR__.order && global.__HDR__.nav && global.__HDR__.btns, "header DSFR: filebar (fr-btn) dans le bandeau haut, nav fr-nav + filtres dans le menu bas");
 
 
@@ -932,6 +933,7 @@ if (patched === script) { console.error("echec injection"); process.exit(1); }
   global.__HDR__ = {
     top: hdr.indexOf('fr-header__body')>=0 && hdr.indexOf('fr-header__menu')>=0 && hdr.indexOf('fr-header__body')<hdr.indexOf('fr-header__menu'),
     gouv: !hdr.includes('fr-logo') && !hdr.includes('<img') && !hdr.includes('logo'),
+    min: !hdr.includes('logo-min') && !hdr.includes('Armées') && !hdr.includes('data:image/png'),
     order: hdr.indexOf('id="filebar"')>=0 && hdr.indexOf('id="filebar"') < hdr.indexOf('id="nav"'),
     nav: hdr.indexOf('class="fr-nav"')>=0,
     btns: hdr.indexOf('fr-btn')>=0

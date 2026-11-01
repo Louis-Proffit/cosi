@@ -63,11 +63,11 @@ function openProfilPopup(ejId){
       '<button type="button" data-tab="uniforme" class="'+(p.type==='uniforme'?'active':'')+'" title="Montant réparti uniformément sur une période">Uniforme sur une période</button>'+
       '<button type="button" data-tab="perso" class="'+(p.type==='perso'?'active':'')+'" title="CP saisis mois par mois à la main dans la grille">Personnalisée</button></div>'+
     '<div class="tabpane'+(p.type==='ponctuelle'?' active':'')+'" data-pane="ponctuelle">'+
-      '<label class="fld">Mois de consommation<input type="month" id="pp-debut" value="'+(p.debut||e.mois)+'" title="Mois où la totalité des CP de cet EJ est consommée"></label>'+
+      '<label class="fld">Mois de consommation'+monthInputHTML('pp-debut',p.debut||e.mois,'','Mois où la totalité des CP de cet EJ est consommée (MM/AAAA)')+'</label>'+
       '<p class="hint">La totalité du montant est consommée en ce mois.</p></div>'+
     '<div class="tabpane'+(p.type==='uniforme'?' active':'')+'" data-pane="uniforme">'+
-      '<label class="fld">Début<input type="month" id="pu-debut" value="'+(p.debut||e.mois)+'" title="Premier mois de consommation — pour un EJ issu d\'un risque, la date choisie à la matérialisation peut servir de début"></label>'+
-      '<label class="fld">Fin<input type="month" id="pu-fin" value="'+(p.fin||p.debut||e.mois)+'" title="Dernier mois de consommation (inclus)"></label>'+
+      '<label class="fld">Début'+monthInputHTML('pu-debut',p.debut||e.mois,'','Premier mois de consommation, MM/AAAA — pour un EJ issu d\'un risque, la date choisie à la matérialisation peut servir de début')+'</label>'+
+      '<label class="fld">Fin'+monthInputHTML('pu-fin',p.fin||p.debut||e.mois,'','Dernier mois de consommation, MM/AAAA (inclus)')+'</label>'+
       '<p class="hint">Le montant est réparti uniformément entre le début et la fin (inclus).</p></div>'+
     '<div class="tabpane'+(p.type==='perso'?' active':'')+'" data-pane="perso">'+persoPane+'</div>'+
     '<div class="formrow" style="margin-top:14px"><button type="button" class="btn primary" id="pp-save" title="Enregistrer ce profil et recalculer les CP">Enregistrer</button>'+
@@ -119,10 +119,10 @@ function openProfilPopup(ejId){
   }
   saveBtn.addEventListener('click',function(){
     var np={type:curTab, debut:'', fin:''};
-    if(curTab==='ponctuelle'){ np.debut=ov.querySelector('#pp-debut').value||e.mois; np.fin=np.debut; }
+    if(curTab==='ponctuelle'){ np.debut=parseIdxDate(ov.querySelector('#pp-debut').value)||e.mois; np.fin=np.debut; }
     else if(curTab==='uniforme'){
-      np.debut=ov.querySelector('#pu-debut').value||e.mois;
-      np.fin=ov.querySelector('#pu-fin').value||np.debut;
+      np.debut=parseIdxDate(ov.querySelector('#pu-debut').value)||e.mois;
+      np.fin=parseIdxDate(ov.querySelector('#pu-fin').value)||np.debut;
       if(np.fin<np.debut) np.fin=np.debut;
     } else { var old=profilOf(e); np.debut=old.debut||e.mois; np.fin=old.fin||e.mois; }
     /* pas de CP avant le mois de l'EJ : on cale le profil sur le mois de l'EJ */

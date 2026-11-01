@@ -113,16 +113,18 @@ function renderStructure(){
     var as=scopedAffaires(opId, state.ui.aff||'');
     if(as.length===0) h+='<p class="hint">Aucune affaire sur cette opération.</p>';
     else{
-      h+='<table class="liste"><tr><th>Nom</th><th>Entreprise</th><th>Réf. contrat</th><th class="num">EJ initial</th><th>Date réf. rév.</th><th>Formule d\'indice</th><th>Formule de révision</th><th class="num">Reste à payer</th><th class="num">EJ engagés</th><th></th></tr>';
+      h+='<table class="liste"><tr><th>Nom</th><th>Opération</th><th>Entreprise</th><th>Réf. contrat</th><th class="num">EJ initial</th><th>Date réf. rév.</th><th>Formule d\'indice</th><th>Formule de révision</th><th class="num">Reste à payer</th><th class="num">EJ engagés</th><th></th></tr>';
       as.forEach(function(a){
         var es=ejsOfAffaire(a.id), em=es.filter(isMaterialise);
         h+='<tr>'+
           '<td style="min-width:150px"><input type="text" data-af="'+a.id+'" data-f="nom" value="'+esc(a.nom)+'" title="Nom de l\'affaire"></td>'+
+          '<td><select data-af="'+a.id+'" data-f="opId" title="Opération à laquelle est rattachée l\'affaire (attribut opId) — changez pour DÉPLACER l\'affaire d\'une opération à l\'autre">'+
+            state.operations.map(function(o){ return '<option value="'+o.id+'"'+(a.opId===o.id?' selected':'')+'>'+(o.numero?o.numero+' — ':'')+esc(o.nom)+'</option>'; }).join('')+'</select></td>'+
           '<td><input type="text" data-af="'+a.id+'" data-f="titulaire" value="'+esc(a.titulaire||'')+'" title="Entreprise titulaire du contrat"></td>'+
           '<td><input type="text" data-af="'+a.id+'" data-f="refContrat" value="'+esc(a.refContrat||'')+'" title="Référence du contrat (champ texte libre)"></td>'+
           '<td><input type="text" inputmode="decimal" data-money="1" data-af="'+a.id+'" data-f="montantInitial" value="'+(a.montantInitial||0)+'" title="EJ initial de l\'affaire (montant initial du contrat)">'+
             (cv?(cmpFind(cv.affaires,a.id)?cmpNoteHTML(+cmpFind(cv.affaires,a.id).montantInitial||0,+a.montantInitial||0,fmt0):cmpAbsHTML()):'')+'</td>'+
-          '<td><input type="month" data-af="'+a.id+'" data-f="dateRefRev" value="'+(a.dateRefRev||'')+'" title="Date de référence de la révision de prix : I₀ = indice applicable à cette date"></td>'+
+          '<td>'+monthInputHTML('',a.dateRefRev,'','Date de référence de la révision de prix (MM/AAAA) : I₀ = indice à cette date','data-af="'+a.id+'" data-f="dateRefRev"')+'</td>'+
           '<td style="min-width:230px"><input type="text" data-af="'+a.id+'" data-f="formule" value="'+esc(a.formule||'')+'" placeholder="'+(state.indices[0]?'{'+esc(state.indices[0].nom)+'}':'{SÉRIE}')+'" title="Formule de l\'affaire = indice applicable au marché : {série} = valeur de la série au mois, {série_0} = valeur de la série au mois de référence (date de réf.), ex. {BT01}/{BT01_0} ; {i0} = indice à la date de réf. RP automatique : {c}*({i}/{i0}-1) avec {c} = somme des CP prévus du mois. Vide = première série. Séries saisies dans « Indices »."></td>'+
           '<td class="num mono" title="Reste à payer à date = EJ engagés cumulés − CP consommés cumulés des EJ engagés (aléas/risques exclus, non matérialisés ; indépendant du montant initial, finit à 0)">'+fmt(resteAPayer(a))+'</td>'+
           '<td class="num mono" title="Montant des EJ engagés (programmés ou matérialisés)">'+fmt(sommeMontant(em))+'</td>'+
@@ -137,7 +139,7 @@ function renderStructure(){
        '<label class="fld">Entreprise<input type="text" id="new-a-tit" placeholder="Entreprise titulaire" title="Entreprise titulaire du contrat"></label>'+
        '<label class="fld">Réf. contrat<input type="text" id="new-a-ref" placeholder="CTR-2026-…" title="Référence du contrat (champ texte libre)"></label>'+
        '<label class="fld">EJ initial<input type="text" inputmode="decimal" id="new-a-montant" placeholder="0" title="EJ initial de l\'affaire (montant initial du contrat)"></label>'+
-       '<label class="fld">Date réf. rév.<input type="month" id="new-a-dateref" title="Date de référence de la révision de prix (I₀ = indice à cette date)"></label>'+
+       '<label class="fld">Date réf. rév.'+monthInputHTML('new-a-dateref','','','Date de référence de la révision de prix, MM/AAAA (I₀ = indice à cette date)')+'</label>'+
        '<label class="fld">Formule<input type="text" id="new-a-formule" placeholder="'+(state.indices[0]?'{'+esc(state.indices[0].nom)+'}':'{SÉRIE}')+'" title="Formule de l\'affaire = indice applicable (vide = première série) ; la révision de prix en découle automatiquement"></label>'+
        '<button class="btn primary" id="add-a" title="Créer l\'affaire sur l\'opération sélectionnée">Ajouter l\'affaire</button></div>';
   }
@@ -152,7 +154,8 @@ function renderStructure(){
         var f=t.dataset.f;
         if(t.dataset.money){ var v=parseMontant(t.value); a[f]=(v==null?0:v); }
         else if(f==='nom'||f==='titulaire'||f==='refContrat'||f==='formule'){ a[f]=t.value; }
-        else if(f==='dateRefRev'){ if(t.value==='') a[f]=null; else if(/^\d{4}-\d{2}$/.test(t.value)) a[f]=t.value; }
+        else if(f==='dateRefRev'){ if(t.value.trim()===''){ a[f]=null; } else { var dv=parseIdxDate(t.value); if(dv) a[f]=dv; } }
+        else if(f==='opId'){ var no=opById(t.value); if(no){ a.opId=no.id; save(); renderFilters(); render(); return; } }
         else { var n=parseFloat(t.value); a[f]=isNaN(n)?null:n; }
         save(); return;
       }
@@ -171,9 +174,7 @@ function renderStructure(){
         var n1=w.querySelector('#new-a-nom').value.trim(); if(!n1) return;
         var v=parseMontant(w.querySelector('#new-a-montant').value)||0;
         var ref=w.querySelector('#new-a-ref').value.trim();
-        var dr=w.querySelector('#new-a-dateref').value;
-        if(dr&&!/^\d{4}-\d{2}$/.test(dr)) dr=null;
-        if(!dr) dr=curMois();
+        var dr=parseIdxDate(w.querySelector('#new-a-dateref').value)||curMois();
         var fr2=w.querySelector('#new-a-formule').value.trim();
         state.affaires.push({id:uid(),opId:opId,nom:n1,titulaire:w.querySelector('#new-a-tit').value.trim(),
           refContrat:ref,montantInitial:v,dateRefRev:dr,formule:fr2});
