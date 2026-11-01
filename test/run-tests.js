@@ -514,7 +514,7 @@ const testCode = `
   ok(ejById('r2').libelle==='Risque appro revue' && ejById('r2').mois==='2027-02' && ejById('r2').distType==='uniforme', "popup risque: enregistrement (libellé, date, distribution)");
   openRisqueAleaPopup('al1');
   var ovR3=document.body.children[document.body.children.length-1];
-  ok(ovR3.innerHTML.indexOf('id="ra-pct"')>=0 && ovR3.innerHTML.indexOf('id="ra-expl"')>=0 && ovR3.indexOf('ra-mat')<0, "popup aléa: % / montant explicite modifiables, PAS de bouton matérialiser (un aléa ne se matérialise pas)");
+  ok(ovR3.innerHTML.indexOf('id="ra-pct"')>=0 && ovR3.innerHTML.indexOf('id="ra-expl"')>=0 && ovR3.innerHTML.indexOf('ra-mat')<0, "popup aléa: % / montant explicite modifiables, PAS de bouton matérialiser (un aléa ne se matérialise pas)");
   var matR3=ovR3.querySelector('#ra-mat'); ok(matR3===null || matR3.disabled!==false || true, "popup aléa: pas de matérialisation");
   openRisqueAleaPopup('r1');
   var ovR1=document.body.children[document.body.children.length-1];
