@@ -455,7 +455,9 @@ const testCode = `
   state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var af1=htmlOf('affaire');
   ok(af1.indexOf('id="aff-solo"')>=0, "vue affaire: sélecteur d'affaire unique (aff-solo)");
   ok(af1.indexOf('GC-01')>=0 && af1.indexOf('HYD-01')<0, "vue affaire: une seule affaire lisible à la fois (a1 -> GC-01 oui, HYD-01 non)");
-  ok(af1.indexOf('EJ engagé')>=0 && af1.indexOf('CP prévu')>=0 && af1.indexOf('RP')>=0 && af1.indexOf('EJ réel')>=0 && af1.indexOf('CP réel')>=0, "vue affaire: tableau mensuel à plusieurs colonnes (EJ engagé, CP prévu, RP, EJ réel, CP réel, écarts, statut)");
+  ok(af1.indexOf('>EJ engagé</th>')>=0 && af1.indexOf('>CP prévu</th>')>=0 && af1.indexOf('>RP</th>')>=0 && af1.indexOf('>EJ réel</th>')>=0 && af1.indexOf('>CP réel</th>')>=0, "vue affaire: colonnes de synthèse (EJ engagé, CP prévu, RP, EJ réel, CP réel, écarts, statut)");
+  ok((af1.match(/data-ejcol=/g)||[]).length>0 && (af1.match(/data-rkpop=/g)||[]).length>0, "vue affaire: une colonne par EJ/risque/aléa dans le tableau (data-ejcol en ligne + data-rkpop en en-tête)");
+  ok(af1.indexOf('id="af-addej"')>=0 && af1.indexOf('id="af-addrk"')>=0 && af1.indexOf('id="af-addal"')>=0, "vue affaire: boutons + EJ / + Risque / + Aléa (création depuis le tableau)");
   ok(af1.indexOf('data-real="a1|')>=0, "vue affaire: saisie du réalisé dans le tableau mensuel");
   var wAf=document.getElementById('view-affaire').children[0];
   var selAf=wAf.querySelector('#aff-solo'); selAf.value='a4';
@@ -472,7 +474,7 @@ const testCode = `
   // ---- vue affaire : grille de consommation CP par EJ (mois x EJ) ----
   state = demoState(); recomputeProfils(state);
   state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afG=htmlOf('affaire');
-  ok(afG.indexOf('Consommation des CP par EJ')>=0, "vue affaire: tableau 3 = consommation des CP par EJ (mois x EJ)");
+  ok((afG.match(/<table/g)||[]).length===1, "vue affaire: UN SEUL tableau (CP par EJ/risque/aléa remontée dans le tableau mensuel)");
   ok((afG.match(/data-cp="e2\|/g)||[]).length>0, "vue affaire: cellules CP éditables pour l'EJ au profil perso (e2)");
   ok((afG.match(/cp-avant/g)||[]).length>0, "vue affaire: cellules grisées/verrouillées avant le mois de l'EJ (cp-avant)");
   ok((afG.match(/cp-lock/g)||[]).length>0, "vue affaire: cellules CP verrouillées (calculées selon le profil) quand pas perso");
@@ -485,6 +487,19 @@ const testCode = `
   var cpOk=makeEl('input'); cpOk.dataset.cp='e2|2026-12'; cpOk.value='123456'; cpOk._closest=cpOk;
   fire(wAfG,'change',{target:cpOk});
   ok(state.cps['e2|2026-12']===123456, "vue affaire: saisie d'un CP (profil perso) enregistrée");
+  // création depuis le tableau unique
+  state = demoState(); recomputeProfils(state);
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render();
+  var wAfC=document.getElementById('view-affaire').children[0];
+  var bRk=wAfC.querySelector('#af-addrk');
+  var nbRk=state.ejs.filter(function(e){ return isRisque(e); }).length;
+  fire(bRk,'click',{target:bRk});
+  var nRk=state.ejs.filter(function(e){ return isRisque(e); });
+  ok(nRk.length===nbRk+1 && nRk[nRk.length-1].affaireId==='a1' && state.ui.focusCol===nRk[nRk.length-1].id, "vue affaire: + Risque crée un risque sur l'affaire (colonne focalisée)");
+  var bAl=wAfC.querySelector('#af-addal');
+  var nbAl=state.ejs.filter(function(e){ return isAlea(e); }).length;
+  fire(bAl,'click',{target:bAl});
+  ok(state.ejs.filter(function(e){ return isAlea(e); }).length===nbAl+1, "vue affaire: + Aléa crée un aléa sur l'affaire");
   state = demoState(); recomputeProfils(state);
 
   // ---- ordre des onglets + filtres globaux en en-tête ----

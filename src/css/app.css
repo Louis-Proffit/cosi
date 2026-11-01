@@ -334,3 +334,6 @@ table.grid thead tr.hl5 th.hl-cp:hover{background:#c4ecd7}
 /* ---- cellules qui s'appuient sur le RÉALISÉ saisi (vérité, pas un calcul) ---- */
 td.gp-real{background:#ececec;color:#3a3a3a;border:1px dashed #b5b5b5}
 td.rev-rp.gp-real,td.rev-tot.gp-real{background:#ececec;border:1px dashed #b5b5b5}
+
+/* vue affaire unifiée : un seul tableau, 1 colonne par EJ/risque/aléa + synthèse */
+table.affgrid .scol.sc1{left:0}

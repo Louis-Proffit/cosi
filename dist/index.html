@@ -899,6 +899,9 @@ table.grid thead tr.hl5 th.hl-cp:hover{background:#c4ecd7}
 td.gp-real{background:#ececec;color:#3a3a3a;border:1px dashed #b5b5b5}
 td.rev-rp.gp-real,td.rev-tot.gp-real{background:#ececec;border:1px dashed #b5b5b5}
 
+/* vue affaire unifiée : un seul tableau, 1 colonne par EJ/risque/aléa + synthèse */
+table.affgrid .scol.sc1{left:0}
+
 </style>
 </head>
 <body>
@@ -5671,14 +5674,13 @@ function exportXLSX(){
 
 /* ===== src/js/23-vue-affaire-unifiee.js ===== */
 /* ================= Vue unifiée « Affaire » (branche onglet-affaire-unique) ================= */
-/* Remplace les 5 onglets risques&aléas / consommation CP / révisions de prix /
-   réalisé / GP à saisir : UN SEUL onglet, UNE SEULE affaire à la fois (sélecteur
-   dédié). Pour l'affaire affichée :
-   - tableau 1 : tous les EJ (programmés/engagés, aléas, risques) avec check Σ CP,
-     popup risque/aléa pour modifier la distribution et lire la conséquence EJ/CP ;
-   - tableau 2 : par mois, plusieurs colonnes (EJ engagé, aléa, risque, CP prévu,
-     RP, GP EJ/CP avec les 4 options, EJ/CP réels saisis, écarts, statut, actions) ;
-   - tableau 3 : consommation des CP par EJ (mois × EJ). */
+/* Onglets risques&aléas / conso CP / révisions / réalisé / GP fusionnés en UN SEUL
+   onglet avec UN SEUL tableau, pour UNE SEULE affaire à la fois (sélecteur dédié).
+   Le tableau est mensuel : une colonne par EJ / risque / aléa de l'affaire (saisie
+   de la consommation CP directement dans la cellule du mois), + colonnes de
+   synthèse (EJ engagé, aléa, risque, CP prévu, RP, GP EJ/CP avec les 4 options,
+   EJ/CP réels saisis, écarts, statut, actions). Tout est faisable depuis cet onglet :
+   créer EJ/risque/aléa, fiches EJ, popup risque/aléa, liens vers structure/indices. */
 
 /* Popup risque / aléa (comme la fiche EJ) : modifier la distribution / le % et
    lire la conséquence en termes d'EJ et de CP (espérance, haut, pondéré, Σ CP,
@@ -5691,7 +5693,7 @@ function openRisqueAleaPopup(ejId){
   var distOpts=(typeof DIST_TYPES!=='undefined'?DIST_TYPES:['fixe','uniforme','triangulaire','gauss']).map(function(t){ return '<option value="'+t+'"'+((e.distType||'fixe')===t?' selected':'')+'>'+t+'</option>'; }).join('');
   var dtOpts=(typeof DATE_TYPES!=='undefined'?DATE_TYPES:['ponctuelle','recurrente','uniforme']).map(function(t){ return '<option value="'+t+'"'+(e.dateType===t?' selected':'')+'>'+t+'</option>'; }).join('');
   function cons(){
-    var occ=occOf(e), s=0; occ.forEach(function(o){ s+=o.w; });
+    var occ=occOf(e);
     if(risque) return 'espérance '+fmt0(espDist(e))+' · haut '+fmt0(montantHaut(e))+' · pondéré (proba '+((e.probabilite==null?100:e.probabilite))+' %) '+fmt0(risquePondere(e))+
       ' · Σ CP (profil) '+fmt0(cpSumOf(e.id))+' · apparitions '+occ.length+(occ.length?' ('+mLong(occ[0].m)+' … '+mLong(occ[occ.length-1].m)+')':'');
     return 'montant aléa '+fmt0(montantOf(e))+' ('+(e.montantExplicite?'montant explicite':' '+(e.aleaPct==null?5:e.aleaPct)+' % du reste à payer')+')'+
@@ -5780,7 +5782,9 @@ function renderAffaire(){
     '<label class="fld">Affaire affichée<select id="aff-solo" title="Une seule affaire à la fois dans ce tableau">'+
       affsAll.map(function(a){ return '<option value="'+a.id+'"'+(a.id===affId?' selected':'')+'>'+esc(a.nom)+'</option>'; }).join('')+
     '</select></label>'+
-    (aff?'<button class="btn" id="af-addej" title="Ajouter un EJ programmé sur cette affaire (fiche EJ ensuite)">+ EJ</button>':'')+
+    (aff?'<button class="btn" id="af-addej" title="Créer un EJ programmé sur cette affaire (colonne ajoutée, fiche EJ ensuite)">+ EJ</button>'+
+          '<button class="btn" id="af-addrk" title="Créer un risque sur cette affaire (colonne ajoutée, popup risque ensuite)">+ Risque</button>'+
+          '<button class="btn" id="af-addal" title="Créer un aléa forfaitaire sur cette affaire (colonne ajoutée, popup aléa ensuite)">+ Aléa</button>':'')+
     (aff?'<button class="btn" data-goto="structure" data-aff="'+aff.id+'" title="Modifier cette affaire (opération, entreprise, réf. contrat, date de réf., formule) dans « Opérations & affaires »">Éditer l\'affaire</button>':'')+
     '<button class="btn" data-goto="indices" title="Saisir les séries d\'indices dans « Indices »">Séries d\'indices</button>'+
     /* les 4 mêmes options que l'ancien onglet « GP à saisir » */
@@ -5799,49 +5803,44 @@ function renderAffaire(){
     return;
   }
 
-  var ejs=ejsOfAffaire(aff.id);
+  var ejs=ejsOfAffaire(aff.id).slice().sort(function(x,y){ return x.mois<y.mois?-1:(x.mois>y.mois?1:0); });
   var months=scopeMonths(aff.opId, aff.id);
   var foc=state.ui.focusCol||'';
 
-  /* ---- tableau 1 : les EJ de l'affaire (tous stades : risques & aléas compris) ---- */
-  var ejRows=ejs.slice().sort(function(x,y){ return x.mois<y.mois?-1:(x.mois>y.mois?1:0); }).map(function(e){
-    var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=!isMaterialise(e)||Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
-    var mtTxt=isRisque(e)?('esp. '+fmt0(espDist(e))+' · haut '+fmt0(montantHaut(e))+' · pond. '+fmt0(risquePondere(e))):fmt0(mtE);
-    var popAttr=(isRisque(e)||isAlea(e))?('data-rkpop="'+e.id+'" title="Popup '+ (isRisque(e)?'risque':'aléa') +' : modifier la distribution / le % et lire la conséquence EJ/CP"'):('data-ejpop="'+e.id+'" title="Fiche de l\'EJ '+esc(e.numero)+' (n°, libellé, montant, date, profil CP modifiables)"');
-    return '<tr'+(foc===e.id?' class="col-focus"':'')+'><td>'+stadeBadge(e)+'</td>'+
-      '<td><button type="button" class="ej-btn" '+popAttr+'>'+esc(e.numero)+'</button></td>'+
-      '<td>'+esc(e.libelle||'')+'</td>'+
-      '<td class="mono">'+(e.mois?mLabel(e.mois):'—')+'</td>'+
-      '<td class="num mono">'+mtTxt+'</td>'+
-      '<td>'+esc(profilSummary(profilOf(e)))+'</td>'+
-      '<td class="num mono">'+fmt0(somCp)+'</td>'+
-      '<td>'+(isMaterialise(e)?(cohOk?'<span class="badge ok">ok</span>':'<span class="badge over">écart '+fmt0(mtE-somCp)+'</span>'):'—')+'</td></tr>';
-  }).join('');
-  h+='<div class="card"><h2>EJ de l\'affaire « '+esc(aff.nom)+' » ('+ejs.length+')</h2>'+
-     '<p class="hint">Tous les montants de l\'affaire : EJ programmés/engagés, aléas et risques. Clic sur le n° = fiche EJ (programmés/engagés) ou popup risque/aléa (distribution, % , conséquence EJ/CP). Check = Σ CP saisis vs montant.</p>'+
-     '<div class="grid-wrap"><table class="liste"><thead><tr><th>Stade</th><th>N°</th><th>Libellé</th><th>Date</th><th class="num">Montant</th><th>Profil CP</th><th class="num">Σ CP</th><th>Check</th></tr></thead><tbody>'+ejRows+'</tbody></table></div></div>';
-
-  /* ---- tableau 2 : par mois, plusieurs colonnes pour l'affaire ---- */
+  /* ---- UN SEUL tableau mensuel : 1 colonne par EJ/risque/aléa + colonnes de synthèse ---- */
   function fmtS(n){ return (n>0?'+':'')+fmt0(n); }
   function badgeEcart(val,tol,kind){
     if(Math.abs(val)<=tol) return '<span class="badge ok">'+kind+' ok</span>';
     if(val<0) return '<span class="badge over">'+kind+' retard '+fmtM(-val)+'</span>';
     return '<span class="badge warn">'+kind+' avance '+fmtM(val)+'</span>';
   }
-  var head='<tr><th>Mois</th>'+
-    '<th class="num" title="EJ engagés à ce mois (somme)">EJ engagé</th>'+
-    '<th class="num" title="Aléas répartis ce mois (EJ)">Aléa</th>'+
-    '<th class="num" title="Risques à ce mois (espérance × probabilité ; EJ = CP pour les RP)">Risque</th>'+
-    '<th class="num" title="CP prévus ce mois (profils des EJ)">CP prévu</th>'+
-    '<th class="num" title="Révision de prix du mois = base CP (réalisée si saisie, sinon prévue) × (I/I₀−1)">RP</th>'+
-    '<th class="num" title="GP à saisir, synthèse EJ (avec les 4 options cochées et le réalisé si saisi)">GP EJ</th>'+
-    '<th class="num" title="GP à saisir, synthèse CP (avec les 4 options cochées et le réalisé si saisi)">GP CP</th>'+
-    '<th class="num" title="EJ réalisé saisi (vérité quand saisi, même à 0)">EJ réel</th>'+
-    '<th class="num" title="CP réalisé saisi (vérité quand saisi, même à 0)">CP réel</th>'+
-    '<th class="num" title="Écart EJ = réalisé − engagé (mois écoulés)">Écart EJ</th>'+
-    '<th class="num" title="Écart CP = réalisé − prévu (mois écoulés)">Écart CP</th>'+
-    '<th>Statut</th><th>Actions</th></tr>';
-  var body=extRow('avant', 14);
+  /* en-tête : colonne Mois, puis par EJ/risque/aléa : n° (fiche/popup), date · montant, check Σ CP */
+  var head='<tr><th class="scol sc1">Mois</th>';
+  ejs.forEach(function(e){
+    var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=!isMaterialise(e)||Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
+    var mtTxt=isRisque(e)?('esp. '+fmt0(espDist(e))+' · haut '+fmt0(montantHaut(e))+' · pond. '+fmt0(risquePondere(e))):fmt0(mtE);
+    var popAttr=(isRisque(e)||isAlea(e))?('data-rkpop="'+e.id+'" title="Popup '+(isRisque(e)?'risque':'aléa')+' : modifier la distribution / le % et lire la conséquence EJ/CP"'):('data-ejpop="'+e.id+'" title="Fiche de l\'EJ '+esc(e.numero)+' (n°, libellé, montant, date, profil CP modifiables)"');
+    head+='<th class="dcol'+(foc===e.id?' col-focus':'')+'" style="min-width:120px">'+stadeBadge(e)+
+      '<button type="button" class="ej-btn" '+popAttr+'>'+esc(e.numero)+'</button>'+
+      '<div class="hdr-sub">'+(e.mois?mLabel(e.mois):'—')+' · '+mtTxt+'</div>'+
+      '<div class="hdr-sub'+(cohOk?'':' coh-bad')+'" title="Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+'">Σ CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart</span>')+'</div></th>';
+  });
+  /* colonnes de synthèse de l'affaire */
+  head+='<th class="num tot-h" title="EJ engagés à ce mois (somme des colonnes EJ)">EJ engagé</th>'+
+    '<th class="num tot-h" title="Aléas répartis ce mois (colonnes aléa)">Aléa</th>'+
+    '<th class="num tot-h" title="Risques à ce mois, espérance × probabilité (colonnes risque ; EJ=CP)">Risque</th>'+
+    '<th class="num tot-h" title="CP prévus ce mois (somme des colonnes)">CP prévu</th>'+
+    '<th class="num tot-h" title="Révision de prix du mois = base CP (réalisée si saisie, sinon prévue) × (I/I₀−1)">RP</th>'+
+    '<th class="num tot-h" title="GP à saisir, synthèse EJ (4 options cochées + réalisé si saisi)">GP EJ</th>'+
+    '<th class="num tot-h" title="GP à saisir, synthèse CP (4 options cochées + réalisé si saisi)">GP CP</th>'+
+    '<th class="num tot-h" title="EJ réalisé saisi (vérité quand saisi, même à 0)">EJ réel</th>'+
+    '<th class="num tot-h" title="CP réalisé saisi (vérité quand saisi, même à 0)">CP réel</th>'+
+    '<th class="num tot-h" title="Écart EJ = réalisé − engagé (mois écoulés)">Éc EJ</th>'+
+    '<th class="num tot-h" title="Écart CP = réalisé − prévu (mois écoulés)">Éc CP</th>'+
+    '<th class="tot-h">Statut</th><th class="tot-h">Actions</th></tr>';
+  var NB=1+ejs.length+13;
+
+  var body=extRow('avant', NB);
   months.forEach(function(m){
     var ejM=0, cpM=0, aeM=0, rkM=0;
     ejs.forEach(function(e){
@@ -5872,55 +5871,38 @@ function renderAffaire(){
     }
     var rEjV=(hasR&&Object.prototype.hasOwnProperty.call(r,'ej'))?fmt0(r.ej||0):'';
     var rCpV=(hasR&&Object.prototype.hasOwnProperty.call(r,'cp'))?fmt0(r.cp||0):'';
-    body+='<tr'+(m===cur?' class="gp-cur"':'')+'><td class="mh'+(m===cur?' cur':'')+'">'+mLong(m)+(past?'':' (à venir)')+'</td>'+
-      '<td class="num mono">'+fmt0(ejM)+'</td>'+
-      '<td class="num mono">'+fmt0(aeM)+'</td>'+
-      '<td class="num mono">'+fmt0(rkM)+'</td>'+
-      '<td class="num mono">'+fmt0(cpM)+'</td>'+
-      '<td class="num mono'+(r?' gp-real':'')+'" title="'+(r?'RP basée sur le CP RÉALISÉ saisi':'RP = CP prévu × (I/I₀−1)')+'">'+fmt0(rp)+'</td>'+
-      '<td class="num mono'+(r?' gp-real':'')+'" title="GP synthèse EJ (options cochées + réalisé si saisi)">'+fmt0(gEj)+'</td>'+
-      '<td class="num mono'+(r?' gp-real':'')+'" title="GP synthèse CP (options cochées + réalisé si saisi)">'+fmt0(gCp)+'</td>'+
+    body+='<tr data-m="'+m+'"'+(m===cur?' class="gp-cur"':'')+'><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLong(m)+(past?'':' (à venir)')+'</td>';
+    ejs.forEach(function(e){
+      var p=profilOf(e), v=cpPrevu(e,m);
+      if(isMaterialise(e)&&e.mois&&m<e.mois){
+        body+='<td class="dcol cp-avant" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
+      }else if(isMaterialise(e)&&p.type==='perso'){
+        body+='<td class="dcol" data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés en '+mLabel(m)+' pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
+      }else{
+        body+='<td class="dcol cp-lock" data-ejcol="'+e.id+'" title="'+(isMaterialise(e)?'Calculé selon le profil '+p.type:'CP du '+stadeLabel(e).toLowerCase()+' selon son profil')+'">'+(v?fmt0(v):'')+'</td>';
+      }
+    });
+    body+='<td class="num mono ccell tot">'+fmt0(ejM)+'</td>'+
+      '<td class="num mono ccell tot">'+fmt0(aeM)+'</td>'+
+      '<td class="num mono ccell tot">'+fmt0(rkM)+'</td>'+
+      '<td class="num mono ccell tot">'+fmt0(cpM)+'</td>'+
+      '<td class="num mono ccell tot'+(r?' gp-real':'')+'" title="'+(r?'RP basée sur le CP RÉALISÉ saisi':'RP = CP prévu × (I/I₀−1)')+'">'+fmt0(rp)+'</td>'+
+      '<td class="num mono ccell tot'+(r?' gp-real':'')+'" title="GP synthèse EJ (options + réalisé si saisi)">'+fmt0(gEj)+'</td>'+
+      '<td class="num mono ccell tot'+(r?' gp-real':'')+'" title="GP synthèse CP (options + réalisé si saisi)">'+fmt0(gCp)+'</td>'+
       '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+aff.id+'|'+m+'" data-f="ej" value="'+rEjV+'"'+(m<=cur?'':' disabled')+' title="EJ réalisé en '+mLong(m)+' (« 0 » = constaté à zéro, distinct de non saisi)"></td>'+
       '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+aff.id+'|'+m+'" data-f="cp" value="'+rCpV+'"'+(m<=cur?'':' disabled')+' title="CP réalisé en '+mLong(m)+' (« 0 » = constaté à zéro)"></td>'+
       '<td class="num mono">'+(past?fmtS(eEj):'')+'</td>'+
       '<td class="num mono">'+(past?fmtS(eCp):'')+'</td>'+
       '<td>'+statut+'</td><td style="white-space:nowrap">'+actions+'</td></tr>';
   });
-  body+=extRow('après', 14);
-  h+='<div class="card"><h2>Par mois — affaire « '+esc(aff.nom)+' »</h2>'+
-     '<p class="hint">Plusieurs colonnes pour l\'affaire : EJ engagé, aléa, risque (EJ=CP), CP prévu, RP, <strong>GP EJ / GP CP</strong> (les 4 options cochées ci-dessus s\'y appliquent, et le réalisé saisi a priorité), EJ/CP réels (saisie), écarts, statut. Cellules grisées = appuyées sur le réalisé.</p>'+
-     '<div class="grid-wrap"><table class="liste rev-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
+  body+=extRow('après', NB);
+  var foot='<tr class="gp-tot"><td class="scol sc1">Total</td>'+
+    ejs.map(function(e){ return '<td class="dcol ccell tot">'+fmt0(cpSumOf(e.id))+'</td>'; }).join('')+
+    '<td colspan="13"></td></tr>';
 
-  /* ---- tableau 3 : consommation des CP par EJ (mois × EJ) ---- */
-  var matEjs=ejs.filter(isMaterialise).sort(function(x,y){ return x.mois<y.mois?-1:(x.mois>y.mois?1:0); });
-  var gHead='<tr><th>Mois</th>'+
-    matEjs.map(function(e){
-      var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
-      return '<th class="dcol" style="min-width:120px"><button type="button" class="ej-btn" data-ejpop="'+e.id+'" title="Fiche de l\'EJ '+esc(e.numero)+'">'+esc(e.numero)+'</button>'+
-        '<div class="hdr-sub">'+(e.mois?mLabel(e.mois):'—')+' · '+fmt0(mtE)+'</div>'+
-        '<div class="hdr-sub'+(cohOk?'':' coh-bad')+'" title="Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+'">Σ CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart</span>')+'</div></th>';
-    }).join('')+'</tr>';
-  var gBody=extRow('avant', 1+matEjs.length);
-  months.forEach(function(m){
-    gBody+='<tr data-m="'+m+'"'+(m===cur?' class="gp-cur"':'')+'><td class="mh'+(m===cur?' cur':'')+'">'+mLabel(m)+'</td>';
-    matEjs.forEach(function(e){
-      var p=profilOf(e), v=cpPrevu(e,m);
-      if(e.mois&&m<e.mois){
-        gBody+='<td class="dcol cp-avant" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
-      }else if(p.type==='perso'){
-        gBody+='<td class="dcol" data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés en '+mLabel(m)+' pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
-      }else{
-        gBody+='<td class="dcol cp-lock" data-ejcol="'+e.id+'" title="Calculé selon le profil '+p.type+'">'+(v?fmt0(v):'')+'</td>';
-      }
-    });
-    gBody+='</tr>';
-  });
-  gBody+=extRow('après', 1+matEjs.length);
-  var gFoot='<tr><td>Total</td>'+
-    matEjs.map(function(e){ return '<td class="dcol ccell tot">'+fmt0(cpSumOf(e.id))+'</td>'; }).join('')+'</tr>';
-  h+='<div class="card"><h2>Consommation des CP par EJ — « '+esc(aff.nom)+' »</h2>'+
-     '<p class="hint">Une colonne par EJ de l\'affaire. Cellule grisée avant le mois de l\'EJ (verrouillée) ; saisie libre si profil « personnalisée » (fiche EJ), calculée sinon. En-tête : n° (fiche EJ), date · montant, check Σ CP.</p>'+
-     '<div class="grid-wrap"><table class="grid conso"><thead>'+gHead+'</thead><tbody>'+gBody+'</tbody><tfoot>'+gFoot+'</tfoot></table></div></div>';
+  h+='<div class="card"><h2>Affaire « '+esc(aff.nom)+' » — détail par mois</h2>'+
+     '<p class="hint">UN seul tableau : <strong>une colonne par EJ / risque / aléa</strong> de l\'affaire (saisie de la consommation CP dans la cellule du mois ; grisée avant le mois de l\'EJ ; clic sur le n° = fiche EJ ou popup risque/aléa), puis les colonnes de synthèse (EJ engagé, aléa, risque, CP prévu, RP, <strong>GP EJ/CP</strong> avec les 4 options, EJ/CP réels saisis, écarts, statut, actions). Boutons + EJ / + Risque / + Aléa pour en créer. Cellules grisées = appuyées sur le réalisé saisi.</p>'+
+     '<div class="grid-wrap"><table class="grid conso affgrid"><thead>'+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div></div>';
 
   mount('view-affaire', h, function(w){
     var sel=w.querySelector('#aff-solo');
@@ -5930,13 +5912,20 @@ function renderAffaire(){
       var cb=w.querySelector('#'+p[0]);
       if(cb) cb.addEventListener('change',function(){ state.ui[p[1]]=cb.checked; save(); render(); });
     });
-    var addb=w.querySelector('#af-addej');
-    if(addb) addb.addEventListener('click',function(){
+    function addItem(stade, extra){
       var n=state.ejs.filter(function(e){ return e.affaireId===aff.id; }).length+1;
-      var ej9={id:uid(),affaireId:aff.id,numero:'EJ-'+String(n).padStart(2,'0'),libelle:'',stade:'prog',mois:curMois(),montant:0};
+      var ej9={id:uid(),affaireId:aff.id,numero:(stade==='risque'?'RK-':stade==='alea'?'AL-':'EJ-')+String(n).padStart(2,'0'),libelle:'',stade:stade,mois:curMois(),montant:0};
+      for(var k in extra) ej9[k]=extra[k];
       state.ejs.push(ej9); recomputeProfils(state);
       state.ui.focusCol=ej9.id; save(); render();
-    });
+      return ej9;
+    }
+    var addb=w.querySelector('#af-addej');
+    if(addb) addb.addEventListener('click',function(){ addItem('prog',{}); });
+    var addrk=w.querySelector('#af-addrk');
+    if(addrk) addrk.addEventListener('click',function(){ addItem('risque',{distType:'fixe',distA:0,probabilite:100,dateType:'ponctuelle'}); });
+    var addal=w.querySelector('#af-addal');
+    if(addal) addal.addEventListener('click',function(){ addItem('alea',{aleaPct:5,montantExplicite:false,dateType:'ponctuelle'}); });
     w.addEventListener('click', function(ev){
       var rp2=ev.target.closest('[data-rkpop]');
       if(rp2){ openRisqueAleaPopup(rp2.dataset.rkpop); return; }
@@ -5960,7 +5949,7 @@ function renderAffaire(){
       if(t.dataset&&t.dataset.cp){
         var k=t.dataset.cp, pp=k.split('|'), ejId=pp[0], m=pp[1];
         var ejC=ejById(ejId);
-        if(ejC&&ejC.mois&&m<ejC.mois){ alert('Pas de CP avant le mois de l\'EJ '+ejC.numero+' ('+mLabel(ejC.mois)+') : l\'EJ est engagé intégralement le 1er jour de son mois.'); delete state.cps[k]; save(); renderAffaire(); return; }
+        if(ejC&&isMaterialise(ejC)&&ejC.mois&&m<ejC.mois){ alert('Pas de CP avant le mois de l\'EJ '+ejC.numero+' ('+mLabel(ejC.mois)+') : l\'EJ est engagé intégralement le 1er jour de son mois.'); delete state.cps[k]; save(); renderAffaire(); return; }
         var v2=parseMontant(t.value);
         if(v2==null||v2<=0) delete state.cps[k]; else state.cps[k]=v2;
         save(); renderAffaire();
