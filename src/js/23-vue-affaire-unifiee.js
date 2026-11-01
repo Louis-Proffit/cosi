@@ -109,6 +109,39 @@ function renderAffaire(){
      '<p class="hint">Plusieurs colonnes pour l\'affaire : EJ engagé, CP prévu, RP (base = CP réalisé si saisi), EJ/CP réels (saisie), écarts et statut. Les cellules RP grisées s\'appuient sur le réalisé saisi.</p>'+
      '<div class="grid-wrap"><table class="liste rev-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
 
+  /* ---- tableau 3 : consommation des CP par EJ (mois × EJ) — comme l'ancien onglet Conso CP,
+     restreint à l'affaire affichée : 1 colonne par EJ, saisie libre si profil perso,
+     verrouillée sinon, grisée avant le mois de l'EJ ---- */
+  var matEjs=ejs.filter(isMaterialise).sort(function(x,y){ return x.mois<y.mois?-1:(x.mois>y.mois?1:0); });
+  var gHead='<tr><th class="scol sc0">#</th><th class="scol sc1">Mois</th>'+
+    matEjs.map(function(e){
+      var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
+      return '<th class="dcol" style="min-width:120px"><button type="button" class="ej-btn" data-ejpop="'+e.id+'" title="Fiche de l\'EJ '+esc(e.numero)+'">'+esc(e.numero)+'</button>'+
+        '<div class="hdr-sub">'+(e.mois?mLabel(e.mois):'—')+' · '+fmt0(mtE)+'</div>'+
+        '<div class="hdr-sub'+(cohOk?'':' coh-bad')+'" title="Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+'">Σ CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart</span>')+'</div></th>';
+    }).join('')+'</tr>';
+  var gBody=extRow('avant', 2+matEjs.length);
+  months.forEach(function(m,ri){
+    gBody+='<tr data-m="'+m+'"'+(m===cur?' class="gp-cur"':'')+'><td class="scol sc0 rnum">'+(ri+1)+'</td><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLabel(m)+'</td>';
+    matEjs.forEach(function(e){
+      var p=profilOf(e), v=cpPrevu(e,m);
+      if(e.mois&&m<e.mois){
+        gBody+='<td class="dcol cp-avant" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
+      }else if(p.type==='perso'){
+        gBody+='<td class="dcol" data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés en '+mLabel(m)+' pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
+      }else{
+        gBody+='<td class="dcol cp-lock" data-ejcol="'+e.id+'" title="Calculé selon le profil '+p.type+'">'+(v?fmt0(v):'')+'</td>';
+      }
+    });
+    gBody+='</tr>';
+  });
+  gBody+=extRow('après', 2+matEjs.length);
+  var gFoot='<tr><td class="scol sc0"></td><td class="scol sc1">Total</td>'+
+    matEjs.map(function(e){ return '<td class="dcol ccell tot">'+fmt0(cpSumOf(e.id))+'</td>'; }).join('')+'</tr>';
+  h+='<div class="card"><h2>Consommation des CP par EJ — « '+esc(aff.nom)+' »</h2>'+
+     '<p class="hint">Une colonne par EJ de l\'affaire. Cellule grisée avant le mois de l\'EJ (verrouillée) ; saisie libre si profil « personnalisée » (fiche EJ), calculée sinon. En-tête : n° (fiche EJ), date · montant, check Σ CP.</p>'+
+     '<div class="grid-wrap"><table class="grid conso">'+ '<thead>'+gHead+'</thead><tbody>'+gBody+'</tbody><tfoot>'+gFoot+'</tfoot></table></div></div>';
+
   mount('view-affaire', h, function(w){
     var sel=w.querySelector('#aff-solo');
     if(sel) sel.addEventListener('change',function(){ state.ui.aff=sel.value; save(); render(); });
@@ -137,6 +170,18 @@ function renderAffaire(){
     });
     w.addEventListener('change', function(ev){
       var t=ev.target;
+      if(t.dataset&&t.dataset.cp){
+        var k=t.dataset.cp, pp=k.split('|'), ejId=pp[0], m=pp[1];
+        var ejC=ejById(ejId);
+        if(ejC&&ejC.mois&&m<ejC.mois){ alert('Pas de CP avant le mois de l\'EJ '+ejC.numero+' ('+mLabel(ejC.mois)+') : l\'EJ est engagé intégralement le 1er jour de son mois.'); delete state.cps[k]; save(); renderAffaire(); return; }
+        var v2=parseMontant(t.value);
+        if(v2==null||v2<=0) delete state.cps[k]; else state.cps[k]=v2;
+        save(); renderAffaire();
+        var nw2=document.getElementById('view-affaire').children[0];
+        var el2=nw2.querySelector('[data-cp="'+k+'"]');
+        if(el2){ el2.focus(); }
+        return;
+      }
       if(t.dataset&&t.dataset.real){
         var k=t.dataset.real, pp=k.split('|'), m=pp[1];
         var cur2=state.realise[k]?deepCopy(state.realise[k]):{};

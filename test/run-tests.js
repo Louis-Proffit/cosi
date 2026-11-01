@@ -440,6 +440,22 @@ const testCode = `
   var bG2=makeEl('button'); bG2.dataset.goto='affaire'; bG2.dataset.col='e1'; bG2.dataset.aff='a1'; bG2._closest=bG2;
   fireDoc('click',{target:bG2});
   ok(state.ui.view==='affaire' && state.ui.aff==='a1' && state.ui.focusCol==='e1', "lien Traiter alerte -> onglet affaire (affaire a1, EJ e1 focalisé)");
+  // ---- vue affaire : grille de consommation CP par EJ (mois x EJ) ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afG=htmlOf('affaire');
+  ok(afG.indexOf('Consommation des CP par EJ')>=0, "vue affaire: tableau 3 = consommation des CP par EJ (mois x EJ)");
+  ok((afG.match(/data-cp="e2\|/g)||[]).length>0, "vue affaire: cellules CP éditables pour l'EJ au profil perso (e2)");
+  ok((afG.match(/cp-avant/g)||[]).length>0, "vue affaire: cellules grisées/verrouillées avant le mois de l'EJ (cp-avant)");
+  ok((afG.match(/cp-lock/g)||[]).length>0, "vue affaire: cellules CP verrouillées (calculées selon le profil) quand pas perso");
+  ok((afG.match(/Σ CP /g)||[]).length>=3, "vue affaire: check Σ CP dans l'en-tête de chaque colonne EJ");
+  var wAfG=document.getElementById('view-affaire').children[0];
+  var cpIn=makeEl('input'); cpIn.dataset.cp='e1|2026-08'; cpIn.value='500'; cpIn._closest=cpIn;
+  state.cps['e1|2026-08']=500;
+  fire(wAfG,'change',{target:cpIn});
+  ok(state.cps['e1|2026-08']===undefined, "vue affaire: saisie d'un CP avant le mois de l'EJ refusée et supprimée");
+  var cpOk=makeEl('input'); cpOk.dataset.cp='e2|2026-12'; cpOk.value='123456'; cpOk._closest=cpOk;
+  fire(wAfG,'change',{target:cpOk});
+  ok(state.cps['e2|2026-12']===123456, "vue affaire: saisie d'un CP (profil perso) enregistrée");
   state = demoState(); recomputeProfils(state);
 
   // ---- ordre des onglets + filtres globaux en en-tête ----
