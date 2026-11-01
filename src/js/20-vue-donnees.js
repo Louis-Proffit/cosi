@@ -28,6 +28,10 @@ function renderDonnees(){
     '<button class="btn danger" id="d-clear">Tout effacer</button>'+
     '</div></div>';
 
+  h+='<div class="card"><h2>Export Excel (.xlsx)</h2>'+
+    '<p class="hint">Un classeur Excel avec <strong>un onglet par type de données</strong> : opérations, affaires, EJ, CP, profils de consommation, aléas &amp; risques, réalisé, révisions de prix, indices — plus un onglet <strong>« Tableau de bord »</strong> qui reprend les données des courbes du tableau de bord (EJ engagés cumulés, CP prévus cumulés, reste à payer, hypothèse moyenne, hypothèse haute — par mois) avec un <strong>graphique en courbes</strong> dont chaque série référence directement les cellules de l\'onglet (ex. <code>\'Tableau de bord\'!$B$2:$B$26</code>).</p>'+
+    '<div class="formrow"><button class="btn primary" id="d-xlsx" title="Télécharge cosi-export-<date>.xlsx : un onglet par type de données + les graphiques du tableau de bord">Exporter vers Excel (.xlsx)</button></div></div>';
+
   h+='<div class="card"><h2>Modèle</h2>'+
     '<p class="hint">Une <strong>opération</strong> regroupe des <strong>affaires</strong> ; chaque affaire est soldée par des <strong>EJ</strong> (engagements juridiques), chacun à un <strong>stade</strong> : <strong>EJ programmé</strong> ou <strong>engagé</strong> (risque/aléa matérialisé, à date fixée), <strong>aléa</strong> (part forfaitaire — par défaut 5 % du reste à payer de l\'affaire, modifiable) ou <strong>risque</strong> (montant selon une distribution, probabilité, date d\'apparition ponctuelle / récurrente / uniforme). Chaque EJ a un <strong>profil de consommation des CP</strong> : ponctuelle, uniforme sur une période (la date de l\'EJ — choisie à la matérialisation d\'un risque — peut servir de début) ou personnalisée. Les <strong>révisions de prix</strong> sont propres à chaque affaire et combinent les <strong>séries d\'indices</strong> (onglet « Indices ») selon sa formule d\'indice. L\'onglet <strong>Réalisé</strong> saisit, par affaire et par mois passé, l\'EJ et le CP effectivement constatés ; la <strong>GP à saisir</strong> agrège par affaire et par opération les montants prévisionnels d\'EJ et de CP par mois (EJ/CP engagés, aléas, risques, révisions, réalisé), et le <strong>tableau de bord</strong> montre l\'entonnoir des montants de l\'opération dans le temps, les CP prévus/réalisés, les risques en cours, les prochains EJ et les alertes de cohérence avec le réalisé.</p>'+
     '<p class="hint">Format du fichier JSON (les mois sont « AAAA-MM ») :</p>'+
@@ -40,8 +44,7 @@ function renderDonnees(){
     '      { "id", "date", "sig",\n' +
     '        "operations":   [ { "id", "nom", "description" } ],\n' +
     '        "affaires":     [ { "id", "opId", "nom", "titulaire", "refContrat",\n' +
-    '                            "montantInitial" (EJ initial), "dateRefRev" (AAAA-MM),\n' +
-    '                            "formule" (indice ; la RP en découle : {e}*({i}/{i0}-1)) } ],\n' +
+    '                            "dateRefRev" (AAAA-MM), "formule" (indice ; la RP en découle : {c}*({i}/{i0}-1)) } ],\n' +
     '        "ejs":          [ { "id", "affaireId", "numero", "libelle", "mois", "montant",\n' +
     '                            "stade": "prog"|"alea"|"risque"|"engage",\n' +
     '                            "aleaPct?", "montantExplicite?",            (aléa)\n' +
@@ -77,6 +80,7 @@ function renderDonnees(){
     w.querySelector('#d-export').addEventListener('click',function(){
       download('cosi2-donnees-'+curMois()+'.json', JSON.stringify(exportPayload(),null,2), 'application/json');
     });
+    w.querySelector('#d-xlsx').addEventListener('click', exportXLSX);
     w.querySelector('#d-demo').addEventListener('click',function(){
       if(!confirm('Remplacer les données actuelles par le jeu de démonstration ?')) return;
       var v=state.ui.view; state=demoState(); state.ui.view=v; save(); render();

@@ -19,9 +19,12 @@ if(uname){
     updateFileBar();
   });
 }
-var gop=document.getElementById('g-op'), gaff=document.getElementById('g-aff');
-if(gop) gop.addEventListener('change',function(){ state.ui.op=gop.value; state.ui.aff=''; save(); render(); });
-if(gaff) gaff.addEventListener('change',function(){ state.ui.aff=gaff.value; save(); render(); });
+/* Filtres par onglet (selects data-fop / data-faff dans la barre de chaque vue) */
+document.addEventListener('change', function(ev){
+  var t=ev.target; if(!t||!t.dataset) return;
+  if(t.dataset.fop!==undefined){ state.ui.op=t.value; state.ui.aff=''; save(); render(); return; }
+  if(t.dataset.faff!==undefined){ state.ui.aff=t.value; save(); render(); return; }
+});
 var vsel=document.getElementById('ver-sel');
 if(vsel) vsel.addEventListener('change', function(){
   if(this.value===''){ quitHist(); } else { enterHist(+this.value); }
@@ -107,4 +110,3 @@ try{
   try{ bootError(e); }catch(e2){}
 }
 
-})();

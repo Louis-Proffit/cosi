@@ -8,6 +8,9 @@ function computeAlerts(opId, affId){
   var affs=scopedAffaires(opId||'', affId||''), ids={};
   affs.forEach(function(a){ ids[a.id]=1; });
   var ejs=state.ejs.filter(function(e){ return ids[e.affaireId]; });
+  /* date de référence la plus ancienne (TOUTES les affaires) : on ne remonte pas avant */
+  var minRef=null;
+  state.affaires.forEach(function(a){ if(a.dateRefRev&&(!minRef||a.dateRefRev<minRef)) minRef=a.dateRefRev; });
   /* cohérence EJ : montant de l'EJ vs somme de ses CP (colonne conso de l'EJ) */
   ejs.forEach(function(e){
     if(!isMaterialise(e)) return;
@@ -63,6 +66,17 @@ function computeAlerts(opId, affId){
     ejs.forEach(function(e){ if(e.affaireId===a.id&&isMaterialise(e)){ if(e.mois===cur) ejCur+=montantOf(e); cpCur+=cpPrevu(e,cur); } });
     if((ejCur>0||cpCur>0)&&!realOf(a.id,cur)){
       out.push({level:'info', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : mois en cours '+mLong(cur)+' pas encore saisi dans « Réalisé » (prévu : EJ '+fmt0(ejCur)+', CP '+fmt0(cpCur)+') — simple information, à compléter.'});
+    }
+    /* réalisé NON SAISI pour un mois révolu = alerte (un réalisé saisi à 0 vaut
+       constatation « rien » : bien distinct de « non saisi »). On s'arrête à la
+       date de référence la plus ancienne. */
+    if(minRef){
+      var miss=[];
+      for(var mm=minRef; mm<cur; mm=mAdd(mm,1)){ if(!realOf(a.id,mm)) miss.push(mm); if(miss.length>600) break; }
+      if(miss.length){
+        out.push({level:'warn', view:'realise', aff:a.id,
+          txt:'Affaire « '+a.nom+' » : réalisé non saisi pour '+miss.length+' mois révolu'+(miss.length>1?'s':'')+' ('+mLong(miss[0])+' … '+mLong(miss[miss.length-1])+', depuis la date de réf. '+mLong(minRef)+') — à compléter dans « Réalisé » ; un réalisé saisi à 0 vaut constatation.'});
+      }
     }
   });
   return out;

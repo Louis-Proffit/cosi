@@ -12,23 +12,24 @@ function renderNav(){
 function setView(v){ state.ui.view=v; save(); render(); }
 /* Filtres globaux (en-tête) : opération + affaire, appliqués à toutes les vues */
 var GFK='';
+/* Barre de filtres d'un onglet (opération + affaire) — PAS dans Opérations & affaires, ni Indices/Données */
+function filtersBarHTML(){
+  var op=state.ui.op||'', aff=state.ui.aff||'';
+  var oh='<option value="">Toutes les opérations</option>';
+  state.operations.forEach(function(o){ oh+='<option value="'+o.id+'"'+(op===o.id?' selected':'')+'>'+esc(o.nom)+'</option>'; });
+  var as=scopedAffaires(op,'');
+  var ah='<option value="">Toutes les affaires</option>';
+  as.forEach(function(a){ ah+='<option value="'+a.id+'"'+(aff===a.id?' selected':'')+'>'+esc(a.nom)+'</option>'; });
+  return '<div class="view-filters"><label class="fld">Opération<select data-fop title="Filtre de cet onglet : n\'affiche que cette opération (ou toutes)">'+oh+'</select></label>'+
+         '<label class="fld">Affaire<select data-faff title="Filtre de cet onglet : restreint à cette affaire de l\'opération filtrée (ou toutes)">'+ah+'</select></label></div>';
+}
 function renderFilters(){
-  var opSel=document.getElementById('g-op'), affSel=document.getElementById('g-aff');
-  if(!opSel||!affSel) return;
+  if(!document.querySelectorAll) return;
   var op=state.ui.op||'', aff=state.ui.aff||'';
   if(aff&&op){ var aa=affaireById(aff); if(!aa||aa.opId!==op){ aff=''; state.ui.aff=''; } }
-  var key=op+'|'+aff+'|'+state.operations.length+'|'+state.affaires.length;
-  if(key!==GFK){
-    GFK=key;
-    var oh='<option value="">Toutes les opérations</option>';
-    state.operations.forEach(function(o){ oh+='<option value="'+o.id+'"'+(op===o.id?' selected':'')+'>'+esc(o.nom)+'</option>'; });
-    opSel.innerHTML=oh;
-    var as=scopedAffaires(op,'');
-    var ah='<option value="">Toutes les affaires</option>';
-    as.forEach(function(a){ ah+='<option value="'+a.id+'"'+(aff===a.id?' selected':'')+'>'+esc(a.nom)+'</option>'; });
-    affSel.innerHTML=ah;
-  }
-  opSel.value=op; affSel.value=aff;
+  var ops=document.querySelectorAll('[data-fop]'), affs=document.querySelectorAll('[data-faff]');
+  for(var i=0;i<ops.length;i++) ops[i].value=op;
+  for(var j=0;j<affs.length;j++) affs[j].value=aff;
 }
 function viewError(view, e){
   var host=document.getElementById('view-'+view)||document.getElementById('view-dashboard');

@@ -1,5 +1,39 @@
 /* ================= Vue : Consommation CP (profils des EJ) ================= */
 
+/* Colonnes de la grille conso : # / Mois, puis par opération [par affaire [1 col
+   par EJ + Σ affaire] + Σ opération]. Largeurs réglables par l'utilisateur
+   (colgroup + poignées de redimensionnement, persistées dans state.ui.colW). */
+function consoColKeys(opCols){
+  var keys=['c0','c1'];
+  opCols.forEach(function(og){
+    og.cs.forEach(function(c){
+      c.le.forEach(function(e){ keys.push(e.id); });
+      keys.push('a:'+c.a.id);
+    });
+    keys.push('o:'+og.o.id);
+  });
+  return keys;
+}
+function consoColgroup(opCols){
+  var defW={c0:32,c1:80};
+  var keys=consoColKeys(opCols);
+  return '<colgroup>'+keys.map(function(k){
+    var w=(state.ui.colW&&state.ui.colW[k])||defW[k]||140;
+    return '<col data-ck="'+k+'" style="width:'+w+'px">';
+  }).join('')+'</colgroup>';
+}
+function colRsH(ck){ return '<span class="colrs" data-ck="'+ck+'" title="Glisser pour redimensionner la colonne — double-clic : largeur par défaut"></span>'; }
+/* Détail (clic sur un total) : EJ contribuant au mois m, restreint à la portée (a: / o:) */
+function consoTotItems(m, ejs, scope){
+  var items=[];
+  ejs.forEach(function(e){
+    if(scope&&scope.indexOf('a:')===0&&e.affaireId!==scope.slice(2)) return;
+    if(scope&&scope.indexOf('o:')===0){ var a=affaireById(e.affaireId); if(!a||a.opId!==scope.slice(2)) return; }
+    var v=cpPrevu(e,m); if(v>0) items.push('<div><span class="gp-k">'+esc(e.numero)+'</span> '+(e.libelle?'('+esc(e.libelle)+') ':'')+': <span class="mono">'+fmt0(v)+'</span></div>');
+  });
+  return items;
+}
+
 function renderConso(){
   var opId=state.ui.op||'', affId=state.ui.aff||'';
   var affs=scopedAffaires(opId,affId);
@@ -19,11 +53,15 @@ function renderConso(){
     return a.mois<b.mois?-1:(a.mois>b.mois?1:0);
   });
 
-  var h='<div class="toolbar">'+
+  var h='<div class="toolbar">'+filtersBarHTML()+
     (affs.length?('<button class="btn" id="c-addej" title="Ajouter un EJ programmé sur l\'affaire du filtre en en-tête (Opération/Affaire)">+ EJ</button>'):'')+
     '<button class="btn" id="c-ext" title="Afficher 12 mois de plus à droite de la grille">+ 12 mois</button>'+
     (state.ui.ext>0?'<button class="btn" id="c-shrink" title="Retirer 12 mois à droite de la grille">− 12 mois</button>':'')+
-    '<button class="btn" id="c-csv" title="Exporter la grille (mois × EJ) en CSV">Exporter CSV</button></div>';
+    '<button class="btn" id="c-csv" title="Exporter la grille (mois × EJ) en CSV">Exporter CSV</button></div>'+
+    '<div class="legend"><span><span class="sw" style="background:#2563eb"></span>montant de l\'EJ (en-tête de colonne, modifiable)</span>'+
+    '<span><span class="sw" style="background:#059669"></span>Σ des CP saisis (juste dessous, calculé)</span>'+
+    '<span><span class="sw" style="background:#dc2626"></span>écart montant − Σ CP = alerte (reportée au tableau de bord)</span>'+
+    '<span><span class="sw" style="background:#929292"></span>glisser le bord droit d\'une colonne d\'en-tête pour la redimensionner</span></div>';
 
   if(affs.length===0){
     h+='<div class="card"><div class="empty">Aucune affaire dans cette sélection. Créez-en une dans « Opérations &amp; affaires ».</div></div>';
@@ -31,106 +69,188 @@ function renderConso(){
     return;
   }
 
-  /* En-tête sur plusieurs lignes (étendu vers le bas pour éviter le tassement) :
-     hl1 stade · hl2 n° · hl3 affaire · hl4 libellé · hl5 montant · hl6 profil (bouton popup) · hl7 infos */
-  var r1='<th class="scol sc0 hl1">#</th><th class="scol sc1 hl1">Mois</th><th class="dcol hl1">Total CP</th>';
-  var r2='<th class="scol sc0 hl2"></th><th class="scol sc1 hl2"></th><th class="dcol hl2"></th>';
-  var r3='<th class="scol sc0 hl3"></th><th class="scol sc1 hl3"></th><th class="dcol hl3"></th>';
-  var r4='<th class="scol sc0 hl4"></th><th class="scol sc1 hl4"></th><th class="dcol hl4" title="Total des CP du mois sur tous les EJ"></th>';
-  var r5='<th class="scol sc0 hl5"></th><th class="scol sc1 hl5"></th><th class="dcol hl5"></th>';
-  var r6='<th class="scol sc0 hl6"></th><th class="scol sc1 hl6"></th><th class="dcol hl6"></th>';
-  var r7='<th class="scol sc0 hl7"></th><th class="scol sc1 hl7"></th><th class="dcol hl7"></th>';
-  ejs.forEach(function(e){
-    var aff=affaireById(e.affaireId);
-    var p=profilOf(e);
-    r1+='<th class="dcol hl1">'+stadeBadge(e)+'</th>';
-    r2+='<th class="dcol hl2'+(state.ui.focusCol===e.id?' col-focus':'')+'"><input type="text" class="hdr-in" data-ejf="'+e.id+'" data-f="numero" value="'+esc(e.numero)+'" title="Référence (n°) de l\'EJ — modifiable ici"></th>';
-    r3+='<th class="dcol hl3"><button type="button" class="btn btn-prof" data-affbtn="'+e.affaireId+'" title="Voir tous les EJ de l\'affaire « '+esc(aff?aff.nom:'?')+' », avec leurs dates (popup)">'+esc(aff?aff.nom:'?')+'</button></th>';
-    r4+='<th class="dcol hl4"><input type="text" class="hdr-in" data-ejf="'+e.id+'" data-f="libelle" value="'+esc(e.libelle||'')+'" placeholder="Libellé" title="Libellé de l\'EJ"></th>';
-    r5+='<th class="dcol hl5"><input type="text" inputmode="decimal" class="hdr-in" data-ejf="'+e.id+'" data-f="montant" value="'+(montantOf(e)||'')+'" placeholder="Montant" title="Montant de l\'EJ engagé"></th>';
-    r6+='<th class="dcol hl6"><button type="button" class="btn btn-prof" data-profbtn="'+e.id+'" title="Ouvrir le réglage du profil de consommation des CP (ponctuelle / uniforme / personnalisée)">'+esc(profilSummary(p))+'</button></th>';
-    var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
-    r7+='<th class="dcol hl7'+(state.ui.focusCol===e.id?' col-focus':'')+'">'+monthInputHTML('',e.mois,'hdr-in','Date de l\'EJ, MM/AAAA — modifiable ici ; recalcule les CP si le profil est ponctuel/uniforme','data-ejf="'+e.id+'" data-f="mois"')+'<div class="hdr-sub'+(cohOk?'':' coh-bad')+'" title="Somme des CP = '+fmt0(somCp)+' ; montant de l\'EJ = '+fmt0(mtE)+(cohOk?' — cohérent':' — ÉCART de '+fmt0(mtE-somCp)+' : alerte reportée sur le tableau de bord (colonne de cet EJ)')+'">CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart '+fmt0(mtE-somCp)+'</span>')+'</div></th>';
+  /* hiérarchie opération > affaire > EJ, avec un TITRE DE LIGNE dans la 1ʳᵉ
+     colonne fixe : hlA = « Opération », hlB = « Affaire », puis par colonne EJ
+     uniquement (lecture seule) : intitulé (hl2), date (hl3), montant (hl4),
+     check Σ CP (hl5). Clic sur l'EJ -> fiche EJ (popup : tout est modifiable). */
+  var opCols=[];
+  state.operations.forEach(function(o){
+    var cs=[];
+    affs.forEach(function(a){
+      if(a.opId!==o.id) return;
+      var le=ejs.filter(function(e){ return e.affaireId===a.id; });
+      if(le.length) cs.push({a:a, le:le});
+    });
+    if(cs.length) opCols.push({o:o, cs:cs});
+  });
+  /* colonnes fixes : sc0 = titre de ligne / n° de ligne, sc1 = « Mois » (rowspan=6).
+     PAS de cellules vides dans les lignes suivantes (sinon l'en-tête serait décalé). */
+  /* pas de titre « Mois » dans la 2ᵉ colonne fixe de cette grille (inutile) */
+  var rA='<th class="scol sc0 hlA">Opération'+colRsH('c0')+'</th><th class="scol sc1 hlA" rowspan="6">'+colRsH('c1')+'</th>';
+  var rB='<th class="scol sc0 hlB">Affaire</th>';
+  var r2='<th class="scol sc0 hl2">Intitulé</th>';
+  var r3='<th class="scol sc0 hl3">Date EJ</th>';
+  var r4='<th class="scol sc0 hl4">Montant</th>';
+  var r5='<th class="scol sc0 hl5">Σ CP</th>';
+  opCols.forEach(function(og){
+    var nEj=og.cs.reduce(function(s,c){ return s+c.le.length; },0);
+    rA+='<th class="dcol hlA rev-h-op" colspan="'+(nEj+og.cs.length)+'">Opération '+(og.o.numero?og.o.numero+' — ':'')+': '+esc(og.o.nom)+'</th>';
+    rA+='<th class="dcol hlA tot-h" rowspan="2" title="Total CP de l\'opération '+esc(og.o.nom)+' (non modifiable)">Σ</th>';
+    og.cs.forEach(function(c){
+      rB+='<th class="dcol hlB rev-h-aff" colspan="'+(c.le.length+1)+'"><button type="button" class="btn btn-prof" data-affbtn="'+c.a.id+'" title="Voir tous les EJ de l\'affaire « '+esc(c.a.nom)+' », avec leurs dates (popup)">'+esc(c.a.nom)+'</button></th>';
+      c.le.forEach(function(e){
+        var foc=(state.ui.focusCol===e.id?' col-focus':'');
+        var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
+        var ejTip='Fiche de l\'EJ '+esc(e.numero)+' : n°, libellé, montant, date et profil CP modifiables — Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+(cohOk?' (cohérent)':' — ÉCART '+fmt0(mtE-somCp)+' = alerte tableau de bord');
+        r2+='<th class="dcol hl2'+foc+'"><button type="button" class="ej-btn" data-ejpop="'+e.id+'" title="'+ejTip+'">'+esc(e.numero)+(e.libelle?' — '+esc(e.libelle):'')+'</button>'+colRsH(e.id)+'</th>';
+        r3+='<th class="dcol hl3'+foc+'"><button type="button" class="ej-btn" data-ejpop="'+e.id+'" title="Date de l\'EJ : '+(e.mois?mLong(e.mois):'—')+' — modifier dans la fiche EJ">'+(e.mois?mLabel(e.mois):'—')+'</button>'+colRsH(e.id)+'</th>';
+        r4+='<th class="dcol hl4 hl-mont'+foc+'"><button type="button" class="ej-btn ej-btn-mont" data-ejpop="'+e.id+'" title="Montant de l\'EJ : '+fmt0(mtE)+' — modifier dans la fiche EJ">'+fmt0(mtE)+'</button>'+colRsH(e.id)+'</th>';
+        r5+='<th class="dcol hl5 hl-cp'+foc+'" data-ejhdr="'+e.id+'"><button type="button" class="ej-btn ej-btn-cp" data-ejpop="'+e.id+'" title="Check Σ CP saisis (calculé) : '+fmt0(somCp)+(cohOk?' — cohérent':' — ÉCART '+fmt0(mtE-somCp)+' = alerte')+' — clic = fiche EJ">'+ '<span class="hdr-sub'+(cohOk?'':' coh-bad')+'">Σ CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart '+fmt0(mtE-somCp)+'</span>')+'</span></button>'+colRsH(e.id)+'</th>';
+      });
+      var tA='Total CP de l\'affaire '+esc(c.a.nom)+' (non modifiable)';
+      r2+='<th class="dcol hl2 tot-h" title="'+tA+'">Σ'+colRsH('a:'+c.a.id)+'</th>';
+      r3+='<th class="dcol hl3 tot-h" title="'+tA+'"></th>';
+      r4+='<th class="dcol hl4 tot-h" title="'+tA+'"></th>';
+      r5+='<th class="dcol hl5 tot-h" title="'+tA+'">'+colRsH('a:'+c.a.id)+'</th>';
+    });
+    var tO='Total CP de l\'opération '+esc(og.o.nom)+' (non modifiable)';
+    r2+='<th class="dcol hl2 tot-h" title="'+tO+'">Σ'+colRsH('o:'+og.o.id)+'</th>';
+    r3+='<th class="dcol hl3 tot-h" title="'+tO+'"></th>';
+    r4+='<th class="dcol hl4 tot-h" title="'+tO+'"></th>';
+    r5+='<th class="dcol hl5 tot-h" title="'+tO+'">'+colRsH('o:'+og.o.id)+'</th>';
   });
 
+  var nbTot=2+opCols.reduce(function(s,og){ return s+og.cs.reduce(function(s2,c){ return s2+c.le.length+1; },0)+1; },0);
   var body='';
-  body+=extRow('avant', ejs.length+3);
+  body+=extRow('avant', nbTot);
   for(var r=1;r<=months.length;r++){
     var m=months[r-1];
-    var tot=0;
-    body+='<tr'+(m===cur?' class="cur"':'')+'><td class="scol sc0 rnum">'+r+'</td><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLabel(m)+'</td>';
-    ejs.forEach(function(e){ tot+=cpPrevu(e,m); });
-    body+='<td class="dcol ccell tot'+(tot>0?' gp-cell':'')+'"'+(tot>0?' data-totcp="'+m+'" title="Détail du total CP de '+mLabel(m)+' (cliquer)"':'')+'>'+fmt0(tot)+'</td>';
-    ejs.forEach(function(e){
-      var p=profilOf(e);
-      var v=cpPrevu(e,m);
-      if(e.mois&&m<e.mois){
-        /* pas de CP avant le mois de l'EJ (l'EJ est fait intégralement le 1er jour) : cellule grisée et verrouillée */
-        body+='<td class="dcol cp-avant" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') : l\'EJ est engagé intégralement le 1er jour — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
-      }else if(p.type==='perso'){
-        body+='<td class="dcol'+(state.ui.focusCol===e.id?' col-focus':'')+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés ce mois-ci pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
-      }else{
-        body+='<td class="dcol cp-lock'+(state.ui.focusCol===e.id?' col-focus':'')+'" title="Calculé selon le profil '+p.type+'">'+(v?fmt0(v):'')+'</td>';
-      }
+    body+='<tr data-m="'+m+'"'+(m===cur?' class="cur"':'')+'><td class="scol sc0 rnum">'+r+'</td><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLabel(m)+'</td>';
+    opCols.forEach(function(og){
+      og.cs.forEach(function(c){
+        var sa=0;
+        c.le.forEach(function(e){
+          var p=profilOf(e);
+          var v=cpPrevu(e,m);
+          sa+=v;
+          if(e.mois&&m<e.mois){
+            /* pas de CP avant le mois de l'EJ (l'EJ est fait intégralement le 1er jour) : cellule grisée et verrouillée */
+            body+='<td class="dcol cp-avant" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') : l\'EJ est engagé intégralement le 1er jour — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
+          }else if(p.type==='perso'){
+            body+='<td class="dcol'+(state.ui.focusCol===e.id?' col-focus':'')+'" data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés ce mois-ci pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
+          }else{
+            body+='<td class="dcol cp-lock'+(state.ui.focusCol===e.id?' col-focus':'')+'" data-ejcol="'+e.id+'" title="Calculé selon le profil '+p.type+'">'+(v?fmt0(v):'')+'</td>';
+          }
+        });
+        body+='<td class="dcol ccell tot"'+(sa>0?' data-totcp="'+m+'" data-scope="a:'+c.a.id+'" title="Détail du total CP de l\'affaire '+esc(c.a.nom)+' en '+mLabel(m)+' (cliquer)"':' title="Total CP de l\'affaire '+esc(c.a.nom)+' ce mois-ci (non modifiable)"')+'>'+fmt0(sa)+'</td>';
+      });
+      var so=0;
+      og.cs.forEach(function(c){ c.le.forEach(function(e){ so+=cpPrevu(e,m); }); });
+      body+='<td class="dcol ccell tot"'+(so>0?' data-totcp="'+m+'" data-scope="o:'+og.o.id+'" title="Détail du total CP de l\'opération '+esc(og.o.nom)+' en '+mLabel(m)+' (cliquer)"':' title="Total CP de l\'opération '+esc(og.o.nom)+' ce mois-ci (non modifiable)"')+'>'+fmt0(so)+'</td>';
     });
     body+='</tr>';
   }
-  body+=extRow('après', ejs.length+3);
+  body+=extRow('après', nbTot);
   var foot='<tr><td class="scol sc0"></td><td class="scol sc1">Total</td>';
-  var gt=0;
-  ejs.forEach(function(e){ var s=cpSumOf(e.id); gt+=s; foot+='<td class="dcol ccell tot">'+fmt0(s)+'</td>'; });
-  foot+='<td class="dcol ccell tot">'+fmt0(gt)+'</td></tr>';
+  opCols.forEach(function(og){
+    og.cs.forEach(function(c){
+      c.le.forEach(function(e){ foot+='<td class="dcol ccell tot">'+fmt0(cpSumOf(e.id))+'</td>'; });
+      var sa=0; c.le.forEach(function(e){ sa+=cpSumOf(e.id); });
+      foot+='<td class="dcol ccell tot" title="Total CP de l\'affaire '+esc(c.a.nom)+' (non modifiable)">'+fmt0(sa)+'</td>';
+    });
+    var so=0; og.cs.forEach(function(c){ c.le.forEach(function(e){ so+=cpSumOf(e.id); }); });
+    foot+='<td class="dcol ccell tot" title="Total CP de l\'opération '+esc(og.o.nom)+' (non modifiable)">'+fmt0(so)+'</td>';
+  });
+  foot+='</tr>';
 
-     '<p class="hint">Une ligne par mois, une colonne par <strong>EJ matérialisé</strong> (aléas/risques : onglet dédié). Profil de CP via le bouton dans l\'en-tête de colonne. Cellules violettes = calculées, grisées = verrouillées (avant le mois de l\'EJ). <strong>Clic sur le total du mois : détail.</strong> <span class="hint-ic" title="Profils : ponctuelle (tout le CP à un mois), uniforme (réparti sur une période), personnalisée (saisie libre cellule par cellule). Le montant de l\'EJ et la somme de ses CP doivent être cohérents : sinon badge d\'écart ici et alerte sur le tableau de bord (avec lien vers la colonne). Tous les CP alimentent le tableau de bord et la GP à saisir.">i</span></p></div>';
-     '<p class="hint">Une ligne par mois, une colonne par <strong>EJ matérialisé</strong> (programmé ou engagé) — les <strong>aléas et risques</strong> se gèrent dans l\'onglet dédié « Risques &amp; aléas ». Le <strong>profil de consommation</strong> se règle en cliquant sur le bouton de profil dans l\'en-tête de la colonne (fenêtre avec un onglet par mode : <strong>ponctuelle</strong>, <strong>uniforme sur une période</strong> — pour un EJ issu d\'un risque matérialisé, la date choisie peut servir de début — ou <strong>personnalisée</strong>). En profil ponctuel/uniforme les CP sont recalculés automatiquement (cellules violet) ; en profil personnalisé, saisissez les CP directement dans les cellules. Tous les CP alimentent le tableau de bord et la GP à saisir.</p></div>';
-  h+='<div class="grid-wrap"><table class="grid conso"><thead><tr class="hl1">'+r1+'</tr><tr class="hl2">'+r2+'</tr><tr class="hl3">'+r3+'</tr><tr class="hl4">'+r4+'</tr><tr class="hl5">'+r5+'</tr><tr class="hl6">'+r6+'</tr><tr class="hl7">'+r7+'</tr></thead>'+
+  var w0=(state.ui.colW&&state.ui.colW.c0)||32, w1=(state.ui.colW&&state.ui.colW.c1)||80;
+  h+='<div class="grid-wrap"><table class="grid conso rev-table fixed" style="--sc0w:'+w0+'px;--sc1w:'+w1+'px">'+consoColgroup(opCols)+
+     '<thead><tr class="hlA">'+rA+'</tr><tr class="hlB">'+rB+'</tr>'+
+     '<tr class="hl2">'+r2+'</tr><tr class="hl3">'+r3+'</tr><tr class="hl4">'+r4+'</tr><tr class="hl5">'+r5+'</tr></thead>'+
      '<tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>';
 
   mount('view-conso', h, function(w){
     wireConsoHeader(w,affs);
+    /* redimensionnement des colonnes par l'utilisateur (poignée en bord droit d'en-tête) */
+    w.addEventListener('mousedown', function(ev){
+      var rs=ev.target&&ev.target.closest?ev.target.closest('.colrs'):null;
+      if(!rs||!rs.dataset) return;
+      ev.preventDefault();
+      var ck=rs.dataset.ck;
+      var tbl=w.querySelector('table.grid');
+      var col=tbl&&tbl.querySelector?tbl.querySelector('col[data-ck="'+ck+'"]'):null;
+      if(!col) return;
+      var startX=(ev.clientX||0);
+      var startW=(col.getBoundingClientRect?col.getBoundingClientRect().width:0)||parseFloat(col.style.width)||140;
+      function mv(e2){
+        var nw=Math.max(56,startW+((e2.clientX||0)-startX));
+        col.style.width=Math.round(nw)+'px';
+        state.ui.colW=state.ui.colW||{}; state.ui.colW[ck]=Math.round(nw);
+        /* colonnes sticky : la 2ᵉ colonne reste collée juste après la 1ʳᵉ */
+        if(tbl.style&&tbl.style.setProperty){
+          if(ck==='c0') tbl.style.setProperty('--sc0w',Math.round(nw)+'px');
+          if(ck==='c1') tbl.style.setProperty('--sc1w',Math.round(nw)+'px');
+        }
+      }
+      function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); save(); }
+      document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+    });
+    w.addEventListener('dblclick', function(ev){
+      var rs=ev.target&&ev.target.closest?ev.target.closest('.colrs'):null;
+      if(!rs||!rs.dataset) return;
+      var ck=rs.dataset.ck;
+      if(state.ui.colW) delete state.ui.colW[ck];
+      var tbl=w.querySelector('table.grid');
+      var col=tbl&&tbl.querySelector?tbl.querySelector('col[data-ck="'+ck+'"]'):null;
+      if(col) col.style.width='';
+      save(); render();
+    });
     w.addEventListener('click', function(ev){
       var tc=ev.target.closest('[data-totcp]');
       if(tc&&tc.dataset&&tc.dataset.totcp){
-        var m=tc.dataset.totcp, row=tc.closest('tr');
+        var m=tc.dataset.totcp, scope=tc.dataset.scope||'', row=tc.closest('tr');
         var next=row.nextSibling;
-        var key='totcp|'+m;
-        if(next&&next.classList&&next.classList.contains('gp-detail-row')){ if(next.dataset.for===key){ next.parentNode.removeChild(next); return; } next.dataset.for=key; next.innerHTML=consoTotDetail(m,ejs); return; }
-        var items=[];
-        ejs.forEach(function(e){ var v=cpPrevu(e,m); if(v>0) items.push('<div><span class="gp-k">'+esc(e.numero)+'</span> '+(e.libelle?'('+esc(e.libelle)+') ':'')+': <span class="mono">'+fmt0(v)+'</span></div>'); });
-        var html='<td colspan="'+(ejs.length+2)+'" class="gp-detail"><strong>Total CP '+mLong(m)+' = '+fmt0(items.reduce(function(s){return s;},0)||0)+' :</strong>';
-        var tot=0; ejs.forEach(function(e){ tot+=cpPrevu(e,m); });
-        html='<td colspan="'+(ejs.length+2)+'" class="gp-detail"><strong>Détail du total CP de '+mLong(m)+' ('+fmt0(tot)+') :</strong>'+items.join('')+'</td>';
-        var tr=document.createElement('tr'); tr.className='gp-detail-row'; tr.dataset.for=key; tr.innerHTML=html;
+        var key='totcp|'+scope+'|'+m;
+        if(next&&next.classList&&next.classList.contains('gp-detail-row')){ if(next.dataset.for===key){ next.parentNode.removeChild(next); return; } next.dataset.for=key; next.innerHTML='<td colspan="'+nbTot+'" class="gp-detail">'+consoTotDetailHTML(m,ejs,scope)+'</td>'; return; }
+        var tr=document.createElement('tr'); tr.className='gp-detail-row'; tr.dataset.for=key;
+        tr.innerHTML='<td colspan="'+nbTot+'" class="gp-detail">'+consoTotDetailHTML(m,ejs,scope)+'</td>';
         row.parentNode.insertBefore(tr, row.nextSibling);
         return;
       }
-      var pb=ev.target.closest('button[data-profbtn]');
-      if(pb){ openProfilPopup(pb.dataset.profbtn); return; }
+      var ep=ev.target.closest('[data-ejpop]');
+      if(ep){ openProfilPopup(ep.dataset.ejpop); return; }
       var ab=ev.target.closest('button[data-affbtn]');
       if(ab){ openAffairePopup(ab.dataset.affbtn); return; }
     });
     var consoChange=function(ev){
       var t=ev.target;
-      if(t.dataset&&t.dataset.ejf){
-        var e2=ejById(t.dataset.ejf); if(!e2) return;
-        var f=t.dataset.f;
-        if(f==='montant'){ var v=parseMontant(t.value); e2.montant=(v==null?0:v); }
-        else if(f==='mois'){ var dm=parseIdxDate(t.value); if(dm) e2.mois=dm; }
-        else e2[f]=t.value;
-        recomputeProfils(state); save(); render(); return;
-      }
       if(t.dataset&&t.dataset.cp){
         var k=t.dataset.cp, pp=k.split('|'), ejId=pp[0], m=pp[1];
         var ejC=ejById(ejId);
         if(ejC&&ejC.mois&&m<ejC.mois){ alert('Pas de CP avant le mois de l\'EJ '+ejC.numero+' ('+mLabel(ejC.mois)+') : l\'EJ est engagé intégralement le 1er jour de son mois.'); delete state.cps[k]; save(); renderConso(); return; }
         var v2=parseMontant(t.value);
         if(v2==null||v2<=0) delete state.cps[k]; else state.cps[k]=v2;
-        save(); renderConso(); return;
+        save(); renderConso();
+        /* on rend le focus à la cellule pour enchaîner la saisie */
+        var nw2=document.getElementById('view-conso').children[0];
+        var el2=nw2.querySelector('[data-cp="'+k+'"]');
+        if(el2){ el2.focus(); }
+        return;
       }
     };
-    w.addEventListener('change', consoChange);
-    w.addEventListener('input', consoChange); /* mise à jour en direct (cases grisées suivent la date de l'EJ) */
+    w.addEventListener('change', consoChange); /* 'change' : save + re-render */
   });
+}
+
+function consoTotDetailHTML(m, ejs, scope){
+  var items=consoTotItems(m,ejs,scope), tot=0;
+  ejs.forEach(function(e){
+    if(scope&&scope.indexOf('a:')===0&&e.affaireId!==scope.slice(2)) return;
+    if(scope&&scope.indexOf('o:')===0){ var a=affaireById(e.affaireId); if(!a||a.opId!==scope.slice(2)) return; }
+    tot+=cpPrevu(e,m);
+  });
+  var label=scope.indexOf('a:')===0?('affaire '+affaireName(scope.slice(2))):(scope.indexOf('o:')===0?('opération '+opName(scope.slice(2))):'toutes les EJ');
+  return '<strong>Détail du total CP — '+label+' — '+mLong(m)+' ('+fmt0(tot)+') :</strong>'+(items.join('')||'<div>Aucun CP ce mois-ci.</div>');
 }
 
 function wireConsoHeader(w, affs){

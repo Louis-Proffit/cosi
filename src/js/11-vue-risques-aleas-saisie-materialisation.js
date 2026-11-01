@@ -178,7 +178,7 @@ function renderRisques(){
   var rkEsp=0, rkPond=0;
   risques.forEach(function(e){ rkEsp+=espDist(e); rkPond+=risquePondere(e); });
 
-  var h='<div class="toolbar"></div>';
+  var h='<div class="toolbar">'+filtersBarHTML()+'</div>';
   h+='<p class="hint">Stades d\'un montant : <strong>aléa</strong> (forfait, non matérialisable) → <strong>risque</strong> (distribution + probabilité + date d\'apparition — modifiable en cliquant sur le petit graphique) → <strong>engagé</strong> (matérialisé). <span class="hint-ic" title="Aléa = part forfaitaire (défaut 5 % du reste à payer à date de l\'affaire, hors aléas pour éviter toute boucle), modifiable en % ou en montant ; un aléa ne se matérialise pas. Risque = montant selon une distribution (fixe/uniforme/triangulaire/gaussienne), probabilité, date d\'apparition (ponctuelle/récurrente/uniforme) ; matérialiser = vrai EJ à date fixée, profil de CP réglable ensuite dans Consommation CP.">i</span></p>';
 
   h+='<div class="kpis">';

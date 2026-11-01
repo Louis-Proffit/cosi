@@ -149,12 +149,14 @@ function revEval(aff, f, mois){
     return v;
   }catch(e){ revFormErr[aff.id]=e.message; return 0; }
 }
-/* Révision de prix d'un mois pour une affaire = somme des CP prévus de
-   l'affaire sur ce mois × (I/I₀ − 1), I = indice applicable (formule de
-   l'affaire), I₀ = indice à la date de réf. → des RP exactement sur les mois
-   où il y a des CP (et inversement : pas de CP, pas de RP). */
+/* Révision de prix d'un mois pour une affaire = base CP du mois × (I/I₀ − 1),
+   I = indice applicable (formule de l'affaire), I₀ = indice à la date de réf.
+   Base CP = CP RÉALISÉ saisi dans « Réalisé » s'il est entré pour ce mois (même à
+   0 — c'est la vérité), sinon CP prévus (saisis) de l'affaire sur ce mois.
+   → des RP exactement sur les mois où il y a une base CP (et inversement). */
 function revAuto(aff,mois){
-  var cp=cpMoisAff(aff,mois);
+  var r=realOf(aff.id,mois);
+  var cp=(r!=null)?(r.cp||0):cpMoisAff(aff,mois);
   var ind=indiceApplicable(aff,mois), i0=indiceRef(aff);
   if(cp<=0||ind==null||!i0) return 0;
   return cp*(ind/i0-1);

@@ -635,14 +635,19 @@ table.liste input:focus{border-color:var(--blue);background:#fff}
 table.grid{border-collapse:separate;border-spacing:0;font-size:12px;white-space:nowrap}
 table.grid th,table.grid td{border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:0}
 table.grid th{background:var(--head);font-weight:600;position:sticky;z-index:3;text-align:center}
-table.grid thead tr.hl1 th{top:0;height:20px;font-size:10px;color:var(--muted)}
-table.grid thead tr.hl2 th{top:20px;height:26px;background:#e3eaf6}
-table.grid thead tr.hl3 th{top:46px;height:32px}
-table.grid thead tr.hl4 th{top:78px;height:24px}
-table.grid thead tr.hl5 th{top:102px;height:26px}
-table.grid thead tr.hl6 th{top:128px;height:30px}
-table.grid thead tr.hl7 th{top:158px;height:28px}
-table.grid thead tr.hl8 th{top:186px;height:auto}
+/* en-tête conso (6 lignes) : importance décroissante Opération > Affaire > Intitulé > Date > Montant > Σ CP */
+table.grid thead tr.hlA th{top:0;height:26px;font-size:12px;font-weight:700}
+table.grid thead tr.hlB th{top:26px;height:24px;font-size:11px;font-weight:600}
+table.grid thead tr.hl2 th{top:50px;height:30px;font-size:11px;font-weight:600;background:#eef1f8}
+table.grid thead tr.hl3 th{top:80px;height:22px;font-size:10.5px;font-weight:400;background:#f4f6fa}
+table.grid thead tr.hl4 th{top:102px;height:24px;font-size:11px;font-weight:700}
+table.grid thead tr.hl5 th{top:126px;height:30px;font-size:10.5px;font-weight:400;background:#f4f6fa}
+/* titres de ligne (1ʳᵉ colonne fixe) */
+table.grid thead .scol{font-size:9.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+/* informations EJ en en-tête de colonne : boutons discrets (clic -> fiche EJ popup) */
+.ej-btn{font:inherit;font-size:10.5px;line-height:1.3;background:transparent;border:1px solid transparent;border-radius:4px;padding:1px 5px;cursor:pointer;color:inherit;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.ej-btn:hover,.ej-btn:focus-visible{border-color:var(--line);background:#fff;outline:none}
+.ej-btn-mont{font-weight:700}
 table.grid thead tr.hl8 th.risk-hdr{padding:3px 4px;white-space:normal}
 .hdr-risk{display:grid;gap:2px;width:100%}
 .hdr-risk input{width:100%;min-width:92px;font-size:11px;text-align:left;padding:2px 3px}
@@ -665,7 +670,9 @@ tr.calcrow td.scol{background:#efe9fd;font-weight:600}
 .panel .fld input{background:#fff}
 table.grid .scol{position:sticky;z-index:2;background:#fff;text-align:left}
 table.grid thead .scol{z-index:5;background:var(--head)}
-.sc0{width:30px;left:0} .sc1{width:76px;left:30px}
+/* colonnes sticky : la 2ᵉ (Mois) reste collée juste après la 1ʳᵉ (#) —
+   --sc0w est posé par la grille sur <table> (largeur réelle de la 1ʳᵉ colonne) */
+.sc0{width:var(--sc0w,32px);left:0} .sc1{width:var(--sc1w,80px);left:var(--sc0w,32px)}
 table.grid input{width:100%;border:none;background:transparent;font:inherit;font-size:12px;text-align:right;padding:4px 5px;border-radius:0}
 table.grid input:focus{outline:2px solid var(--blue);background:var(--blue-bg)}
 table.grid input.cell{text-align:right}
@@ -758,7 +765,8 @@ td.cp-lock.tot{background:#efe9fd;font-weight:600}
 .rev-in:hover{border-color:var(--line)}
 .rev-in:focus{border-color:var(--blue);background:#fff;outline:none}
 /* popup de réglage du profil de consommation CP */
-.modal-ov{position:fixed;inset:0;background:rgba(16,33,58,.45);display:flex;align-items:center;justify-content:center;z-index:60}
+/* popups TOUJOURS au-dessus du header DSFR (z-index header = --ground + 750/1000, jusqu'à 3000) */
+.modal-ov{position:fixed;inset:0;background:rgba(16,33,58,.45);display:flex;align-items:center;justify-content:center;z-index:4000}
 .modal{background:#fff;border:1px solid var(--line);border-radius:10px;width:min(640px,94vw);max-height:88vh;overflow:auto;padding:16px 18px;box-shadow:0 12px 44px rgba(10,25,50,.35)}
 .modal h2{margin:0 0 6px;font-size:15px}
 .modal-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 12px}
@@ -818,6 +826,78 @@ table.grid th.dcol,table.grid td.dcol{vertical-align:middle}
 .mp-pop .mp-contrib .mp-row:last-child{border-bottom:none}
 table.liste th.gp-h-tot{background:#e3e3fd;font-weight:700;white-space:normal;text-align:left}
 tr.extrow td{background:var(--blue-bg);text-align:center;padding:4px}
+th.rev-h-op{background:var(--blue-bg);color:#16325f;text-align:left;font-weight:600}
+th.rev-h-aff{background:#e3eaf6;text-align:left}
+th.tot-h,td.tot-h{background:#e3e3fd;font-weight:700}
+table.grid th.dcol.rev-h-op,table.grid th.dcol.rev-h-aff{text-align:left}
+.view-filters{display:flex;gap:10px;align-items:center;margin-left:auto}
+.view-filters .fld{flex-direction:row;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.view-filters select{font-size:12px;max-width:240px;padding:4px 8px}
+
+/* ================= Charte unique : titres, sous-titres, textes, boutons, tooltips ================= */
+:root{
+  --fs-title:1.0625rem;  /* titres de cartes et modales */
+  --fs-sub:.75rem;      /* sous-titres (h3) */
+  --fs-text:.875rem;    /* texte courant */
+  --fs-hint:.8rem;      /* textes secondaires (hint, légendes, KPI) */
+  --radius-btn:.25rem;
+}
+/* --- titres & sous-titres --- */
+main h1,.card h2,.modal h2{font-size:var(--fs-title);font-weight:700;line-height:1.25;margin:0 0 .6rem;color:var(--text)}
+main h3,.card h3,.modal h3{font-size:var(--fs-sub);font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:.9rem 0 .5rem}
+/* --- textes --- */
+main p{font-size:var(--fs-text);line-height:1.5;margin:.4rem 0}
+.hint{font-size:var(--fs-hint);line-height:1.45;margin:.35rem 0 0}
+.legend{font-size:var(--fs-hint)}
+.kpi .l,.kpi .s{font-size:var(--fs-hint)}
+.muted{font-size:var(--fs-hint)}
+/* --- boutons : un seul style partout (coins uniformes, focus visible) --- */
+.btn{font:inherit;font-size:var(--fs-text);line-height:1.5;padding:.5rem 1rem;border:1px solid var(--line);border-radius:var(--radius-btn);background:#fff;color:var(--text);cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:#f0f3f8}
+.btn:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+.btn.primary:hover{background:#1d4ed8}
+.btn.danger{color:var(--red);border-color:#f3c8c8;background:#fff}
+.btn.danger:hover{background:var(--red-bg)}
+.btn.small{font-size:.78rem;padding:.28rem .55rem;border-radius:var(--radius-btn)}
+.month-btn{font:inherit;font-size:.78rem;padding:.28rem .55rem;border:1px solid var(--line);border-radius:var(--radius-btn);background:#fff;color:var(--text);cursor:pointer}
+.month-btn:hover{background:#f0f3f8}
+.modal-tabs button{font:inherit;font-size:.8rem;padding:.35rem .7rem;border:1px solid var(--line);border-radius:var(--radius-btn);background:#fff;color:var(--text);cursor:pointer}
+.modal-tabs button:hover{background:#f0f3f8}
+.modal-tabs button.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+table.liste th .gp-plus{border-radius:var(--radius-btn)}
+/* --- tooltips uniformes : tout élément portant un attribut title affiche une
+       infobulle stylée au survol (remplace le tooltip natif du navigateur) --- */
+[title]:not([title=""]):hover{position:relative}
+[title]:not([title=""]):hover::after{
+  content:attr(title);position:absolute;left:0;bottom:calc(100% + 7px);z-index:200;
+  max-width:360px;white-space:normal;background:#161616;color:#fff;
+  font-size:var(--fs-hint);line-height:1.45;font-weight:400;font-style:normal;
+  text-transform:none;letter-spacing:0;text-align:left;
+  padding:.4rem .6rem;border-radius:.375rem;box-shadow:0 8px 22px rgba(10,25,50,.35);pointer-events:none;
+}
+[title]:not([title=""]):hover::before{
+  content:"";position:absolute;left:12px;bottom:calc(100% + 3px);z-index:201;
+  border:4px solid transparent;border-top-color:#161616;pointer-events:none;
+}
+/* --- ligne « aujourd'hui » des graphiques du tableau de bord --- */
+.today-line,.today-lbl{pointer-events:none}
+
+/* ---- conso : tableau à colonnes redimensionnables par l'utilisateur ---- */
+table.grid.fixed{table-layout:fixed}
+table.grid.fixed th,table.grid.fixed td{overflow:hidden;text-overflow:ellipsis}
+table.grid .colrs{position:absolute;top:0;right:0;width:9px;height:100%;cursor:col-resize;z-index:7;
+  background:linear-gradient(to left,rgba(0,0,145,.28),rgba(0,0,145,0) 4px)}
+table.grid .colrs:hover{background:rgba(0,0,145,.5)}
+/* en-tête de colonne EJ : montant de l'EJ (bleu) puis Σ CP saisis (vert) juste dessous */
+table.grid thead tr.hl4 th.hl-mont{background:#dbe7fd}
+table.grid thead tr.hl4 th.hl-mont:hover{background:#c9dcfb}
+table.grid thead tr.hl5 th.hl-cp{background:#d9f2e6}
+table.grid thead tr.hl5 th.hl-cp:hover{background:#c4ecd7}
+
+/* ---- cellules qui s'appuient sur le RÉALISÉ saisi (vérité, pas un calcul) ---- */
+td.gp-real{background:#ececec;color:#3a3a3a;border:1px dashed #b5b5b5}
+td.rev-rp.gp-real,td.rev-tot.gp-real{background:#ececec;border:1px dashed #b5b5b5}
 
 </style>
 </head>
@@ -858,10 +938,6 @@ tr.extrow td{background:var(--blue-bg);text-align:center;padding:4px}
     <div class="fr-container">
       <div class="fr-header__menu-row">
         <nav id="nav" class="fr-nav" role="navigation" aria-label="Onglets de l'application"></nav>
-        <div id="filters">
-          <label class="fld">Opération<select id="g-op" class="fr-select" title="Filtre global : toutes les vues n'affichent que cette opération (ou toutes)"></select></label>
-          <label class="fld">Affaire<select id="g-aff" class="fr-select" title="Filtre global : restreint à cette affaire de l'opération filtrée (ou toutes)"></select></label>
-        </div>
       </div>
     </div>
   </div>
@@ -922,7 +998,7 @@ function openMonthPicker(input){
     for(var i=0;i<btns.length;i++){ btns[i].onclick=function(){
       input.value=mLabel(this.dataset.m);
       ov.remove();
-      if(input.dispatchEvent){ try{ input.dispatchEvent(new Event('change')); }catch(e){} }
+      if(input.dispatchEvent){ try{ input.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){} }
     }; }
   }
   render();
@@ -1008,14 +1084,14 @@ function demoState(){
     {id:'op1', numero:'101', nom:'Extension tramway — Ligne B', description:'Prolongement de 3,2 km avec viaduc et nouvelle station'},
     {id:'op2', numero:'102', nom:'Rénovation station d\'épuration', description:'Mise aux normes de la STEP du nord'}
   ];
-  function a(id,opId,nom,tit,ref,montant,fi){ return {id:id,opId:opId,nom:nom,titulaire:tit,refContrat:ref,montantInitial:montant,dateRefRev:'2026-01',formule:(fi||'')}; }
+  function a(id,opId,nom,tit,ref,fi){ return {id:id,opId:opId,nom:nom,titulaire:tit,refContrat:ref,dateRefRev:'2026-01',formule:(fi||'')}; }
   st.affaires=[
-    a('a1','op1','Génie civil — Viaduc','Colas TP','CTR-2026-014',12400000,'=0.6*{BT01}+0.4*{TP}'),
-    a('a2','op1','Équipements électromécaniques','Alstom','CTR-2026-021',6800000),
-    a('a3','op1','Maîtrise d\'œuvre','Egis','CTR-2026-030',900000),
-    a('a4','op2','Travaux hydrauliques','Vincent TP','CTR-2026-041',3200000),
-    a('a5','op2','Automatismes & régulation','Schneider','CTR-2026-052',1100000),
-    a('a6','op2','Maîtrise d\'œuvre','Artelia','CTR-2026-058',240000)
+    a('a1','op1','Génie civil — Viaduc','Colas TP','CTR-2026-014','=0.6*{BT01}+0.4*{TP}'),
+    a('a2','op1','Équipements électromécaniques','Alstom','CTR-2026-021'),
+    a('a3','op1','Maîtrise d\'œuvre','Egis','CTR-2026-030'),
+    a('a4','op2','Travaux hydrauliques','Vincent TP','CTR-2026-041'),
+    a('a5','op2','Automatismes & régulation','Schneider','CTR-2026-052'),
+    a('a6','op2','Maîtrise d\'œuvre','Artelia','CTR-2026-058')
   ];
   function e(id,affaireId,numero,libelle,mois,montant){ return {id:id,affaireId:affaireId,numero:numero,libelle:libelle,stade:'prog',mois:mois,montant:montant}; }
   st.ejs=[
@@ -1138,7 +1214,6 @@ function repairState(st){
     if(!a.id) a.id=uid();
     if(!a.opId||!opByIdRaw(st,a.opId)) a.opId=(st.operations[0]&&st.operations[0].id)||'';
     if(!a.nom) a.nom='Affaire';
-    a.montantInitial=+a.montantInitial||0;
     if(typeof a.refContrat!=='string') a.refContrat='';
     if(a.dateRefRev&&!/^\d{4}-\d{2}$/.test(a.dateRefRev)) a.dateRefRev=null;
     if(!a.dateRefRev) a.dateRefRev=firstIndexMonth(st)||curMois();
@@ -1147,7 +1222,7 @@ function repairState(st){
     if(/\{cf\}|\{cv\}/i.test(a.formule)) a.formule='';
     delete a.formuleIndice; delete a.formuleRev;
     /* anciens champs supprimés du modèle affaire */
-    delete a.partRevisable; delete a.indiceBase; delete a.coefFixe; delete a.coefVar;
+    delete a.partRevisable; delete a.indiceBase; delete a.coefFixe; delete a.coefVar; delete a.montantInitial;
   });
   var ejIds={};
   st.ejs.forEach(function(e){
@@ -2251,12 +2326,14 @@ function revEval(aff, f, mois){
     return v;
   }catch(e){ revFormErr[aff.id]=e.message; return 0; }
 }
-/* Révision de prix d'un mois pour une affaire = somme des CP prévus de
-   l'affaire sur ce mois × (I/I₀ − 1), I = indice applicable (formule de
-   l'affaire), I₀ = indice à la date de réf. → des RP exactement sur les mois
-   où il y a des CP (et inversement : pas de CP, pas de RP). */
+/* Révision de prix d'un mois pour une affaire = base CP du mois × (I/I₀ − 1),
+   I = indice applicable (formule de l'affaire), I₀ = indice à la date de réf.
+   Base CP = CP RÉALISÉ saisi dans « Réalisé » s'il est entré pour ce mois (même à
+   0 — c'est la vérité), sinon CP prévus (saisis) de l'affaire sur ce mois.
+   → des RP exactement sur les mois où il y a une base CP (et inversement). */
 function revAuto(aff,mois){
-  var cp=cpMoisAff(aff,mois);
+  var r=realOf(aff.id,mois);
+  var cp=(r!=null)?(r.cp||0):cpMoisAff(aff,mois);
   var ind=indiceApplicable(aff,mois), i0=indiceRef(aff);
   if(cp<=0||ind==null||!i0) return 0;
   return cp*(ind/i0-1);
@@ -2298,6 +2375,9 @@ function computeAlerts(opId, affId){
   var affs=scopedAffaires(opId||'', affId||''), ids={};
   affs.forEach(function(a){ ids[a.id]=1; });
   var ejs=state.ejs.filter(function(e){ return ids[e.affaireId]; });
+  /* date de référence la plus ancienne (TOUTES les affaires) : on ne remonte pas avant */
+  var minRef=null;
+  state.affaires.forEach(function(a){ if(a.dateRefRev&&(!minRef||a.dateRefRev<minRef)) minRef=a.dateRefRev; });
   /* cohérence EJ : montant de l'EJ vs somme de ses CP (colonne conso de l'EJ) */
   ejs.forEach(function(e){
     if(!isMaterialise(e)) return;
@@ -2354,6 +2434,17 @@ function computeAlerts(opId, affId){
     if((ejCur>0||cpCur>0)&&!realOf(a.id,cur)){
       out.push({level:'info', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : mois en cours '+mLong(cur)+' pas encore saisi dans « Réalisé » (prévu : EJ '+fmt0(ejCur)+', CP '+fmt0(cpCur)+') — simple information, à compléter.'});
     }
+    /* réalisé NON SAISI pour un mois révolu = alerte (un réalisé saisi à 0 vaut
+       constatation « rien » : bien distinct de « non saisi »). On s'arrête à la
+       date de référence la plus ancienne. */
+    if(minRef){
+      var miss=[];
+      for(var mm=minRef; mm<cur; mm=mAdd(mm,1)){ if(!realOf(a.id,mm)) miss.push(mm); if(miss.length>600) break; }
+      if(miss.length){
+        out.push({level:'warn', view:'realise', aff:a.id,
+          txt:'Affaire « '+a.nom+' » : réalisé non saisi pour '+miss.length+' mois révolu'+(miss.length>1?'s':'')+' ('+mLong(miss[0])+' … '+mLong(miss[miss.length-1])+', depuis la date de réf. '+mLong(minRef)+') — à compléter dans « Réalisé » ; un réalisé saisi à 0 vaut constatation.'});
+      }
+    }
   });
   return out;
 }
@@ -2373,23 +2464,24 @@ function renderNav(){
 function setView(v){ state.ui.view=v; save(); render(); }
 /* Filtres globaux (en-tête) : opération + affaire, appliqués à toutes les vues */
 var GFK='';
+/* Barre de filtres d'un onglet (opération + affaire) — PAS dans Opérations & affaires, ni Indices/Données */
+function filtersBarHTML(){
+  var op=state.ui.op||'', aff=state.ui.aff||'';
+  var oh='<option value="">Toutes les opérations</option>';
+  state.operations.forEach(function(o){ oh+='<option value="'+o.id+'"'+(op===o.id?' selected':'')+'>'+esc(o.nom)+'</option>'; });
+  var as=scopedAffaires(op,'');
+  var ah='<option value="">Toutes les affaires</option>';
+  as.forEach(function(a){ ah+='<option value="'+a.id+'"'+(aff===a.id?' selected':'')+'>'+esc(a.nom)+'</option>'; });
+  return '<div class="view-filters"><label class="fld">Opération<select data-fop title="Filtre de cet onglet : n\'affiche que cette opération (ou toutes)">'+oh+'</select></label>'+
+         '<label class="fld">Affaire<select data-faff title="Filtre de cet onglet : restreint à cette affaire de l\'opération filtrée (ou toutes)">'+ah+'</select></label></div>';
+}
 function renderFilters(){
-  var opSel=document.getElementById('g-op'), affSel=document.getElementById('g-aff');
-  if(!opSel||!affSel) return;
+  if(!document.querySelectorAll) return;
   var op=state.ui.op||'', aff=state.ui.aff||'';
   if(aff&&op){ var aa=affaireById(aff); if(!aa||aa.opId!==op){ aff=''; state.ui.aff=''; } }
-  var key=op+'|'+aff+'|'+state.operations.length+'|'+state.affaires.length;
-  if(key!==GFK){
-    GFK=key;
-    var oh='<option value="">Toutes les opérations</option>';
-    state.operations.forEach(function(o){ oh+='<option value="'+o.id+'"'+(op===o.id?' selected':'')+'>'+esc(o.nom)+'</option>'; });
-    opSel.innerHTML=oh;
-    var as=scopedAffaires(op,'');
-    var ah='<option value="">Toutes les affaires</option>';
-    as.forEach(function(a){ ah+='<option value="'+a.id+'"'+(aff===a.id?' selected':'')+'>'+esc(a.nom)+'</option>'; });
-    affSel.innerHTML=ah;
-  }
-  opSel.value=op; affSel.value=aff;
+  var ops=document.querySelectorAll('[data-fop]'), affs=document.querySelectorAll('[data-faff]');
+  for(var i=0;i<ops.length;i++) ops[i].value=op;
+  for(var j=0;j<affs.length;j++) affs[j].value=aff;
 }
 function viewError(view, e){
   var host=document.getElementById('view-'+view)||document.getElementById('view-dashboard');
@@ -2644,7 +2736,6 @@ function renderDashboard(){
   var ids={}; affs.forEach(function(a){ ids[a.id]=1; });
 
   var mat=ejs.filter(isMaterialise), aleas=ejs.filter(isAlea), risques=ejs.filter(isRisque);
-  var opTot=0; affs.forEach(function(a){ opTot+=a.montantInitial||0; });
   var ejEng=sommeMontant(mat), aleaTot=sommeMontant(aleas);
   var rkTot=0, rkHaut=0, rkPond=0;
   risques.forEach(function(e){ rkTot+=espDist(e); rkHaut+=montantHaut(e); rkPond+=risquePondere(e); });
@@ -2655,13 +2746,16 @@ function renderDashboard(){
   var rapTot=0; affs.forEach(function(a){ rapTot+=resteAPayer(a, cur); });
 
   var per=dashPeriod(opId, affId);
+  var monthsP=applyPeriod(months,per);
+  var hasToday=monthsP.length && curMois()>=monthsP[0] && curMois()<=monthsP[monthsP.length-1];
+  var todayLegend=hasToday?'<span><span class="sw" style="background:#f59e0b"></span>Aujourd\'hui '+mLabel(curMois())+' (ligne verticale)</span>':'';
   var h='';
-  h+='<div class="toolbar">'+
+  h+='<div class="toolbar">'+filtersBarHTML()+
      '<label class="fld">'+monthInputHTML('dash-from',per.from,'','Premier mois affiché dans les graphiques (MM/AAAA)')+'<span>Début</span></label>'+
      '<label class="fld">'+monthInputHTML('dash-to',per.to,'','Dernier mois affiché dans les graphiques (MM/AAAA)')+'<span>Fin</span></label>'+
      '<button class="btn" id="dash-per-auto" title="Réinitialise la période : de la première apparition au dernier CP">Période auto</button></div>';
   h+='<div class="kpis">';
-  h+='<div class="kpi"><div class="l">Montant de l\'opération (hors risques/aléas)</div><div class="v mono">'+fmt(opTot)+'</div><div class="s">'+affs.length+' affaire(s)</div></div>';
+  h+='<div class="kpi"><div class="l">Affaires dans la sélection</div><div class="v mono">'+affs.length+'</div><div class="s">'+(opById(opId)?esc(opById(opId).nom):'toutes opérations')+'</div></div>';
   h+='<div class="kpi g"><div class="l">EJ engagés à date</div><div class="v mono">'+fmt(ejAd)+'</div><div class="s">'+mLong(cur)+' · '+mat.length+' EJ engagés au total : '+fmt(ejEng)+'</div></div>';
   h+='<div class="kpi g"><div class="l">CP faits à date</div><div class="v mono">'+fmt(cpAd)+'</div><div class="s">CP consommés cumulés des EJ engagés à '+mLong(cur)+'</div></div>';
   h+='<div class="kpi"><div class="l">Reste à payer à date</div><div class="v mono">'+fmt(rapTot)+'</div><div class="s">EJ engagés cumulés − CP cumulés (finit à 0)</div></div>';
@@ -2677,20 +2771,20 @@ function renderDashboard(){
      '<span><span class="sw" style="background:#059669"></span>CP prévus cumulés hors aléas/risques (lisse : du 1er au dernier jour)</span>'+
      '<span><span class="sw" style="background:#334155"></span>Reste à payer = EJ − CP à chaque instant (saut le 1er jour, pente CP ; jamais nul avant la fin, finit à 0)</span>'+
      '<span><span class="sw" style="background:#b45309"></span>Attendu (aléas + risques pondérés)</span>'+
-     '<span><span class="sw" style="background:#dc2626"></span>Tous aléas/risques matérialisés (haut)</span></div></div>';
+     '<span><span class="sw" style="background:#dc2626"></span>Tous aléas/risques matérialisés (haut)</span>'+todayLegend+'</div></div>';
 
   h+='<div class="card"><h2>Prévisionnel EJ par mois</h2><p class="hint">Par mois : <strong>EJ engagés</strong> (prévu, à leur mois), <strong>risques en hypothèse moyenne</strong> (espérance × probabilité, à leurs apparitions), <strong>aléas</strong> (répartis au hasard sur les mois restants de l\'opération) et <strong>révisions de prix (RP)</strong>. Survolez un mois pour le détail.</p>'+chartBarsEJ(affs,ejs,months,per)+
      '<div class="legend"><span><span class="sw" style="background:#059669"></span>EJ engagés (prévu)</span>'+
      '<span><span class="sw" style="background:#b45309"></span>Risques (hypothèse moyenne)</span>'+
      '<span><span class="sw" style="background:#2563eb"></span>Aléas</span>'+
-     '<span><span class="sw" style="background:#7c3aed"></span>Révisions de prix (RP)</span></div></div>';
+     '<span><span class="sw" style="background:#7c3aed"></span>Révisions de prix (RP)</span>'+todayLegend+'</div></div>';
 
   h+='<div class="card"><h2>Prévisionnel CP par mois</h2><p class="hint">Même découpage pour les CP — <strong>pour les RP, EJ = CP</strong> — plus le CP réalisé. Survolez un mois pour le détail.</p>'+chartBarsCPM(affs,ejs,months,per)+
      '<div class="legend"><span><span class="sw" style="background:#059669"></span>CP engagés (prévu)</span>'+
      '<span><span class="sw" style="background:#b45309"></span>Risques (hypothèse moyenne)</span>'+
      '<span><span class="sw" style="background:#2563eb"></span>Aléas (CP)</span>'+
      '<span><span class="sw" style="background:#7c3aed"></span>Révisions de prix (RP = EJ = CP)</span>'+
-     '<span><span class="sw" style="background:#64748b"></span>CP réalisé</span></div></div>';
+     '<span><span class="sw" style="background:#64748b"></span>CP réalisé</span>'+todayLegend+'</div></div>';
 
   var alerts=computeAlerts(opId, affId);
   h+='<div class="card"><h2>Alertes</h2>';
@@ -2746,8 +2840,8 @@ function renderDashboard(){
       if(pt&&pt.dataset&&pt.dataset.m){ openMonthPopup(pt.dataset.m, pt.dataset.s||null); }
     });
     var df=w.querySelector('#dash-from'), dt=w.querySelector('#dash-to');
-    if(df){ var hf=function(){ state.ui.dashFrom=parseIdxDate(df.value)||''; save(); render(); }; df.addEventListener('change',hf); df.addEventListener('input',hf); }
-    if(dt){ var ht=function(){ state.ui.dashTo=parseIdxDate(dt.value)||''; save(); render(); }; dt.addEventListener('change',ht); dt.addEventListener('input',ht); }
+    if(df){ var hf=function(){ state.ui.dashFrom=parseIdxDate(df.value)||''; save(); render(); }; df.addEventListener('change',hf); }
+    if(dt){ var ht=function(){ state.ui.dashTo=parseIdxDate(dt.value)||''; save(); render(); }; dt.addEventListener('change',ht); }
     var au=w.querySelector('#dash-per-auto');
     if(au) au.addEventListener('click',function(){ state.ui.dashFrom=''; state.ui.dashTo=''; save(); render(); });
   });
@@ -2759,6 +2853,19 @@ function renderDashboard(){
    Reste à payer = EJ cumulés − CP cumulés à chaque instant : jamais nul avant la
    fin, il finit à 0. CP cumulés hors aléas/risques : LISSE. Avec aléas/risques :
    courbe moyenne (attendu, pondéré) et haute (100 %). Un tooltip par mois. */
+/* Ligne verticale pointillée à la date du jour sur l'axe des mois (uniquement si
+   la date du jour est dans la période affichée). X(i) = début du slot du mois i,
+   X(i+1) = fin du slot (dernier jour du mois i). */
+function todayLineSVG(months, X, p, H){
+  var n=months.length, today=curMois();
+  if(n<1 || today<months[0] || today>months[n-1]) return '';
+  var dd=new Date(), dim=new Date(dd.getFullYear(),dd.getMonth()+1,0).getDate();
+  var k=0; while(k<n-1 && months[k+1]<=today) k++;
+  var frac=(dd.getDate()-1)/Math.max(1,dim-1); /* 0 = 1er jour du mois, 1 = dernier jour */
+  var xt=X(k)+frac*(X(k+1)-X(k));
+  return '<line class="today-line" x1="'+xt.toFixed(1)+'" y1="'+p.t+'" x2="'+xt.toFixed(1)+'" y2="'+(H-p.b)+'" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3"/>'+
+    '<text class="today-lbl" x="'+(xt+4).toFixed(1)+'" y="'+(p.t+10)+'" fill="#b45309" font-weight="600">Aujourd\'hui '+mLabel(today)+'</text>';
+}
 /* Applique la période choisie (début/fin) à la liste des mois : conserve les mois
    dans [per.from, per.to] et étend l'axe si la période dépasse les données. */
 function applyPeriod(months, per){
@@ -2852,6 +2959,8 @@ function chartEntonnoir(affs, ejs, months, per){
   }
   lineEnd(att,'#b45309',true,2);
   lineEnd(mx,'#dc2626',false,2);
+  /* ligne verticale à la date du jour */
+  s+=todayLineSVG(months,X,p,H);
   /* points cliquables par mois sur chaque courbe (clic -> popup détail du mois) */
   function pts(arr,color,s){
     var o='';
@@ -2919,6 +3028,8 @@ function chartBarsSeries(affs, ejs, months, per, series){
       if(v2>0) s+='<rect x="'+(x+si*(bw+1)).toFixed(1)+'" y="'+Y(v2).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(H-p.b-Y(v2)).toFixed(1)+'" fill="'+series[si].color+'" rx="1"/>';
     }
   }
+  /* ligne verticale à la date du jour */
+  s+=todayLineSVG(months,function(i){ return p.l+slot*i; },p,H);
   /* tooltips par mois (rects transparents en dernier pour être au-dessus) */
   if(ejs) s+=svgMonthTips(affs,ejs,months,p,W,H);
   s+='</svg>';
@@ -3130,7 +3241,7 @@ function renderRisques(){
   var rkEsp=0, rkPond=0;
   risques.forEach(function(e){ rkEsp+=espDist(e); rkPond+=risquePondere(e); });
 
-  var h='<div class="toolbar"></div>';
+  var h='<div class="toolbar">'+filtersBarHTML()+'</div>';
   h+='<p class="hint">Stades d\'un montant : <strong>aléa</strong> (forfait, non matérialisable) → <strong>risque</strong> (distribution + probabilité + date d\'apparition — modifiable en cliquant sur le petit graphique) → <strong>engagé</strong> (matérialisé). <span class="hint-ic" title="Aléa = part forfaitaire (défaut 5 % du reste à payer à date de l\'affaire, hors aléas pour éviter toute boucle), modifiable en % ou en montant ; un aléa ne se matérialise pas. Risque = montant selon une distribution (fixe/uniforme/triangulaire/gaussienne), probabilité, date d\'apparition (ponctuelle/récurrente/uniforme) ; matérialiser = vrai EJ à date fixée, profil de CP réglable ensuite dans Consommation CP.">i</span></p>';
 
   h+='<div class="kpis">';
@@ -3287,7 +3398,7 @@ function openAffairePopup(affId){
   }).join('');
   ov.innerHTML='<div class="modal"><h2>Affaire « '+esc(a.nom)+' » — '+ejs.length+' EJ</h2>'+
     '<p class="hint">Opération « '+esc(opName(a.opId))+' » · entreprise : '+esc(a.titulaire||'—')+' · réf. contrat : '+esc(a.refContrat||'—')+
-    ' · EJ initial : '+fmt(a.montantInitial||0)+' · reste à payer à date : '+fmt(resteAPayer(a))+
+    ' · reste à payer à date : '+fmt(resteAPayer(a))+
     ' · date réf. rév. : '+(a.dateRefRev?mLong(a.dateRefRev):'—')+' · formule (indice) : '+esc(a.formule||'(1ʳᵉ série)')+
     ' · EJ engagés : '+fmt(sommeMontant(em))+'</p>'+
     (ejs.length?'<div class="grid-wrap"><table class="liste"><thead><tr><th></th><th>N°</th><th>Libellé</th><th>Date</th><th class="num">Montant</th><th>Profil CP</th><th class="num">CP</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
@@ -3311,14 +3422,13 @@ function openOpPopup(opId){
     var es=ejsOfAffaire(a.id), em=es.filter(isMaterialise);
     return '<tr><td><button type="button" class="btn small" data-affbtn="'+a.id+'" title="Voir tous les EJ de cette affaire (popup)">'+esc(a.nom)+'</button></td>'+
       '<td>'+esc(a.titulaire||'')+'</td><td>'+esc(a.refContrat||'')+'</td>'+
-      '<td class="num mono" title="EJ initial (montant initial du contrat)">'+fmt(a.montantInitial||0)+'</td>'+
       '<td class="num mono" title="Reste à payer à date = EJ engagés cumulés − CP consommés cumulés">'+fmt(resteAPayer(a))+'</td>'+
       '<td class="num mono" title="EJ engagés (programmés + matérialisés)">'+fmt(sommeMontant(em))+'</td>'+
       '<td class="num" title="Aléas + risques">'+(es.filter(isAlea).length+es.filter(isRisque).length)+'</td></tr>';
   }).join('');
   ov.innerHTML='<div class="modal"><h2>Opération « '+esc(o.nom)+' » — '+as.length+' affaire(s)</h2>'+
     (o.description?'<p class="hint">'+esc(o.description)+'</p>':'')+
-    (as.length?'<div class="grid-wrap"><table class="liste"><thead><tr><th>Affaire</th><th>Entreprise</th><th>Réf. contrat</th><th class="num">EJ initial</th><th class="num">Reste à payer</th><th class="num">EJ engagés</th><th class="num">Aléas+Rk</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    (as.length?'<div class="grid-wrap"><table class="liste"><thead><tr><th>Affaire</th><th>Entreprise</th><th>Réf. contrat</th><th class="num">Reste à payer</th><th class="num">EJ engagés</th><th class="num">Aléas+Rk</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
              :'<p class="hint">Aucune affaire sur cette opération.</p>')+
     '<div class="formrow" style="margin-top:12px"><button type="button" class="btn" id="op-cancel" title="Fermer">Fermer</button></div></div>';
   document.body.appendChild(ov);
@@ -3333,13 +3443,91 @@ function openOpPopup(opId){
   });
 }
 
+/* ---- tableaux Excel (TSV) : copier vers Excel / coller depuis Excel ---- */
+function tsvCell(v){
+  if(typeof v==='number') v=String(Math.round(v*100)/100).replace('.',',');
+  var s=String(v==null?'':v);
+  if(/[\t\n\r"]/.test(s)) s='"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function opsTSV(){
+  var rows=[['N°','Nom','Description','Affaires','EJ engagés','Aléas','Risques','CP prévus','Atterrissage haut']];
+  state.operations.forEach(function(o){
+    var as=state.affaires.filter(function(a){ return a.opId===o.id; });
+    var aids={}; as.forEach(function(a){ aids[a.id]=1; });
+    var es=state.ejs.filter(function(e){ return aids[e.affaireId]; });
+    var em=es.filter(isMaterialise), al=es.filter(isAlea), rk=es.filter(isRisque);
+    var ej=sommeMontant(em), alT=sommeMontant(al), rkT=0; rk.forEach(function(e){ rkT+=montantHaut(e); });
+    var cp=0; es.forEach(function(e){ cp+=cpSumOf(e.id); });
+    rows.push([o.numero||'', o.nom, o.description||'', as.length, Math.round(ej), Math.round(alT), Math.round(rkT), Math.round(cp), Math.round(ej+alT+rkT)]);
+  });
+  return rows.map(function(r){ return r.map(tsvCell).join('\t'); }).join('\n');
+}
+function affsTSV(opId){
+  var rows=[['Nom','Opération','Entreprise','Réf. contrat','Date réf. rév.','Formule','Reste à payer','EJ engagés']];
+  scopedAffaires(opId||'', '').forEach(function(a){
+    var em=ejsOfAffaire(a.id).filter(isMaterialise);
+    rows.push([a.nom, opName(a.opId), a.titulaire||'', a.refContrat||'', a.dateRefRev||'', a.formule||'', Math.round(resteAPayer(a)), Math.round(sommeMontant(em))]);
+  });
+  return rows.map(function(r){ return r.map(tsvCell).join('\t'); }).join('\n');
+}
+function parseTSV(txt){
+  return String(txt||'').replace(/\r/g,'').split('\n').filter(function(l){ return l.trim()!==''; }).map(function(l){
+    var out=[], cur='', inQ=false;
+    for(var i=0;i<l.length;i++){ var c=l[i];
+      if(inQ){ if(c==='"'){ if(l[i+1]==='"'){ cur+='"'; i++; } else inQ=false; } else cur+=c; }
+      else if(c==='"') inQ=true;
+      else if(c==='\t'){ out.push(cur); cur=''; }
+      else cur+=c;
+    }
+    out.push(cur);
+    return out;
+  });
+}
+function pasteOpsTSV(txt){
+  var rows=parseTSV(txt), n=0;
+  rows.forEach(function(r){
+    var num=String(r[0]||'').replace(/[^0-9]/g,''), nom=String(r[1]||'').trim();
+    if(/^n°$/i.test(num+nom)) return; /* en-tête */
+    if(!nom&&!num) return;
+    var ex=null;
+    state.operations.forEach(function(o){ if(!ex&&((num&&o.numero===num)||(!num&&o.nom===nom))) ex=o; });
+    if(ex){ if(nom) ex.nom=nom; if(r[2]!=null) ex.description=String(r[2]); }
+    else{
+      if(!num){ var mx=0; state.operations.forEach(function(o){ var nn=parseInt(o.numero,10); if(!isNaN(nn)&&nn>mx) mx=nn; }); num=String(mx+1); }
+      state.operations.push({id:uid(), numero:num, nom:nom||('Opération '+num), description:String(r[2]||'')});
+    }
+    n++;
+  });
+  if(n){ save(); render(); }
+  return n;
+}
+function pasteAffsTSV(txt, defaultOpId){
+  var rows=parseTSV(txt), n=0;
+  rows.forEach(function(r){
+    var nom=String(r[0]||'').trim();
+    if(!nom||/^nom$/i.test(nom)) return; /* vide ou en-tête */
+    var opName=String(r[1]||'').trim(), opId=defaultOpId||'';
+    if(opName){ state.operations.forEach(function(o){ if(o.nom===opName) opId=o.id; }); }
+    if(!opId||!opById(opId)) return;
+    var dr=parseIdxDate(String(r[4]||''))||curMois();
+    var ex=null;
+    state.affaires.forEach(function(a){ if(!ex&&a.opId===opId&&a.nom===nom) ex=a; });
+    if(ex){ ex.titulaire=String(r[2]||''); ex.refContrat=String(r[3]||''); if(dr) ex.dateRefRev=dr; ex.formule=String(r[5]||''); }
+    else state.affaires.push({id:uid(), opId:opId, nom:nom, titulaire:String(r[2]||''), refContrat:String(r[3]||''), dateRefRev:dr, formule:String(r[5]||'')});
+    n++;
+  });
+  if(n){ recomputeProfils(state); save(); render(); }
+  return n;
+}
+
 function renderStructure(){
   var h='';
   var cv=cmpVer();
-  h+='<div class="card"><h2>Opérations</h2>';
+  h+='<div class="card"><h2>Opérations <button type="button" class="btn small" data-copytsv="ops" title="Copier le tableau au format Excel (TSV, tabulations)">Copier (Excel)</button></h2>';
   if(state.operations.length===0){ h+='<p class="hint">Aucune opération. Créez-en une ci-dessous.</p>'; }
   else{
-    h+='<table class="liste"><tr><th class="num" style="width:56px" title="Numéro de l\'opération (nombres uniquement)">N°</th><th style="width:26%">Nom</th><th>Description</th><th class="num">Affaires</th><th class="num">EJ engagés</th><th class="num">Aléas</th><th class="num">Risques</th><th class="num">CP prévus</th><th class="num" title="Montant final haut : EJ engagés + aléas + risques (100 %)">Atterrissage haut</th><th></th></tr>';
+    h+='<table class="liste" data-pastetsv="ops" tabindex="0" title="Coller ici (Ctrl+V) un bloc copié depuis Excel"><tr><th class="num" style="width:56px" title="Numéro de l\'opération (nombres uniquement)">N°</th><th style="width:26%">Nom</th><th>Description</th><th class="num">Affaires</th><th class="num">EJ engagés</th><th class="num">Aléas</th><th class="num">Risques</th><th class="num">CP prévus</th><th class="num" title="Montant final haut : EJ engagés + aléas + risques (100 %)">Atterrissage haut</th><th></th></tr>';
     state.operations.forEach(function(o){
       var as=state.affaires.filter(function(a){return a.opId===o.id;});
       var aids={}; as.forEach(function(a){aids[a.id]=1;});
@@ -3371,18 +3559,22 @@ function renderStructure(){
     });
     h+='</table>';
   }
-  h+='<div class="formrow"><label class="fld">N°<input type="text" inputmode="numeric" pattern="[0-9]*" id="new-op-num" placeholder="101" title="Numéro de la nouvelle opération (nombres uniquement)"></label>'+
-     '<label class="fld">Nouvelle opération<input type="text" id="new-op" placeholder="Nom de l\'opération" title="Nom de la nouvelle opération"></label>'+
+  h+='</div>';
+  h+='<div class="card"><h2>Ajouter une opération</h2><div class="formrow"><label class="fld">N°<input type="text" inputmode="numeric" pattern="[0-9]*" id="new-op-num" placeholder="101" title="Numéro de la nouvelle opération (nombres uniquement)"></label>'+
+     '<label class="fld">Nom<input type="text" id="new-op" placeholder="Nom de l\'opération" title="Nom de la nouvelle opération"></label>'+
      '<button class="btn primary" id="add-op" title="Créer l\'opération">Ajouter l\'opération</button></div></div>';
 
-  h+='<div class="card"><h2>Affaires</h2>';
-  var opId=state.ui.op||(state.operations[0]&&state.operations[0].id)||'';
-  if(!opId){ h+='<p class="hint">Créez d\'abord une opération.</p>'; }
+  h+='<div class="card"><h2>Affaires <button type="button" class="btn small" data-copytsv="affs" title="Copier le tableau des affaires au format Excel (TSV)">Copier (Excel)</button></h2>';
+  var opId=state.ui.op||'';
+  var opOpts='<option value="">Toutes les opérations</option>';
+  state.operations.forEach(function(o){ opOpts+='<option value="'+o.id+'"'+(opId===o.id?' selected':'')+'>'+(o.numero?o.numero+' — ':'')+esc(o.nom)+'</option>'; });
+  h+='<div class="formrow"><label class="fld">Opération affichée<select id="st-op" title="Opération dont on voit les affaires ci-dessous — « Toutes les opérations » pour tout voir (changeable)">'+opOpts+'</select></label></div>';
+  if(!state.operations.length){ h+='<p class="hint">Créez d\'abord une opération (carte ci-dessus).</p>'; }
   else{
-    var as=scopedAffaires(opId, state.ui.aff||'');
-    if(as.length===0) h+='<p class="hint">Aucune affaire sur cette opération.</p>';
+    var as=scopedAffaires(opId, ''); /* la table des affaires de cette carte n'est pas restreinte par le filtre affaire global */
+    if(as.length===0) h+='<p class="hint">Aucune affaire. Créez-en une dans la carte ci-dessous.</p>';
     else{
-      h+='<table class="liste"><tr><th>Nom</th><th>Opération</th><th>Entreprise</th><th>Réf. contrat</th><th class="num">EJ initial</th><th>Date réf. rév.</th><th>Formule d\'indice</th><th>Formule de révision</th><th class="num">Reste à payer</th><th class="num">EJ engagés</th><th></th></tr>';
+      h+='<table class="liste" data-pastetsv="affs" tabindex="0" title="Coller ici (Ctrl+V) un bloc copié depuis Excel (crée/met à jour les affaires de l\'opération affichée)"><tr><th>Nom</th><th>Opération</th><th>Entreprise</th><th>Réf. contrat</th><th>Date réf. rév.</th><th>Formule d\'indice</th><th class="num">Reste à payer</th><th class="num">EJ engagés</th><th></th></tr>';
       as.forEach(function(a){
         var es=ejsOfAffaire(a.id), em=es.filter(isMaterialise);
         h+='<tr>'+
@@ -3391,11 +3583,9 @@ function renderStructure(){
             state.operations.map(function(o){ return '<option value="'+o.id+'"'+(a.opId===o.id?' selected':'')+'>'+(o.numero?o.numero+' — ':'')+esc(o.nom)+'</option>'; }).join('')+'</select></td>'+
           '<td><input type="text" data-af="'+a.id+'" data-f="titulaire" value="'+esc(a.titulaire||'')+'" title="Entreprise titulaire du contrat"></td>'+
           '<td><input type="text" data-af="'+a.id+'" data-f="refContrat" value="'+esc(a.refContrat||'')+'" title="Référence du contrat (champ texte libre)"></td>'+
-          '<td><input type="text" inputmode="decimal" data-money="1" data-af="'+a.id+'" data-f="montantInitial" value="'+(a.montantInitial||0)+'" title="EJ initial de l\'affaire (montant initial du contrat)">'+
-            (cv?(cmpFind(cv.affaires,a.id)?cmpNoteHTML(+cmpFind(cv.affaires,a.id).montantInitial||0,+a.montantInitial||0,fmt0):cmpAbsHTML()):'')+'</td>'+
           '<td>'+monthInputHTML('',a.dateRefRev,'','Date de référence de la révision de prix (MM/AAAA) : I₀ = indice à cette date','data-af="'+a.id+'" data-f="dateRefRev"')+'</td>'+
           '<td style="min-width:230px"><input type="text" data-af="'+a.id+'" data-f="formule" value="'+esc(a.formule||'')+'" placeholder="'+(state.indices[0]?'{'+esc(state.indices[0].nom)+'}':'{SÉRIE}')+'" title="Formule de l\'affaire = indice applicable au marché : {série} = valeur de la série au mois, {série_0} = valeur de la série au mois de référence (date de réf.), ex. {BT01}/{BT01_0} ; {i0} = indice à la date de réf. RP automatique : {c}*({i}/{i0}-1) avec {c} = somme des CP prévus du mois. Vide = première série. Séries saisies dans « Indices »."></td>'+
-          '<td class="num mono" title="Reste à payer à date = EJ engagés cumulés − CP consommés cumulés des EJ engagés (aléas/risques exclus, non matérialisés ; indépendant du montant initial, finit à 0)">'+fmt(resteAPayer(a))+'</td>'+
+          '<td class="num mono" title="Reste à payer à date = EJ engagés cumulés − CP consommés cumulés des EJ engagés (aléas/risques exclus, non matérialisés ; finit à 0)">'+fmt(resteAPayer(a))+'</td>'+
           '<td class="num mono" title="Montant des EJ engagés (programmés ou matérialisés)">'+fmt(sommeMontant(em))+'</td>'+
           '<td><button class="btn small" data-addej="'+a.id+'" title="Ajouter un EJ programmé sur cette affaire (réglable ensuite dans « Consommation CP »)">+ EJ</button> '+
           '<button class="btn small" data-affview="'+a.id+'" title="Voir tous les EJ de cette affaire, avec leurs dates (popup)">Voir</button> '+
@@ -3403,34 +3593,55 @@ function renderStructure(){
       });
       h+='</table>';
     }
-    h+='<h3>Ajouter une affaire</h3><div class="formrow">'+
+  }
+  h+='</div>';
+  h+='<div class="card"><h2>Ajouter une affaire</h2>';
+  if(state.operations.length){
+    var opOptsC='';
+    state.operations.forEach(function(o){ opOptsC+='<option value="'+o.id+'"'+(opId===o.id?' selected':'')+'>'+(o.numero?o.numero+' — ':'')+esc(o.nom)+'</option>'; });
+    h+='<div class="formrow">'+
+       '<label class="fld">Opération<select id="new-a-op" title="Opération dans laquelle créer l\'affaire (obligatoire)">'+opOptsC+'</select></label>'+
        '<label class="fld">Nom<input type="text" id="new-a-nom" placeholder="Génie civil…" title="Nom de la nouvelle affaire"></label>'+
        '<label class="fld">Entreprise<input type="text" id="new-a-tit" placeholder="Entreprise titulaire" title="Entreprise titulaire du contrat"></label>'+
        '<label class="fld">Réf. contrat<input type="text" id="new-a-ref" placeholder="CTR-2026-…" title="Référence du contrat (champ texte libre)"></label>'+
-       '<label class="fld">EJ initial<input type="text" inputmode="decimal" id="new-a-montant" placeholder="0" title="EJ initial de l\'affaire (montant initial du contrat)"></label>'+
        '<label class="fld">Date réf. rév.'+monthInputHTML('new-a-dateref','','','Date de référence de la révision de prix, MM/AAAA (I₀ = indice à cette date)')+'</label>'+
        '<label class="fld">Formule<input type="text" id="new-a-formule" placeholder="'+(state.indices[0]?'{'+esc(state.indices[0].nom)+'}':'{SÉRIE}')+'" title="Formule de l\'affaire = indice applicable (vide = première série) ; la révision de prix en découle automatiquement"></label>'+
        '<button class="btn primary" id="add-a" title="Créer l\'affaire sur l\'opération sélectionnée">Ajouter l\'affaire</button></div>';
-  }
+  } else { h+='<p class="hint">Créez d\'abord une opération (carte ci-dessus).</p>'; }
   h+='</div>';
 
   mount('view-structure', h, function(w){
     w.addEventListener('change', function(ev){
       var t=ev.target;
+      if(t.id==='st-op'){ state.ui.op=t.value; state.ui.aff=''; save(); render(); return; }
       if(t.dataset.opf){ var o=opById(t.dataset.opf); if(o){ if(t.dataset.f==='numero'){ o.numero=String(t.value).replace(/[^0-9]/g,''); } else o[t.dataset.f]=t.value; save(); renderFilters(); } return; }
       if(t.dataset.af){
         var a=affaireById(t.dataset.af); if(!a) return;
         var f=t.dataset.f;
-        if(t.dataset.money){ var v=parseMontant(t.value); a[f]=(v==null?0:v); }
-        else if(f==='nom'||f==='titulaire'||f==='refContrat'||f==='formule'){ a[f]=t.value; }
+        if(f==='nom'||f==='titulaire'||f==='refContrat'||f==='formule'){ a[f]=t.value; }
         else if(f==='dateRefRev'){ if(t.value.trim()===''){ a[f]=null; } else { var dv=parseIdxDate(t.value); if(dv) a[f]=dv; } }
         else if(f==='opId'){ var no=opById(t.value); if(no){ a.opId=no.id; save(); renderFilters(); render(); return; } }
         else { var n=parseFloat(t.value); a[f]=isNaN(n)?null:n; }
         save(); return;
       }
     });
+    w.addEventListener('paste', function(ev){
+      var zone=ev.target&&ev.target.closest?ev.target.closest('[data-pastetsv]'):null;
+      if(!zone) return;
+      var cd=ev.clipboardData; var txt=cd&&cd.getData?cd.getData('text/plain'):'';
+      if(!txt) return;
+      ev.preventDefault();
+      var n=zone.dataset.pastetsv==='ops'?pasteOpsTSV(txt):pasteAffsTSV(txt, opId);
+      if(n&&typeof alert==='function'){ /* n créations/mises à jour */ }
+    });
     w.addEventListener('click', function(ev){
       var t=ev.target.closest('button'); if(!t) return;
+      if(t.dataset&&t.dataset.copytsv){
+        var txt=t.dataset.copytsv==='ops'?opsTSV():affsTSV(opId);
+        copyTextToClipboard(txt).then(function(){ var old=t.textContent; t.textContent='Copié !'; setTimeout(function(){ t.textContent=old; },1200); },
+          function(){ alert('Copie auto indisponible : sélectionnez le tableau et Ctrl+C.'); });
+        return;
+      }
       if(t.id==='add-op'){
         var nom=w.querySelector('#new-op').value.trim();
         if(!nom) return;
@@ -3441,12 +3652,12 @@ function renderStructure(){
       }
       if(t.id==='add-a'){
         var n1=w.querySelector('#new-a-nom').value.trim(); if(!n1) return;
-        var v=parseMontant(w.querySelector('#new-a-montant').value)||0;
         var ref=w.querySelector('#new-a-ref').value.trim();
         var dr=parseIdxDate(w.querySelector('#new-a-dateref').value)||curMois();
         var fr2=w.querySelector('#new-a-formule').value.trim();
-        state.affaires.push({id:uid(),opId:opId,nom:n1,titulaire:w.querySelector('#new-a-tit').value.trim(),
-          refContrat:ref,montantInitial:v,dateRefRev:dr,formule:fr2});
+        var opSel2=w.querySelector('#new-a-op'); var opId2=(opSel2&&opSel2.value)||opId;
+        state.affaires.push({id:uid(),opId:opId2,nom:n1,titulaire:w.querySelector('#new-a-tit').value.trim(),
+          refContrat:ref,dateRefRev:dr,formule:fr2});
         save(); render(); return;
       }
       if(t.dataset.opview){ openOpPopup(t.dataset.opview); return; }
@@ -3552,9 +3763,16 @@ function openProfilPopup(ejId){
     '<tfoot><tr><td>Total</td><td class="num mono" id="pp-total" title="Total des CP saisis pour cet EJ">'+fmt0(cpSumOf(e.id))+'</td><td colspan="4"></td></tr></tfoot></table></div>';
   var ov=document.createElement('div');
   ov.className='modal-ov';
-  ov.innerHTML='<div class="modal"><h2>Profil de consommation des CP — '+esc(e.numero)+'</h2>'+
-    '<p class="hint">'+stadeBadge(e)+' '+esc(e.libelle||'')+' · affaire « '+esc(affaireName(e.affaireId))+' » · mois de l\'EJ : '+mLong(e.mois)+
-    ' · montant : '+fmt(montantOf(e))+' · CP consommés à ce jour : <span id="pp-cpnow">'+fmt(cpSumOf(e.id))+'</span></p>'+
+  ov.innerHTML='<div class="modal"><h2>Fiche de l\'EJ « '+esc(e.numero)+' » — profil de consommation des CP</h2>'+
+    '<p class="hint">'+stadeBadge(e)+' affaire « '+esc(affaireName(e.affaireId))+' » · CP consommés à ce jour : <span id="pp-cpnow">'+fmt(cpSumOf(e.id))+'</span></p>'+
+    /* toutes les caractéristiques de l'EJ sont modifiables ici (la colonne de la
+       grille « Consommation CP » n'affiche que intitulé / date / montant / check Σ CP) */
+    '<div class="formrow">'+
+      '<label class="fld">N°<input type="text" id="pp-num" value="'+esc(e.numero)+'" title="Référence (n°) de l\'EJ — modifiable ici"></label>'+
+      '<label class="fld">Libellé<input type="text" id="pp-lib" value="'+esc(e.libelle||'')+'" title="Libellé de l\'EJ — modifiable ici"></label>'+
+      '<label class="fld">Montant (€)<input type="text" inputmode="decimal" id="pp-montant" value="'+(montantOf(e)||'')+'" title="Montant de l\'EJ — modifiable ici"></label>'+
+      '<label class="fld">Date de l\'EJ'+monthInputHTML('pp-mois',e.mois,'','Date de l\'EJ, MM/AAAA — modifiable ici ; recalcule les CP si le profil est ponctuel/uniforme')+'</label>'+
+    '</div>'+
     '<div class="modal-tabs">'+
       '<button type="button" data-tab="ponctuelle" class="'+(p.type==='ponctuelle'?'active':'')+'" title="Tout le montant consommé en un seul mois">Ponctuelle</button>'+
       '<button type="button" data-tab="uniforme" class="'+(p.type==='uniforme'?'active':'')+'" title="Montant réparti uniformément sur une période">Uniforme sur une période</button>'+
@@ -3615,13 +3833,19 @@ function openProfilPopup(ejId){
     Array.prototype.forEach.call(ov.querySelectorAll('input'),function(i){ i.disabled=true; });
   }
   saveBtn.addEventListener('click',function(){
+    var oldP=profilOf(e);
+    /* caractéristiques de l'EJ (modifiées dans cette fiche) */
+    var numV=ov.querySelector('#pp-num').value.trim(); if(numV) e.numero=numV;
+    e.libelle=ov.querySelector('#pp-lib').value;
+    var mv2=parseMontant(ov.querySelector('#pp-montant').value); if(mv2!=null) e.montant=mv2;
+    var dm2=parseIdxDate(ov.querySelector('#pp-mois').value); if(dm2) e.mois=dm2;
     var np={type:curTab, debut:'', fin:''};
-    if(curTab==='ponctuelle'){ np.debut=parseIdxDate(ov.querySelector('#pp-debut').value)||e.mois; np.fin=np.debut; }
+    if(curTab==='ponctuelle'){ np.debut=parseIdxDate(ov.querySelector('#pp-debut').value)||oldP.debut||e.mois; np.fin=np.debut; }
     else if(curTab==='uniforme'){
-      np.debut=parseIdxDate(ov.querySelector('#pu-debut').value)||e.mois;
-      np.fin=parseIdxDate(ov.querySelector('#pu-fin').value)||np.debut;
+      np.debut=parseIdxDate(ov.querySelector('#pu-debut').value)||oldP.debut||e.mois;
+      np.fin=parseIdxDate(ov.querySelector('#pu-fin').value)||oldP.fin||np.debut;
       if(np.fin<np.debut) np.fin=np.debut;
-    } else { var old=profilOf(e); np.debut=old.debut||e.mois; np.fin=old.fin||e.mois; }
+    } else { np.debut=oldP.debut||e.mois; np.fin=oldP.fin||e.mois; }
     /* pas de CP avant le mois de l'EJ : on cale le profil sur le mois de l'EJ */
     if(e.mois){
       if(np.debut&&np.debut<e.mois) np.debut=e.mois;
@@ -3637,6 +3861,40 @@ function openProfilPopup(ejId){
 
 /* ===== src/js/15-vue-consommation-cp-profils-des-ej.js ===== */
 /* ================= Vue : Consommation CP (profils des EJ) ================= */
+
+/* Colonnes de la grille conso : # / Mois, puis par opération [par affaire [1 col
+   par EJ + Σ affaire] + Σ opération]. Largeurs réglables par l'utilisateur
+   (colgroup + poignées de redimensionnement, persistées dans state.ui.colW). */
+function consoColKeys(opCols){
+  var keys=['c0','c1'];
+  opCols.forEach(function(og){
+    og.cs.forEach(function(c){
+      c.le.forEach(function(e){ keys.push(e.id); });
+      keys.push('a:'+c.a.id);
+    });
+    keys.push('o:'+og.o.id);
+  });
+  return keys;
+}
+function consoColgroup(opCols){
+  var defW={c0:32,c1:80};
+  var keys=consoColKeys(opCols);
+  return '<colgroup>'+keys.map(function(k){
+    var w=(state.ui.colW&&state.ui.colW[k])||defW[k]||140;
+    return '<col data-ck="'+k+'" style="width:'+w+'px">';
+  }).join('')+'</colgroup>';
+}
+function colRsH(ck){ return '<span class="colrs" data-ck="'+ck+'" title="Glisser pour redimensionner la colonne — double-clic : largeur par défaut"></span>'; }
+/* Détail (clic sur un total) : EJ contribuant au mois m, restreint à la portée (a: / o:) */
+function consoTotItems(m, ejs, scope){
+  var items=[];
+  ejs.forEach(function(e){
+    if(scope&&scope.indexOf('a:')===0&&e.affaireId!==scope.slice(2)) return;
+    if(scope&&scope.indexOf('o:')===0){ var a=affaireById(e.affaireId); if(!a||a.opId!==scope.slice(2)) return; }
+    var v=cpPrevu(e,m); if(v>0) items.push('<div><span class="gp-k">'+esc(e.numero)+'</span> '+(e.libelle?'('+esc(e.libelle)+') ':'')+': <span class="mono">'+fmt0(v)+'</span></div>');
+  });
+  return items;
+}
 
 function renderConso(){
   var opId=state.ui.op||'', affId=state.ui.aff||'';
@@ -3657,11 +3915,15 @@ function renderConso(){
     return a.mois<b.mois?-1:(a.mois>b.mois?1:0);
   });
 
-  var h='<div class="toolbar">'+
+  var h='<div class="toolbar">'+filtersBarHTML()+
     (affs.length?('<button class="btn" id="c-addej" title="Ajouter un EJ programmé sur l\'affaire du filtre en en-tête (Opération/Affaire)">+ EJ</button>'):'')+
     '<button class="btn" id="c-ext" title="Afficher 12 mois de plus à droite de la grille">+ 12 mois</button>'+
     (state.ui.ext>0?'<button class="btn" id="c-shrink" title="Retirer 12 mois à droite de la grille">− 12 mois</button>':'')+
-    '<button class="btn" id="c-csv" title="Exporter la grille (mois × EJ) en CSV">Exporter CSV</button></div>';
+    '<button class="btn" id="c-csv" title="Exporter la grille (mois × EJ) en CSV">Exporter CSV</button></div>'+
+    '<div class="legend"><span><span class="sw" style="background:#2563eb"></span>montant de l\'EJ (en-tête de colonne, modifiable)</span>'+
+    '<span><span class="sw" style="background:#059669"></span>Σ des CP saisis (juste dessous, calculé)</span>'+
+    '<span><span class="sw" style="background:#dc2626"></span>écart montant − Σ CP = alerte (reportée au tableau de bord)</span>'+
+    '<span><span class="sw" style="background:#929292"></span>glisser le bord droit d\'une colonne d\'en-tête pour la redimensionner</span></div>';
 
   if(affs.length===0){
     h+='<div class="card"><div class="empty">Aucune affaire dans cette sélection. Créez-en une dans « Opérations &amp; affaires ».</div></div>';
@@ -3669,106 +3931,188 @@ function renderConso(){
     return;
   }
 
-  /* En-tête sur plusieurs lignes (étendu vers le bas pour éviter le tassement) :
-     hl1 stade · hl2 n° · hl3 affaire · hl4 libellé · hl5 montant · hl6 profil (bouton popup) · hl7 infos */
-  var r1='<th class="scol sc0 hl1">#</th><th class="scol sc1 hl1">Mois</th><th class="dcol hl1">Total CP</th>';
-  var r2='<th class="scol sc0 hl2"></th><th class="scol sc1 hl2"></th><th class="dcol hl2"></th>';
-  var r3='<th class="scol sc0 hl3"></th><th class="scol sc1 hl3"></th><th class="dcol hl3"></th>';
-  var r4='<th class="scol sc0 hl4"></th><th class="scol sc1 hl4"></th><th class="dcol hl4" title="Total des CP du mois sur tous les EJ"></th>';
-  var r5='<th class="scol sc0 hl5"></th><th class="scol sc1 hl5"></th><th class="dcol hl5"></th>';
-  var r6='<th class="scol sc0 hl6"></th><th class="scol sc1 hl6"></th><th class="dcol hl6"></th>';
-  var r7='<th class="scol sc0 hl7"></th><th class="scol sc1 hl7"></th><th class="dcol hl7"></th>';
-  ejs.forEach(function(e){
-    var aff=affaireById(e.affaireId);
-    var p=profilOf(e);
-    r1+='<th class="dcol hl1">'+stadeBadge(e)+'</th>';
-    r2+='<th class="dcol hl2'+(state.ui.focusCol===e.id?' col-focus':'')+'"><input type="text" class="hdr-in" data-ejf="'+e.id+'" data-f="numero" value="'+esc(e.numero)+'" title="Référence (n°) de l\'EJ — modifiable ici"></th>';
-    r3+='<th class="dcol hl3"><button type="button" class="btn btn-prof" data-affbtn="'+e.affaireId+'" title="Voir tous les EJ de l\'affaire « '+esc(aff?aff.nom:'?')+' », avec leurs dates (popup)">'+esc(aff?aff.nom:'?')+'</button></th>';
-    r4+='<th class="dcol hl4"><input type="text" class="hdr-in" data-ejf="'+e.id+'" data-f="libelle" value="'+esc(e.libelle||'')+'" placeholder="Libellé" title="Libellé de l\'EJ"></th>';
-    r5+='<th class="dcol hl5"><input type="text" inputmode="decimal" class="hdr-in" data-ejf="'+e.id+'" data-f="montant" value="'+(montantOf(e)||'')+'" placeholder="Montant" title="Montant de l\'EJ engagé"></th>';
-    r6+='<th class="dcol hl6"><button type="button" class="btn btn-prof" data-profbtn="'+e.id+'" title="Ouvrir le réglage du profil de consommation des CP (ponctuelle / uniforme / personnalisée)">'+esc(profilSummary(p))+'</button></th>';
-    var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
-    r7+='<th class="dcol hl7'+(state.ui.focusCol===e.id?' col-focus':'')+'">'+monthInputHTML('',e.mois,'hdr-in','Date de l\'EJ, MM/AAAA — modifiable ici ; recalcule les CP si le profil est ponctuel/uniforme','data-ejf="'+e.id+'" data-f="mois"')+'<div class="hdr-sub'+(cohOk?'':' coh-bad')+'" title="Somme des CP = '+fmt0(somCp)+' ; montant de l\'EJ = '+fmt0(mtE)+(cohOk?' — cohérent':' — ÉCART de '+fmt0(mtE-somCp)+' : alerte reportée sur le tableau de bord (colonne de cet EJ)')+'">CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart '+fmt0(mtE-somCp)+'</span>')+'</div></th>';
+  /* hiérarchie opération > affaire > EJ, avec un TITRE DE LIGNE dans la 1ʳᵉ
+     colonne fixe : hlA = « Opération », hlB = « Affaire », puis par colonne EJ
+     uniquement (lecture seule) : intitulé (hl2), date (hl3), montant (hl4),
+     check Σ CP (hl5). Clic sur l'EJ -> fiche EJ (popup : tout est modifiable). */
+  var opCols=[];
+  state.operations.forEach(function(o){
+    var cs=[];
+    affs.forEach(function(a){
+      if(a.opId!==o.id) return;
+      var le=ejs.filter(function(e){ return e.affaireId===a.id; });
+      if(le.length) cs.push({a:a, le:le});
+    });
+    if(cs.length) opCols.push({o:o, cs:cs});
+  });
+  /* colonnes fixes : sc0 = titre de ligne / n° de ligne, sc1 = « Mois » (rowspan=6).
+     PAS de cellules vides dans les lignes suivantes (sinon l'en-tête serait décalé). */
+  /* pas de titre « Mois » dans la 2ᵉ colonne fixe de cette grille (inutile) */
+  var rA='<th class="scol sc0 hlA">Opération'+colRsH('c0')+'</th><th class="scol sc1 hlA" rowspan="6">'+colRsH('c1')+'</th>';
+  var rB='<th class="scol sc0 hlB">Affaire</th>';
+  var r2='<th class="scol sc0 hl2">Intitulé</th>';
+  var r3='<th class="scol sc0 hl3">Date EJ</th>';
+  var r4='<th class="scol sc0 hl4">Montant</th>';
+  var r5='<th class="scol sc0 hl5">Σ CP</th>';
+  opCols.forEach(function(og){
+    var nEj=og.cs.reduce(function(s,c){ return s+c.le.length; },0);
+    rA+='<th class="dcol hlA rev-h-op" colspan="'+(nEj+og.cs.length)+'">Opération '+(og.o.numero?og.o.numero+' — ':'')+': '+esc(og.o.nom)+'</th>';
+    rA+='<th class="dcol hlA tot-h" rowspan="2" title="Total CP de l\'opération '+esc(og.o.nom)+' (non modifiable)">Σ</th>';
+    og.cs.forEach(function(c){
+      rB+='<th class="dcol hlB rev-h-aff" colspan="'+(c.le.length+1)+'"><button type="button" class="btn btn-prof" data-affbtn="'+c.a.id+'" title="Voir tous les EJ de l\'affaire « '+esc(c.a.nom)+' », avec leurs dates (popup)">'+esc(c.a.nom)+'</button></th>';
+      c.le.forEach(function(e){
+        var foc=(state.ui.focusCol===e.id?' col-focus':'');
+        var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
+        var ejTip='Fiche de l\'EJ '+esc(e.numero)+' : n°, libellé, montant, date et profil CP modifiables — Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+(cohOk?' (cohérent)':' — ÉCART '+fmt0(mtE-somCp)+' = alerte tableau de bord');
+        r2+='<th class="dcol hl2'+foc+'"><button type="button" class="ej-btn" data-ejpop="'+e.id+'" title="'+ejTip+'">'+esc(e.numero)+(e.libelle?' — '+esc(e.libelle):'')+'</button>'+colRsH(e.id)+'</th>';
+        r3+='<th class="dcol hl3'+foc+'"><button type="button" class="ej-btn" data-ejpop="'+e.id+'" title="Date de l\'EJ : '+(e.mois?mLong(e.mois):'—')+' — modifier dans la fiche EJ">'+(e.mois?mLabel(e.mois):'—')+'</button>'+colRsH(e.id)+'</th>';
+        r4+='<th class="dcol hl4 hl-mont'+foc+'"><button type="button" class="ej-btn ej-btn-mont" data-ejpop="'+e.id+'" title="Montant de l\'EJ : '+fmt0(mtE)+' — modifier dans la fiche EJ">'+fmt0(mtE)+'</button>'+colRsH(e.id)+'</th>';
+        r5+='<th class="dcol hl5 hl-cp'+foc+'" data-ejhdr="'+e.id+'"><button type="button" class="ej-btn ej-btn-cp" data-ejpop="'+e.id+'" title="Check Σ CP saisis (calculé) : '+fmt0(somCp)+(cohOk?' — cohérent':' — ÉCART '+fmt0(mtE-somCp)+' = alerte')+' — clic = fiche EJ">'+ '<span class="hdr-sub'+(cohOk?'':' coh-bad')+'">Σ CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart '+fmt0(mtE-somCp)+'</span>')+'</span></button>'+colRsH(e.id)+'</th>';
+      });
+      var tA='Total CP de l\'affaire '+esc(c.a.nom)+' (non modifiable)';
+      r2+='<th class="dcol hl2 tot-h" title="'+tA+'">Σ'+colRsH('a:'+c.a.id)+'</th>';
+      r3+='<th class="dcol hl3 tot-h" title="'+tA+'"></th>';
+      r4+='<th class="dcol hl4 tot-h" title="'+tA+'"></th>';
+      r5+='<th class="dcol hl5 tot-h" title="'+tA+'">'+colRsH('a:'+c.a.id)+'</th>';
+    });
+    var tO='Total CP de l\'opération '+esc(og.o.nom)+' (non modifiable)';
+    r2+='<th class="dcol hl2 tot-h" title="'+tO+'">Σ'+colRsH('o:'+og.o.id)+'</th>';
+    r3+='<th class="dcol hl3 tot-h" title="'+tO+'"></th>';
+    r4+='<th class="dcol hl4 tot-h" title="'+tO+'"></th>';
+    r5+='<th class="dcol hl5 tot-h" title="'+tO+'">'+colRsH('o:'+og.o.id)+'</th>';
   });
 
+  var nbTot=2+opCols.reduce(function(s,og){ return s+og.cs.reduce(function(s2,c){ return s2+c.le.length+1; },0)+1; },0);
   var body='';
-  body+=extRow('avant', ejs.length+3);
+  body+=extRow('avant', nbTot);
   for(var r=1;r<=months.length;r++){
     var m=months[r-1];
-    var tot=0;
-    body+='<tr'+(m===cur?' class="cur"':'')+'><td class="scol sc0 rnum">'+r+'</td><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLabel(m)+'</td>';
-    ejs.forEach(function(e){ tot+=cpPrevu(e,m); });
-    body+='<td class="dcol ccell tot'+(tot>0?' gp-cell':'')+'"'+(tot>0?' data-totcp="'+m+'" title="Détail du total CP de '+mLabel(m)+' (cliquer)"':'')+'>'+fmt0(tot)+'</td>';
-    ejs.forEach(function(e){
-      var p=profilOf(e);
-      var v=cpPrevu(e,m);
-      if(e.mois&&m<e.mois){
-        /* pas de CP avant le mois de l'EJ (l'EJ est fait intégralement le 1er jour) : cellule grisée et verrouillée */
-        body+='<td class="dcol cp-avant" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') : l\'EJ est engagé intégralement le 1er jour — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
-      }else if(p.type==='perso'){
-        body+='<td class="dcol'+(state.ui.focusCol===e.id?' col-focus':'')+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés ce mois-ci pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
-      }else{
-        body+='<td class="dcol cp-lock'+(state.ui.focusCol===e.id?' col-focus':'')+'" title="Calculé selon le profil '+p.type+'">'+(v?fmt0(v):'')+'</td>';
-      }
+    body+='<tr data-m="'+m+'"'+(m===cur?' class="cur"':'')+'><td class="scol sc0 rnum">'+r+'</td><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLabel(m)+'</td>';
+    opCols.forEach(function(og){
+      og.cs.forEach(function(c){
+        var sa=0;
+        c.le.forEach(function(e){
+          var p=profilOf(e);
+          var v=cpPrevu(e,m);
+          sa+=v;
+          if(e.mois&&m<e.mois){
+            /* pas de CP avant le mois de l'EJ (l'EJ est fait intégralement le 1er jour) : cellule grisée et verrouillée */
+            body+='<td class="dcol cp-avant" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') : l\'EJ est engagé intégralement le 1er jour — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
+          }else if(p.type==='perso'){
+            body+='<td class="dcol'+(state.ui.focusCol===e.id?' col-focus':'')+'" data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés ce mois-ci pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
+          }else{
+            body+='<td class="dcol cp-lock'+(state.ui.focusCol===e.id?' col-focus':'')+'" data-ejcol="'+e.id+'" title="Calculé selon le profil '+p.type+'">'+(v?fmt0(v):'')+'</td>';
+          }
+        });
+        body+='<td class="dcol ccell tot"'+(sa>0?' data-totcp="'+m+'" data-scope="a:'+c.a.id+'" title="Détail du total CP de l\'affaire '+esc(c.a.nom)+' en '+mLabel(m)+' (cliquer)"':' title="Total CP de l\'affaire '+esc(c.a.nom)+' ce mois-ci (non modifiable)"')+'>'+fmt0(sa)+'</td>';
+      });
+      var so=0;
+      og.cs.forEach(function(c){ c.le.forEach(function(e){ so+=cpPrevu(e,m); }); });
+      body+='<td class="dcol ccell tot"'+(so>0?' data-totcp="'+m+'" data-scope="o:'+og.o.id+'" title="Détail du total CP de l\'opération '+esc(og.o.nom)+' en '+mLabel(m)+' (cliquer)"':' title="Total CP de l\'opération '+esc(og.o.nom)+' ce mois-ci (non modifiable)"')+'>'+fmt0(so)+'</td>';
     });
     body+='</tr>';
   }
-  body+=extRow('après', ejs.length+3);
+  body+=extRow('après', nbTot);
   var foot='<tr><td class="scol sc0"></td><td class="scol sc1">Total</td>';
-  var gt=0;
-  ejs.forEach(function(e){ var s=cpSumOf(e.id); gt+=s; foot+='<td class="dcol ccell tot">'+fmt0(s)+'</td>'; });
-  foot+='<td class="dcol ccell tot">'+fmt0(gt)+'</td></tr>';
+  opCols.forEach(function(og){
+    og.cs.forEach(function(c){
+      c.le.forEach(function(e){ foot+='<td class="dcol ccell tot">'+fmt0(cpSumOf(e.id))+'</td>'; });
+      var sa=0; c.le.forEach(function(e){ sa+=cpSumOf(e.id); });
+      foot+='<td class="dcol ccell tot" title="Total CP de l\'affaire '+esc(c.a.nom)+' (non modifiable)">'+fmt0(sa)+'</td>';
+    });
+    var so=0; og.cs.forEach(function(c){ c.le.forEach(function(e){ so+=cpSumOf(e.id); }); });
+    foot+='<td class="dcol ccell tot" title="Total CP de l\'opération '+esc(og.o.nom)+' (non modifiable)">'+fmt0(so)+'</td>';
+  });
+  foot+='</tr>';
 
-     '<p class="hint">Une ligne par mois, une colonne par <strong>EJ matérialisé</strong> (aléas/risques : onglet dédié). Profil de CP via le bouton dans l\'en-tête de colonne. Cellules violettes = calculées, grisées = verrouillées (avant le mois de l\'EJ). <strong>Clic sur le total du mois : détail.</strong> <span class="hint-ic" title="Profils : ponctuelle (tout le CP à un mois), uniforme (réparti sur une période), personnalisée (saisie libre cellule par cellule). Le montant de l\'EJ et la somme de ses CP doivent être cohérents : sinon badge d\'écart ici et alerte sur le tableau de bord (avec lien vers la colonne). Tous les CP alimentent le tableau de bord et la GP à saisir.">i</span></p></div>';
-     '<p class="hint">Une ligne par mois, une colonne par <strong>EJ matérialisé</strong> (programmé ou engagé) — les <strong>aléas et risques</strong> se gèrent dans l\'onglet dédié « Risques &amp; aléas ». Le <strong>profil de consommation</strong> se règle en cliquant sur le bouton de profil dans l\'en-tête de la colonne (fenêtre avec un onglet par mode : <strong>ponctuelle</strong>, <strong>uniforme sur une période</strong> — pour un EJ issu d\'un risque matérialisé, la date choisie peut servir de début — ou <strong>personnalisée</strong>). En profil ponctuel/uniforme les CP sont recalculés automatiquement (cellules violet) ; en profil personnalisé, saisissez les CP directement dans les cellules. Tous les CP alimentent le tableau de bord et la GP à saisir.</p></div>';
-  h+='<div class="grid-wrap"><table class="grid conso"><thead><tr class="hl1">'+r1+'</tr><tr class="hl2">'+r2+'</tr><tr class="hl3">'+r3+'</tr><tr class="hl4">'+r4+'</tr><tr class="hl5">'+r5+'</tr><tr class="hl6">'+r6+'</tr><tr class="hl7">'+r7+'</tr></thead>'+
+  var w0=(state.ui.colW&&state.ui.colW.c0)||32, w1=(state.ui.colW&&state.ui.colW.c1)||80;
+  h+='<div class="grid-wrap"><table class="grid conso rev-table fixed" style="--sc0w:'+w0+'px;--sc1w:'+w1+'px">'+consoColgroup(opCols)+
+     '<thead><tr class="hlA">'+rA+'</tr><tr class="hlB">'+rB+'</tr>'+
+     '<tr class="hl2">'+r2+'</tr><tr class="hl3">'+r3+'</tr><tr class="hl4">'+r4+'</tr><tr class="hl5">'+r5+'</tr></thead>'+
      '<tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>';
 
   mount('view-conso', h, function(w){
     wireConsoHeader(w,affs);
+    /* redimensionnement des colonnes par l'utilisateur (poignée en bord droit d'en-tête) */
+    w.addEventListener('mousedown', function(ev){
+      var rs=ev.target&&ev.target.closest?ev.target.closest('.colrs'):null;
+      if(!rs||!rs.dataset) return;
+      ev.preventDefault();
+      var ck=rs.dataset.ck;
+      var tbl=w.querySelector('table.grid');
+      var col=tbl&&tbl.querySelector?tbl.querySelector('col[data-ck="'+ck+'"]'):null;
+      if(!col) return;
+      var startX=(ev.clientX||0);
+      var startW=(col.getBoundingClientRect?col.getBoundingClientRect().width:0)||parseFloat(col.style.width)||140;
+      function mv(e2){
+        var nw=Math.max(56,startW+((e2.clientX||0)-startX));
+        col.style.width=Math.round(nw)+'px';
+        state.ui.colW=state.ui.colW||{}; state.ui.colW[ck]=Math.round(nw);
+        /* colonnes sticky : la 2ᵉ colonne reste collée juste après la 1ʳᵉ */
+        if(tbl.style&&tbl.style.setProperty){
+          if(ck==='c0') tbl.style.setProperty('--sc0w',Math.round(nw)+'px');
+          if(ck==='c1') tbl.style.setProperty('--sc1w',Math.round(nw)+'px');
+        }
+      }
+      function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); save(); }
+      document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+    });
+    w.addEventListener('dblclick', function(ev){
+      var rs=ev.target&&ev.target.closest?ev.target.closest('.colrs'):null;
+      if(!rs||!rs.dataset) return;
+      var ck=rs.dataset.ck;
+      if(state.ui.colW) delete state.ui.colW[ck];
+      var tbl=w.querySelector('table.grid');
+      var col=tbl&&tbl.querySelector?tbl.querySelector('col[data-ck="'+ck+'"]'):null;
+      if(col) col.style.width='';
+      save(); render();
+    });
     w.addEventListener('click', function(ev){
       var tc=ev.target.closest('[data-totcp]');
       if(tc&&tc.dataset&&tc.dataset.totcp){
-        var m=tc.dataset.totcp, row=tc.closest('tr');
+        var m=tc.dataset.totcp, scope=tc.dataset.scope||'', row=tc.closest('tr');
         var next=row.nextSibling;
-        var key='totcp|'+m;
-        if(next&&next.classList&&next.classList.contains('gp-detail-row')){ if(next.dataset.for===key){ next.parentNode.removeChild(next); return; } next.dataset.for=key; next.innerHTML=consoTotDetail(m,ejs); return; }
-        var items=[];
-        ejs.forEach(function(e){ var v=cpPrevu(e,m); if(v>0) items.push('<div><span class="gp-k">'+esc(e.numero)+'</span> '+(e.libelle?'('+esc(e.libelle)+') ':'')+': <span class="mono">'+fmt0(v)+'</span></div>'); });
-        var html='<td colspan="'+(ejs.length+2)+'" class="gp-detail"><strong>Total CP '+mLong(m)+' = '+fmt0(items.reduce(function(s){return s;},0)||0)+' :</strong>';
-        var tot=0; ejs.forEach(function(e){ tot+=cpPrevu(e,m); });
-        html='<td colspan="'+(ejs.length+2)+'" class="gp-detail"><strong>Détail du total CP de '+mLong(m)+' ('+fmt0(tot)+') :</strong>'+items.join('')+'</td>';
-        var tr=document.createElement('tr'); tr.className='gp-detail-row'; tr.dataset.for=key; tr.innerHTML=html;
+        var key='totcp|'+scope+'|'+m;
+        if(next&&next.classList&&next.classList.contains('gp-detail-row')){ if(next.dataset.for===key){ next.parentNode.removeChild(next); return; } next.dataset.for=key; next.innerHTML='<td colspan="'+nbTot+'" class="gp-detail">'+consoTotDetailHTML(m,ejs,scope)+'</td>'; return; }
+        var tr=document.createElement('tr'); tr.className='gp-detail-row'; tr.dataset.for=key;
+        tr.innerHTML='<td colspan="'+nbTot+'" class="gp-detail">'+consoTotDetailHTML(m,ejs,scope)+'</td>';
         row.parentNode.insertBefore(tr, row.nextSibling);
         return;
       }
-      var pb=ev.target.closest('button[data-profbtn]');
-      if(pb){ openProfilPopup(pb.dataset.profbtn); return; }
+      var ep=ev.target.closest('[data-ejpop]');
+      if(ep){ openProfilPopup(ep.dataset.ejpop); return; }
       var ab=ev.target.closest('button[data-affbtn]');
       if(ab){ openAffairePopup(ab.dataset.affbtn); return; }
     });
     var consoChange=function(ev){
       var t=ev.target;
-      if(t.dataset&&t.dataset.ejf){
-        var e2=ejById(t.dataset.ejf); if(!e2) return;
-        var f=t.dataset.f;
-        if(f==='montant'){ var v=parseMontant(t.value); e2.montant=(v==null?0:v); }
-        else if(f==='mois'){ var dm=parseIdxDate(t.value); if(dm) e2.mois=dm; }
-        else e2[f]=t.value;
-        recomputeProfils(state); save(); render(); return;
-      }
       if(t.dataset&&t.dataset.cp){
         var k=t.dataset.cp, pp=k.split('|'), ejId=pp[0], m=pp[1];
         var ejC=ejById(ejId);
         if(ejC&&ejC.mois&&m<ejC.mois){ alert('Pas de CP avant le mois de l\'EJ '+ejC.numero+' ('+mLabel(ejC.mois)+') : l\'EJ est engagé intégralement le 1er jour de son mois.'); delete state.cps[k]; save(); renderConso(); return; }
         var v2=parseMontant(t.value);
         if(v2==null||v2<=0) delete state.cps[k]; else state.cps[k]=v2;
-        save(); renderConso(); return;
+        save(); renderConso();
+        /* on rend le focus à la cellule pour enchaîner la saisie */
+        var nw2=document.getElementById('view-conso').children[0];
+        var el2=nw2.querySelector('[data-cp="'+k+'"]');
+        if(el2){ el2.focus(); }
+        return;
       }
     };
-    w.addEventListener('change', consoChange);
-    w.addEventListener('input', consoChange); /* mise à jour en direct (cases grisées suivent la date de l'EJ) */
+    w.addEventListener('change', consoChange); /* 'change' : save + re-render */
   });
+}
+
+function consoTotDetailHTML(m, ejs, scope){
+  var items=consoTotItems(m,ejs,scope), tot=0;
+  ejs.forEach(function(e){
+    if(scope&&scope.indexOf('a:')===0&&e.affaireId!==scope.slice(2)) return;
+    if(scope&&scope.indexOf('o:')===0){ var a=affaireById(e.affaireId); if(!a||a.opId!==scope.slice(2)) return; }
+    tot+=cpPrevu(e,m);
+  });
+  var label=scope.indexOf('a:')===0?('affaire '+affaireName(scope.slice(2))):(scope.indexOf('o:')===0?('opération '+opName(scope.slice(2))):'toutes les EJ');
+  return '<strong>Détail du total CP — '+label+' — '+mLong(m)+' ('+fmt0(tot)+') :</strong>'+(items.join('')||'<div>Aucun CP ce mois-ci.</div>');
 }
 
 function wireConsoHeader(w, affs){
@@ -3848,12 +4192,13 @@ function cpAt(e, m){
 function gpVal(kind, aff, m){
   var cur=curMois();
   if(kind==='sej'||kind==='scp'){
-    /* Pas de double comptage saisi/réalisé : sur un mois PASSÉ avec réalisé saisi,
-       on garde le réalisé (immuable) ; sur le mois en cours (ou sans réalisé), on
-       garde le saisi (prévu). */
-    var r=(m<cur)?realOf(aff.id,m):null;
-    if(kind==='sej'){ var b=(r&&(r.ej||0)>0)?(r.ej||0):gpVal('ej',aff,m); return b+gpVal('ae',aff,m)+gpVal('rk',aff,m)+gpVal('rp',aff,m); }
-    var b2=(r&&(r.cp||0)>0)?(r.cp||0):gpVal('cp',aff,m); return b2+gpVal('ac',aff,m)+gpVal('rc',aff,m)+gpVal('rp',aff,m);
+    /* Pas de double comptage saisi/réalisé : dès qu'un réalisé est SAISI pour le
+       mois (même à 0 — saisi à zéro = constatation, distinct de non saisi), il
+       devient la vérité et remplace le saisi ; sinon on garde le saisi (prévu).
+       Ça vaut pour les mois passés ET le mois en cours (réalisé entré = priorité). */
+    var r=realOf(aff.id,m);
+    if(kind==='sej'){ var b=(r!=null)?(r.ej||0):gpVal('ej',aff,m); return b+gpVal('ae',aff,m)+gpVal('rk',aff,m)+gpVal('rp',aff,m); }
+    var b2=(r!=null)?(r.cp||0):gpVal('cp',aff,m); return b2+gpVal('ac',aff,m)+gpVal('rc',aff,m)+gpVal('rp',aff,m);
   }
   var s=0, ejs=ejsOfAffaire(aff.id), i;
   if(kind==='ej'){ ejs.forEach(function(e){ if(isMaterialise(e)&&gpShiftEjMonth(e.mois)===m) s+=montantOf(e); }); }
@@ -3994,7 +4339,7 @@ function gpYearText(affs, months){
     /* réalisé saisi de l'affaire à ce mois — seulement les mois PASSÉS (le mois en
        cours reste au saisi) ; un mois n'apparaît qu'une fois : réalisé OU saisi */
     var realEj={}, realCp={};
-    affs.forEach(function(a){ var r=realOf(a.id,m); if(past&&r){ if((r.ej||0)>0) realEj[a.id]=r.ej; if((r.cp||0)>0) realCp[a.id]=r.cp; } });
+    affs.forEach(function(a){ var r=realOf(a.id,m); if(r){ realEj[a.id]=r.ej||0; realCp[a.id]=r.cp||0; } }); /* saisi (même à 0) = vérité, mois passé comme mois en cours */
     state.ejs.forEach(function(e){
       if(!ids[e.affaireId]) return;
       var lbl=e.numero+(e.stade&&e.stade!=='prog'?' ('+stadeLabel(e)+')':'')+(e.libelle?' '+e.libelle:'');
@@ -4027,9 +4372,9 @@ function gpYearText(affs, months){
     }
     affs.forEach(function(a){
       var r=realOf(a.id,m);
-      if(!past||!r) return;
-      if((r.ej||0)>0) bucket(mEj.slice(0,4),'ej').real.push(mLabel(mEj)+' : '+kEur(r.ej)+' EJ réalisé — '+a.nom);
-      if((r.cp||0)>0) bucket(mCp.slice(0,4),'cp').real.push(mLabel(mCp)+' : '+kEur(r.cp)+' CP réalisé — '+a.nom);
+      if(!r) return; /* non saisi : on reste sur le prévu */
+      bucket(mEj.slice(0,4),'ej').real.push(mLabel(mEj)+' : '+kEur(r.ej||0)+' EJ réalisé — '+a.nom);
+      bucket(mCp.slice(0,4),'cp').real.push(mLabel(mCp)+' : '+kEur(r.cp||0)+' CP réalisé — '+a.nom);
     });
   });
   /* option "RP en décembre seulement" : ligne de décembre = somme des RP de l'année, dans les deux versions */
@@ -4065,7 +4410,7 @@ function renderGp(){
   var cur=curMois();
   var K=GP_KINDS.length;
 
-  var h='<div class="toolbar">'+
+  var h='<div class="toolbar">'+filtersBarHTML()+
     '<label class="gp-chk" title="Export : la ligne de décembre ne contient que la somme des RP de l\'année ; l\'EJ de décembre est mis en novembre et le CP de décembre en janvier (cumulatif avec « Pas de CP en janvier » : janvier -> février)"><input type="checkbox" id="gp-rpdec"'+(state.ui.gpRpDec?' checked':'')+'> RP en décembre seulement</label>'+
     '<label class="gp-chk" title="Export : décale les CP de décembre vers janvier de l\'année suivante (ne s\'applique pas aux RP)"><input type="checkbox" id="gp-nocpdec"'+(state.ui.gpNoCpDec?' checked':'')+'> Pas de CP en décembre</label>'+
     '<label class="gp-chk" title="Export : décale les CP de janvier vers février (cumulatif avec « Pas de CP en décembre »)"><input type="checkbox" id="gp-nocpjan"'+(state.ui.gpNoCpJan?' checked':'')+'> Pas de CP en janvier</label>'+
@@ -4106,14 +4451,11 @@ function renderGp(){
     else{ h3+='<th class="gp-kinds gp-h-tot gp-synth">Σ '+GP_SYNTH_LABEL.sej+'</th><th class="gp-kinds gp-h-tot gp-synth">Σ '+GP_SYNTH_LABEL.scp+'</th>'; }
   });
 
-  function cell(kind, scope, m, val, span){
-    if(!val) return '<td class="num"></td>';
-    var isReal=(kind==='rej'||kind==='rcp');
-    return '<td class="num"><span class="gp-cell'+(isReal?' gp-real':'')+'" data-gp="'+kind+'" data-scope="'+scope+'" data-m="'+m+'" data-span="'+span+'" title="'+(isReal?'Réalisé SAISI dans « Réalisé » — valeur immuable (pas un calcul) — cliquer pour le détail':'Voir le détail')+'">'+fmt0(val)+'</span></td>';
+  function cell(kind, scope, m, val, span, isReal){
+    isReal=isReal||kind==='rej'||kind==='rcp';
+    if(!val&&!isReal) return '<td class="num"></td>';
+    return '<td class="num"><span class="gp-cell'+(isReal?' gp-real':'')+'" data-gp="'+kind+'" data-scope="'+scope+'" data-m="'+m+'" data-span="'+span+'" title="'+(isReal?'S\'appuie sur le RÉALISÉ saisi dans « Réalisé » — valeur immuable (pas un calcul) — cliquer pour le détail':'Voir le détail')+'">'+fmt0(val)+'</span></td>';
   }
-
-  /* synthèse avec substitution : mois passé + réalisé -> réalisé ; sinon saisi */
-  function synthVals(v, m){ var past=m&&m<cur; return {sej:(past&&v.rej>0?v.rej:v.ej)+v.ae+v.rk+v.rp, scp:(past&&v.rcp>0?v.rcp:v.cp)+v.ac+v.rc+v.rp}; }
   var totalCols0=opCols.reduce(function(s,og){ return s+og.cs.reduce(function(s2,a){ return s2+gCols('a:'+a.id); },0)+gCols('o:'+og.o.id); },0)+1;
   var body='';
   body+=extRow('avant', totalCols0);
@@ -4125,11 +4467,11 @@ function renderGp(){
       og.cs.forEach(function(a){
         var ak='a:'+a.id, vA={};
         GP_KINDS.forEach(function(kk){ var v=gpVal(kk[0],a,m); vA[kk[0]]=v; sVals[kk[0]]+=v; });
-        if(gExp(ak)){ GP_KINDS.forEach(function(kk){ body+=cell(kk[0],ak,m,vA[kk[0]]); }); }
-        else{ var sv=synthVals(vA,m); body+=cell('sej',ak,m,sv.sej); body+=cell('scp',ak,m,sv.scp); }
+        if(gExp(ak)){ GP_KINDS.forEach(function(kk){ body+=cell(kk[0],ak,m,vA[kk[0]],null,kk[0]==='rej'||kk[0]==='rcp'); }); }
+        else{ var rr=realOf(a.id,m); body+=cell('sej',ak,m,gpVal('sej',a,m),null,rr!=null); body+=cell('scp',ak,m,gpVal('scp',a,m),null,rr!=null); }
       });
-      if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ body+=cell(kk[0],opKey,m,sVals[kk[0]]); }); }
-      else{ var sv2=synthVals(sVals,m); body+=cell('sej',opKey,m,sv2.sej); body+=cell('scp',opKey,m,sv2.scp); }
+      if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ body+=cell(kk[0],opKey,m,sVals[kk[0]],null,kk[0]==='rej'||kk[0]==='rcp'); }); }
+      else{ var sejO=0,scpO=0,realO=false; og.cs.forEach(function(a2){ sejO+=gpVal('sej',a2,m); scpO+=gpVal('scp',a2,m); if(realOf(a2.id,m)) realO=true; }); body+=cell('sej',opKey,m,sejO,null,realO); body+=cell('scp',opKey,m,scpO,null,realO); }
     });
     body+='</tr>';
   });
@@ -4147,13 +4489,15 @@ function renderGp(){
         vA[kk[0]]=v; oVals[kk[0]]+=v;
       });
       vA.sej=0; vA.scp=0;
-      months.forEach(function(m){ vA.sej+=gpVal('sej',a,m); vA.scp+=gpVal('scp',a,m); });
+      var realA=false;
+      months.forEach(function(m){ vA.sej+=gpVal('sej',a,m); vA.scp+=gpVal('scp',a,m); if(realOf(a.id,m)) realA=true; });
       oVals.sej+=vA.sej; oVals.scp+=vA.scp;
-      if(gExp(ak)){ GP_KINDS.forEach(function(kk){ foot+=cell(kk[0],ak,'',vA[kk[0]]); }); }
-      else{ foot+=cell('sej',ak,'',vA.sej); foot+=cell('scp',ak,'',vA.scp); }
+      if(gExp(ak)){ GP_KINDS.forEach(function(kk){ foot+=cell(kk[0],ak,'',vA[kk[0]],null,kk[0]==='rej'||kk[0]==='rcp'); }); }
+      else{ foot+=cell('sej',ak,'',vA.sej,null,realA); foot+=cell('scp',ak,'',vA.scp,null,realA); }
     });
-    if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ foot+=cell(kk[0],opKey,'',oVals[kk[0]]); }); }
-    else{ foot+=cell('sej',opKey,'',oVals.sej); foot+=cell('scp',opKey,'',oVals.scp); }
+    var realO2=false; og.cs.forEach(function(a2){ months.forEach(function(m){ if(realOf(a2.id,m)) realO2=true; }); });
+    if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ foot+=cell(kk[0],opKey,'',oVals[kk[0]],null,kk[0]==='rej'||kk[0]==='rcp'); }); }
+    else{ foot+=cell('sej',opKey,'',oVals.sej,null,realO2); foot+=cell('scp',opKey,'',oVals.scp,null,realO2); }
   });
   foot+='</tr>';
   var totalCols=opCols.reduce(function(s,og){ return s+og.cs.reduce(function(s2,a){ return s2+gCols('a:'+a.id); },0)+gCols('o:'+og.o.id); },0);
@@ -4256,7 +4600,8 @@ function revDetail(kind, scope, m, span){
       var v=revisionMois(a,m);
       if(v>0){
         var i=indiceApplicable(a,m), i0=indiceRef(a);
-        items.push({a:a,lbl:'RP = CP '+fmt0(cpMoisAff(a,m))+' × (I/I₀−1), I='+fmtIdx(i)+', I₀='+fmtIdx(i0),v:v});
+        var rB=realOf(a.id,m), baseB=(rB!=null)?(rB.cp||0):cpMoisAff(a,m);
+        items.push({a:a,lbl:'RP = CP '+fmt0(baseB)+(rB!=null?' (réalisé saisi)':' (prévu)')+' × (I/I₀−1), I='+fmtIdx(i)+', I₀='+fmtIdx(i0),v:v});
         tot+=v;
       }
     }
@@ -4273,7 +4618,7 @@ function renderRevisions(){
   var months=scopeMonths(opId,affId);
   var cur=curMois();
 
-  var h='<div class="toolbar">'+
+  var h='<div class="toolbar">'+filtersBarHTML()+
     '<button class="btn" id="r-csv" title="Exporter le tableau (mois × affaire : indice, CP, RP) en CSV">Exporter CSV</button></div>';
 
     '<p class="hint">Lecture seule : par affaire, <strong>indice I/I₀ recalé</strong>, <strong>CP du mois</strong>, <strong>RP = CP × (I/I₀−1)</strong> — des RP exactement là où il y a des CP. <strong>Clic sur une cellule CP/RP = détail de la somme/du calcul.</strong> Boutons <strong>fx / CP / idx</strong> dans les colonnes. <span class="hint-ic" title="{série_0} = valeur de la série au mois de référence de l\'affaire ; {i0} = indice à la date de réf. RP par défaut {c}*({i}/{i0}-1) avec {c} = CP du mois. 2e tableau : RP cumulées, années en lignes, opérations/affaires en colonnes.">i</span></p>';
@@ -4320,15 +4665,17 @@ function renderRevisions(){
       var tCp=0, tRp=0;
       og.cs.forEach(function(a){
         var ind=indiceApplicable(a,m), i0=indiceRef(a);
+        var rM=realOf(a.id,m); /* CP réel saisi = base de vérité pour la RP */
         var cp=0;
         ejsOfAffaire(a.id).forEach(function(e){ if(isMaterialise(e)) cp+=cpPrevu(e,m); });
+        var cpBase=(rM!=null)?(rM.cp||0):cp;
         var rp=revisionMois(a,m);
-        tCp+=cp; tRp+=rp;
+        tCp+=cpBase; tRp+=rp;
         var indTxt=(ind==null?'—':fmtIdx(ind))+(ind!=null&&i0?(' <span class="muted">I/I₀='+(ind/i0).toLocaleString('fr-FR',{maximumFractionDigits:3})+'</span>'):'&nbsp;');
         var forced=Object.prototype.hasOwnProperty.call(state.revisions,a.id+'|'+m);
         body+='<td class="num mono" title="Formule de l\'affaire : '+(a.formule||'(1ʳᵉ série)')+' — date de réf. '+(a.dateRefRev||'—')+' : I₀='+(i0==null?'?':fmtIdx(i0))+' (I/I₀ recalé à 1 à cette date)">'+indTxt+'</td>';
-        body+='<td class="num mono'+(cp>0?' gp-cell':'')+'"'+(cp>0?' data-rev="cp|a:'+a.id+'|'+m+'" title="CP prévisionnels ce mois (somme) — cliquer pour le détail des EJ"':' title="CP prévisionnels ce mois (EJ engagés) — régler dans « Consommation CP »"')+'>'+fmt0(cp)+'</td>';
-        body+='<td class="num mono rev-rp'+(forced?' forced':'')+(rp>0?' gp-cell':'')+'"'+(rp>0?' data-rev="rp|a:'+a.id+'|'+m+'" title="RP du mois = CP du mois × (I/I₀−1) — cliquer pour le détail du calcul"':' title="RP du mois (formule de révision'+(forced?', valeur forcée':'')+') — modifier la formule dans « Opérations & affaires »"')+'>'+fmt0(rp)+'</td>';
+        body+='<td class="num mono'+(rM!=null?' gp-real':'')+(cpBase>0?' gp-cell':'')+'"'+(cpBase>0?' data-rev="cp|a:'+a.id+'|'+m+'" title="'+(rM!=null?'CP RÉALISÉ saisi dans « Réalisé » (valeur immuable, base de la RP)':'CP prévisionnels ce mois (somme) — cliquer pour le détail des EJ')+'"':' title="'+(rM!=null?'CP RÉALISÉ saisi dans « Réalisé » (base de la RP)':'CP prévisionnels ce mois (EJ engagés) — régler dans « Consommation CP »')+'"')+'>'+fmt0(cpBase)+'</td>';
+        body+='<td class="num mono rev-rp'+(rM!=null?' gp-real':'')+(forced?' forced':'')+(rp>0?' gp-cell':'')+'"'+(rp>0?' data-rev="rp|a:'+a.id+'|'+m+'" title="RP du mois = base CP × (I/I₀−1)'+(rM!=null?' — base = CP RÉALISÉ saisi':'')+' — cliquer pour le détail du calcul"':' title="RP du mois (formule de révision'+(forced?', valeur forcée':'')+') — modifier la formule dans « Opérations & affaires »"')+'>'+fmt0(rp)+'</td>';
       });
       if(og.cs.length>1) body+='<td class="num mono rev-tot'+(tCp>0?' gp-cell':'')+'"'+(tCp>0?' data-rev="cp|o:'+og.o.id+'|'+m+'" title="Total opération — CP du mois (somme des affaires) — cliquer pour le détail"':' title="Total opération — CP du mois"')+'>'+fmt0(tCp)+'</td>'+
             '<td class="num mono rev-tot'+(tRp>0?' gp-cell':'')+'"'+(tRp>0?' data-rev="rp|o:'+og.o.id+'|'+m+'" title="Total opération — RP du mois (somme des affaires) — cliquer pour le détail"':' title="Total opération — RP du mois"')+'>'+fmt0(tRp)+'</td>';
@@ -4449,7 +4796,7 @@ function renderRealise(){
   var months=scopeMonths(opId,affId);
   var cur=curMois();
 
-  var h='<div class="toolbar"></div>';
+  var h='<div class="toolbar">'+filtersBarHTML()+'</div>';
   h+='<p class="hint">Saisissez le <strong>réalisé</strong> (EJ constatés, CP payés) par affaire et par mois passé ou en cours. Écart sur un <strong>mois écoulé</strong> = alerte (+ lien « Traiter ») ; mois en cours non saisi = <strong>info orange</strong>. <span class="hint-ic" title="Le réalisé est enregistré dans les fichiers de données, repris dans la GP à saisir (EJ réel / CP réel) et comparé aux prévisions mois par mois : retard et avance sont des incohérences, signalés séparément (statut, alertes ici et tableau de bord). Colonne Actions : ajuster l\'EJ au réalisé, décaler au mois suivant, créer un EJ engagé pour l\'écart, constater le prévu, matérialiser un risque passé ; côté CP : constater le prévu, reporter au mois suivant, régler le profil de CP. Clic sur les cellules EJ/CP du mois = détail de la somme.">i</span></p>';
 
   var alerts=computeAlerts(opId, affId);
@@ -4480,76 +4827,119 @@ function renderRealise(){
     if(val<0) return '<span class="badge over">'+kind+' retard '+fmtM(-val)+'</span>';
     return '<span class="badge warn">'+kind+' avance '+fmtM(val)+'</span>';
   }
-  affs.forEach(function(a){
-    var ejs=ejsOfAffaire(a.id).filter(isMaterialise);
-    var ejsRA=ejsOfAffaire(a.id).filter(isRisque); /* aléas non matérialisables */
-    h+='<div class="card"><h2>Affaire : '+esc(a.nom)+' <span class="muted" title="Reste à payer à date = EJ engagés cumulés − CP consommés cumulés à cette date (indépendant du montant initial)">('+esc(opName(a.opId))+') — montant initial '+fmt(a.montantInitial||0)+', reste à payer '+fmt(resteAPayer(a))+'</span></h2>';
-    h+='<div class="grid-wrap"><table class="liste"><thead><tr>'+
-       '<th>Mois</th>'+
-       '<th class="num" title="Montant des EJ engagés (programmés ou matérialisés) à ce mois">EJ engagés (mois)</th>'+
-       '<th class="num" title="CP prévus ce mois-ci selon les profils de consommation des EJ engagés">CP prévu (mois)</th>'+
-       '<th class="num" title="EJ effectivement constatés ce mois (saisie, mois passés uniquement)">EJ réalisé</th>'+
-       '<th class="num" title="CP effectivement payés ce mois (saisie, mois passés uniquement)">CP réalisé</th>'+
-       '<th class="num" title="Écart EJ = réalisé − engagé (mois)">Écart EJ</th>'+
-       '<th class="num" title="Écart CP = réalisé − prévu (mois)">Écart CP</th>'+
-       '<th title="Un écart en retard comme en avance est une incohérence">Statut</th><th>Actions</th></tr></thead><tbody>'+extRow('avant',9);
-    months.forEach(function(m){
-      var ejM=0, cpM=0;
-      ejs.forEach(function(e){ if(e.mois===m) ejM+=montantOf(e); cpM+=cpPrevu(e,m); });
-      var past=m<cur; /* alerte uniquement sur les mois ÉCOULÉS ; le mois courant reste saisissable */
-      var r=realOf(a.id,m)||{ej:0,cp:0};
-      var eEj=(r.ej||0)-ejM, eCp=(r.cp||0)-cpM;
-      var tolEj=Math.max(1,ejM*0.01), tolCp=Math.max(1,cpM*0.02);
-      var inco=past&&(Math.abs(eEj)>tolEj||Math.abs(eCp)>tolCp);
-      var statut;
-      if(past) statut=badgeEcart(eEj,tolEj,'EJ')+' '+badgeEcart(eCp,tolCp,'CP');
-      else if(m===cur) statut=(r.ej||r.cp)?(badgeEcart(eEj,tolEj,'EJ')+' '+badgeEcart(eCp,tolCp,'CP')):'<span class="badge info" title="Mois en cours : le réalisé peut ne pas être encore saisi — information, pas une alerte">à saisir</span>';
-      else statut='';
-      var actions='';
-      if(inco){
-        /* --- corrections EJ (montant de l'EJ prévu) --- */
-        if(Math.abs(eEj)>tolEj){
-          actions+='<button class="btn small" data-act="ajej" data-k="'+a.id+'|'+m+'" data-v="'+Math.round(eEj)+'" title="Mettre à jour le montant de l\'EJ engagé à ce mois de l\'écart constaté ('+(eEj>0?'+':'')+fmt0(eEj)+' € — écart EJ '+(eEj>0?'en avance':'en retard')+') : le montant de l\'EJ devient le réalisé">Ajuster l\'EJ au réalisé</button> ';
-          actions+='<button class="btn small" data-act="const-ej" data-k="'+a.id+'|'+m+'" title="Reporter comme EJ réalisé le montant engagé prévu à ce mois ('+fmt0(ejM)+' €)">EJ = prévu</button> ';
-          if(eEj>tolEj) actions+='<button class="btn small" data-act="addej" data-k="'+a.id+'|'+m+'" data-v="'+Math.round(eEj)+'" title="Créer un EJ engagé supplémentaire sur cette affaire à ce mois pour '+fmt(eEj)+' (écart EJ en avance : réalisé > engagé)">+ EJ engagé</button> ';
-          else actions+='<button class="btn small" data-act="delej" data-k="'+a.id+'|'+m+'" title="Décaler l\'EJ engagé à ce mois (et le début de son profil de CP) au mois suivant — écart EJ en retard">Décaler l\'EJ</button> ';
-          var ra=null;
-          for(var i=0;i<ejsRA.length;i++){ var no=nextOcc(ejsRA[i]); if(no&&no<=m){ ra=ejsRA[i]; break; } }
-          if(ra) actions+='<button class="btn small" data-act="mat" data-ej="'+ra.id+'" data-m="'+m+'" title="Matérialiser « '+esc(ra.numero)+' » (apparition prévue '+mLong(nextOcc(ra))+', passée) à ce mois : il devient un EJ engagé">Matérialiser '+esc(ra.numero)+'</button> ';
-        }
-        /* --- corrections CP (consommation) --- */
-        if(Math.abs(eCp)>tolCp){
-          actions+='<button class="btn small" data-act="const-cp" data-k="'+a.id+'|'+m+'" title="Reporter comme CP réalisés les CP prévus à ce mois ('+fmt0(cpM)+' €)">CP = prévu</button> ';
-          if(eCp<0) actions+='<button class="btn small" data-act="delcp" data-k="'+a.id+'|'+m+'" title="Reporter au mois suivant les CP prévus à ce mois et non réalisés (décale d\'un mois le profil de CP de l\'EJ concerné) — écart CP en retard">Reporter le CP</button> ';
-          var ejCp=null;
-          for(var i2=0;i2<ejs.length;i2++){ if(cpPrevu(ejs[i2],m)>0){ ejCp=ejs[i2]; break; } }
-          if(!ejCp) ejCp=ejs[0]||null;
-          if(ejCp) actions+='<button class="btn small" data-act="prof" data-ej="'+ejCp.id+'" title="Ouvrir le réglage du profil de consommation des CP de « '+esc(ejCp.numero)+' » (décaler, étendre, personnaliser, saisir mois par mois…)">Profil CP</button>';
-        }
-      }
-      h+='<tr'+(m===cur?' class="gp-cur"':'')+'><td'+(m===cur?' style="background:var(--amber-bg);font-weight:600"':'')+'>'+mLong(m)+(past?'':' (à venir)')+'</td>'+
-         '<td class="num mono'+(ejM>0?' gp-cell':'')+'"'+(ejM>0?' data-realsum="ej|'+a.id+'|'+m+'" title="Somme des EJ engagés à ce mois — cliquer pour le détail"':'')+'>'+fmt0(ejM)+'</td>'+
-         '<td class="num mono'+(cpM>0?' gp-cell':'')+'"'+(cpM>0?' data-realsum="cp|'+a.id+'|'+m+'" title="Somme des CP prévus à ce mois — cliquer pour le détail"':'')+'>'+fmt0(cpM)+'</td>'+
-         '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+a.id+'|'+m+'" data-f="ej" value="'+(r.ej?fmt0(r.ej):'')+'"'+(m<=cur?'':' disabled')+' title="EJ effectivement constatés en '+mLong(m)+' (mois passé ou en cours : saisir le réalisé)"></td>'+
-         '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+a.id+'|'+m+'" data-f="cp" value="'+(r.cp?fmt0(r.cp):'')+'"'+(m<=cur?'':' disabled')+' title="CP effectivement payés en '+mLong(m)+' (mois passé ou en cours : saisir le réalisé)"></td>'+
-         '<td class="num mono">'+(past?fmtS(eEj):'')+'</td>'+
-         '<td class="num mono">'+(past?fmtS(eCp):'')+'</td>'+
-         '<td>'+statut+'</td>'+
-         '<td style="white-space:nowrap">'+actions+'</td></tr>';
-    });
-    h+='</tbody>'.replace('</tbody>','')+extRow('après',9)+'</tbody></table></div></div>';
+  /* tableau hiérarchique comme GP/Révisions : ligne 1 = opération, ligne 2 = affaire, ligne 3 = colonnes ; totaux en pied */
+  var opColsR=[];
+  state.operations.forEach(function(o){
+    var cs=affs.filter(function(a){ return a.opId===o.id; });
+    if(cs.length) opColsR.push({o:o, cs:cs});
   });
-
+  var COLS_R=[
+    ['EJ engagés (mois)','Montant des EJ engagés (programmés ou matérialisés) à ce mois — cliquer pour le détail de la somme'],
+    ['CP prévu (mois)','CP prévus ce mois-ci selon les profils de consommation des EJ engagés — cliquer pour le détail'],
+    ['EJ réalisé','EJ effectivement constatés ce mois (saisie, mois passés ou en cours)'],
+    ['CP réalisé','CP effectivement payés ce mois (saisie, mois passés ou en cours)'],
+    ['Écart EJ','Écart EJ = réalisé − engagé (mois écoulés seulement)'],
+    ['Écart CP','Écart CP = réalisé − prévu (mois écoulés seulement)'],
+    ['Statut','Un écart en retard comme en avance est une incohérence (mois écoulé) ; mois en cours non saisi = info orange'],
+    ['Actions','Corriger l\'écart constaté (ajuster/décaler l\'EJ, reporter le CP, matérialiser un risque…)']
+  ];
+  if(!opColsR.length){ h+='<div class="card"><div class="empty">Aucune affaire dans cette sélection.</div></div>'; }
+  else{
+    var h1='<th rowspan="3" class="scol sc0 rev-h-fix">#</th><th rowspan="3" class="scol sc1 rev-h-fix">Mois</th>';
+    var h2='', h3='';
+    opColsR.forEach(function(og){
+      h1+='<th class="rev-h-op" colspan="'+(og.cs.length*8)+'">Opération '+(og.o.numero?og.o.numero+' — ':'')+': '+esc(og.o.nom)+'</th>';
+      og.cs.forEach(function(a){
+        h2+='<th class="rev-h-aff" colspan="8" title="Reste à payer à date '+fmt(resteAPayer(a))+'">'+esc(a.nom)+'</th>';
+        COLS_R.forEach(function(c){ h3+='<th class="rev-h-col" title="'+esc(c[1])+'">'+c[0]+'</th>'; });
+      });
+    });
+    var nbCols=2+opColsR.reduce(function(s,og){ return s+og.cs.length*8; },0);
+    var body='';
+    body+=extRow('avant', nbCols);
+    months.forEach(function(m,ri){
+      body+='<tr'+(m===cur?' class="gp-cur"':'')+'><td class="scol sc0 rnum">'+(ri+1)+'</td><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLong(m)+(m<cur?'':' (à venir)')+'</td>';
+      opColsR.forEach(function(og){
+        og.cs.forEach(function(a){
+          var ejs=ejsOfAffaire(a.id).filter(isMaterialise);
+          var ejsRA=ejsOfAffaire(a.id).filter(isRisque); /* aléas non matérialisables */
+          var ejM=0, cpM=0;
+          ejs.forEach(function(e){ if(e.mois===m) ejM+=montantOf(e); cpM+=cpPrevu(e,m); });
+          var past=m<cur; /* alerte uniquement sur les mois ÉCOULÉS ; le mois courant reste saisissable */
+          var r=realOf(a.id,m); /* null = NON SAISI (distinct d'un réalisé saisi à 0) */
+          var hasR=r&&(Object.prototype.hasOwnProperty.call(r,'ej')||Object.prototype.hasOwnProperty.call(r,'cp'));
+          var eEj=(hasR?r.ej||0:0)-ejM, eCp=(hasR?r.cp||0:0)-cpM;
+          var tolEj=Math.max(1,ejM*0.01), tolCp=Math.max(1,cpM*0.02);
+          var inco=past&&hasR&&(Math.abs(eEj)>tolEj||Math.abs(eCp)>tolCp);
+          var statut;
+          if(past&&!hasR) statut='<span class="badge warn" title="Mois écoulé sans réalisé saisi — alerte remontée au tableau de bord (un réalisé saisi à 0 vaut constatation « rien », bien distinct de non saisi)">non saisi</span>';
+          else if(past) statut=badgeEcart(eEj,tolEj,'EJ')+' '+badgeEcart(eCp,tolCp,'CP');
+          else if(m===cur) statut=hasR?(badgeEcart(eEj,tolEj,'EJ')+' '+badgeEcart(eCp,tolCp,'CP')):'<span class="badge info" title="Mois en cours : le réalisé peut ne pas être encore saisi — information, pas une alerte">à saisir</span>';
+          else statut='';
+          var actions='';
+          if(inco){
+            /* --- corrections EJ (montant de l'EJ prévu) --- */
+            if(Math.abs(eEj)>tolEj){
+              actions+='<button class="btn small" data-act="ajej" data-k="'+a.id+'|'+m+'" data-v="'+Math.round(eEj)+'" title="Mettre à jour le montant de l\'EJ engagé à ce mois de l\'écart constaté ('+(eEj>0?'+':'')+fmt0(eEj)+' € — écart EJ '+(eEj>0?'en avance':'en retard')+') : le montant de l\'EJ devient le réalisé">Ajuster l\'EJ au réalisé</button> ';
+              actions+='<button class="btn small" data-act="const-ej" data-k="'+a.id+'|'+m+'" title="Reporter comme EJ réalisé le montant engagé prévu à ce mois ('+fmt0(ejM)+' €)">EJ = prévu</button> ';
+              if(eEj>tolEj) actions+='<button class="btn small" data-act="addej" data-k="'+a.id+'|'+m+'" data-v="'+Math.round(eEj)+'" title="Créer un EJ engagé supplémentaire sur cette affaire à ce mois pour '+fmt(eEj)+' (écart EJ en avance : réalisé > engagé)">+ EJ engagé</button> ';
+              else actions+='<button class="btn small" data-act="delej" data-k="'+a.id+'|'+m+'" title="Décaler l\'EJ engagé à ce mois (et le début de son profil de CP) au mois suivant — écart EJ en retard">Décaler l\'EJ</button> ';
+              var ra=null;
+              for(var i=0;i<ejsRA.length;i++){ var no=nextOcc(ejsRA[i]); if(no&&no<=m){ ra=ejsRA[i]; break; } }
+              if(ra) actions+='<button class="btn small" data-act="mat" data-ej="'+ra.id+'" data-m="'+m+'" title="Matérialiser « '+esc(ra.numero)+' » (apparition prévue '+mLong(nextOcc(ra))+', passée) à ce mois : il devient un EJ engagé">Matérialiser '+esc(ra.numero)+'</button> ';
+            }
+            /* --- corrections CP (consommation) --- */
+            if(Math.abs(eCp)>tolCp){
+              actions+='<button class="btn small" data-act="const-cp" data-k="'+a.id+'|'+m+'" title="Reporter comme CP réalisés les CP prévus à ce mois ('+fmt0(cpM)+' €)">CP = prévu</button> ';
+              if(eCp<0) actions+='<button class="btn small" data-act="delcp" data-k="'+a.id+'|'+m+'" title="Reporter au mois suivant les CP prévus à ce mois et non réalisés (décale d\'un mois le profil de CP de l\'EJ concerné) — écart CP en retard">Reporter le CP</button> ';
+              var ejCp=null;
+              for(var i2=0;i2<ejs.length;i2++){ if(cpPrevu(ejs[i2],m)>0){ ejCp=ejs[i2]; break; } }
+              if(!ejCp) ejCp=ejs[0]||null;
+              if(ejCp) actions+='<button class="btn small" data-act="prof" data-ej="'+ejCp.id+'" title="Ouvrir le réglage du profil de consommation des CP de « '+esc(ejCp.numero)+' » (décaler, étendre, personnaliser, saisir mois par mois…)">Profil CP</button>';
+            }
+          }
+          body+='<td class="num mono'+(ejM>0?' gp-cell':'')+'"'+(ejM>0?' data-realsum="ej|'+a.id+'|'+m+'" title="Somme des EJ engagés à ce mois — cliquer pour le détail"':'')+'>'+fmt0(ejM)+'</td>'+
+             '<td class="num mono'+(cpM>0?' gp-cell':'')+'"'+(cpM>0?' data-realsum="cp|'+a.id+'|'+m+'" title="Somme des CP prévus à ce mois — cliquer pour le détail"':'')+'>'+fmt0(cpM)+'</td>'+
+             '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+a.id+'|'+m+'" data-f="ej" value="'+(hasR&&Object.prototype.hasOwnProperty.call(r,'ej')?fmt0(r.ej||0):'')+'"'+(m<=cur?'':' disabled')+' title="EJ effectivement constatés en '+mLong(m)+' (mois passé ou en cours : saisir le réalisé — « 0 » = constaté à zéro, distinct de non saisi)"></td>'+
+             '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+a.id+'|'+m+'" data-f="cp" value="'+(hasR&&Object.prototype.hasOwnProperty.call(r,'cp')?fmt0(r.cp||0):'')+'"'+(m<=cur?'':' disabled')+' title="CP effectivement payés en '+mLong(m)+' (mois passé ou en cours : saisir le réalisé — « 0 » = constaté à zéro, distinct de non saisi)"></td>'+
+             '<td class="num mono">'+(past?fmtS(eEj):'')+'</td>'+
+             '<td class="num mono">'+(past?fmtS(eCp):'')+'</td>'+
+             '<td>'+statut+'</td>'+
+             '<td style="white-space:nowrap">'+actions+'</td>';
+        });
+      });
+      body+='</tr>';
+    });
+    body+=extRow('après', nbCols);
+    var foot='<tr class="gp-tot"><td class="scol sc0"></td><td class="scol sc1">Total</td>';
+    opColsR.forEach(function(og){
+      og.cs.forEach(function(a){
+        var tEj=0, tCp=0, tRej=0, tRcp=0;
+        months.forEach(function(m){
+          var ejM=0, cpM=0;
+          ejsOfAffaire(a.id).filter(isMaterialise).forEach(function(e){ if(e.mois===m) ejM+=montantOf(e); cpM+=cpPrevu(e,m); });
+          var r=realOf(a.id,m)||{ej:0,cp:0};
+          tEj+=ejM; tCp+=cpM; tRej+=r.ej||0; tRcp+=r.cp||0;
+        });
+        foot+='<td class="num mono">'+fmt0(tEj)+'</td><td class="num mono">'+fmt0(tCp)+'</td><td class="num mono">'+fmt0(tRej)+'</td><td class="num mono">'+fmt0(tRcp)+'</td><td colspan="4"></td>';
+      });
+    });
+    foot+='</tr>';
+    h+='<div class="grid-wrap"><table class="liste rev-table"><thead><tr>'+h1+'</tr><tr>'+h2+'</tr><tr>'+h3+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>';
+  }
   mount('view-realise', h, function(w){
     wireRealHeader(w);
     w.addEventListener('change', function(ev){
       var t=ev.target;
       if(t.dataset&&t.dataset.real){
         var k=t.dataset.real, pp=k.split('|'), aid=pp[0], m=pp[1];
-        var cur2=state.realise[k]||{ej:0,cp:0};
+        /* « saisi à 0 » (champ rempli, valeur 0) != « non saisi » (champ vide) :
+           on conserve l'entrée dès qu'un champ est rempli, même à 0 */
+        var cur2=state.realise[k]?deepCopy(state.realise[k]):{};
         var v=parseMontant(t.value);
-        cur2[t.dataset.f]=(v==null?0:v);
-        if(!cur2.ej&&!cur2.cp) delete state.realise[k]; else state.realise[k]=cur2;
+        if(v==null) delete cur2[t.dataset.f]; else cur2[t.dataset.f]=v;
+        if(Object.prototype.hasOwnProperty.call(cur2,'ej')||Object.prototype.hasOwnProperty.call(cur2,'cp')) state.realise[k]=cur2;
+        else delete state.realise[k];
         save(); renderRealise(); return;
       }
     });
@@ -4578,7 +4968,7 @@ function renderRealise(){
           ejsOfAffaire(aid).filter(isMaterialise).forEach(function(e){ cpM+=cpPrevu(e,m); });
           cur3.cp=cpM;
         }
-        if(!cur3.ej&&!cur3.cp) delete state.realise[k]; else state.realise[k]=cur3;
+        state.realise[k]=cur3; /* constatation explicite : même à 0, c'est saisi (pas « non saisi ») */
         save(); renderRealise(); return;
       }
       if(act==='ajej'){
@@ -4799,6 +5189,10 @@ function renderDonnees(){
     '<button class="btn danger" id="d-clear">Tout effacer</button>'+
     '</div></div>';
 
+  h+='<div class="card"><h2>Export Excel (.xlsx)</h2>'+
+    '<p class="hint">Un classeur Excel avec <strong>un onglet par type de données</strong> : opérations, affaires, EJ, CP, profils de consommation, aléas &amp; risques, réalisé, révisions de prix, indices — plus un onglet <strong>« Tableau de bord »</strong> qui reprend les données des courbes du tableau de bord (EJ engagés cumulés, CP prévus cumulés, reste à payer, hypothèse moyenne, hypothèse haute — par mois) avec un <strong>graphique en courbes</strong> dont chaque série référence directement les cellules de l\'onglet (ex. <code>\'Tableau de bord\'!$B$2:$B$26</code>).</p>'+
+    '<div class="formrow"><button class="btn primary" id="d-xlsx" title="Télécharge cosi-export-<date>.xlsx : un onglet par type de données + les graphiques du tableau de bord">Exporter vers Excel (.xlsx)</button></div></div>';
+
   h+='<div class="card"><h2>Modèle</h2>'+
     '<p class="hint">Une <strong>opération</strong> regroupe des <strong>affaires</strong> ; chaque affaire est soldée par des <strong>EJ</strong> (engagements juridiques), chacun à un <strong>stade</strong> : <strong>EJ programmé</strong> ou <strong>engagé</strong> (risque/aléa matérialisé, à date fixée), <strong>aléa</strong> (part forfaitaire — par défaut 5 % du reste à payer de l\'affaire, modifiable) ou <strong>risque</strong> (montant selon une distribution, probabilité, date d\'apparition ponctuelle / récurrente / uniforme). Chaque EJ a un <strong>profil de consommation des CP</strong> : ponctuelle, uniforme sur une période (la date de l\'EJ — choisie à la matérialisation d\'un risque — peut servir de début) ou personnalisée. Les <strong>révisions de prix</strong> sont propres à chaque affaire et combinent les <strong>séries d\'indices</strong> (onglet « Indices ») selon sa formule d\'indice. L\'onglet <strong>Réalisé</strong> saisit, par affaire et par mois passé, l\'EJ et le CP effectivement constatés ; la <strong>GP à saisir</strong> agrège par affaire et par opération les montants prévisionnels d\'EJ et de CP par mois (EJ/CP engagés, aléas, risques, révisions, réalisé), et le <strong>tableau de bord</strong> montre l\'entonnoir des montants de l\'opération dans le temps, les CP prévus/réalisés, les risques en cours, les prochains EJ et les alertes de cohérence avec le réalisé.</p>'+
     '<p class="hint">Format du fichier JSON (les mois sont « AAAA-MM ») :</p>'+
@@ -4811,8 +5205,7 @@ function renderDonnees(){
     '      { "id", "date", "sig",\n' +
     '        "operations":   [ { "id", "nom", "description" } ],\n' +
     '        "affaires":     [ { "id", "opId", "nom", "titulaire", "refContrat",\n' +
-    '                            "montantInitial" (EJ initial), "dateRefRev" (AAAA-MM),\n' +
-    '                            "formule" (indice ; la RP en découle : {e}*({i}/{i0}-1)) } ],\n' +
+    '                            "dateRefRev" (AAAA-MM), "formule" (indice ; la RP en découle : {c}*({i}/{i0}-1)) } ],\n' +
     '        "ejs":          [ { "id", "affaireId", "numero", "libelle", "mois", "montant",\n' +
     '                            "stade": "prog"|"alea"|"risque"|"engage",\n' +
     '                            "aleaPct?", "montantExplicite?",            (aléa)\n' +
@@ -4848,6 +5241,7 @@ function renderDonnees(){
     w.querySelector('#d-export').addEventListener('click',function(){
       download('cosi2-donnees-'+curMois()+'.json', JSON.stringify(exportPayload(),null,2), 'application/json');
     });
+    w.querySelector('#d-xlsx').addEventListener('click', exportXLSX);
     w.querySelector('#d-demo').addEventListener('click',function(){
       if(!confirm('Remplacer les données actuelles par le jeu de démonstration ?')) return;
       var v=state.ui.view; state=demoState(); state.ui.view=v; save(); render();
@@ -4893,9 +5287,12 @@ if(uname){
     updateFileBar();
   });
 }
-var gop=document.getElementById('g-op'), gaff=document.getElementById('g-aff');
-if(gop) gop.addEventListener('change',function(){ state.ui.op=gop.value; state.ui.aff=''; save(); render(); });
-if(gaff) gaff.addEventListener('change',function(){ state.ui.aff=gaff.value; save(); render(); });
+/* Filtres par onglet (selects data-fop / data-faff dans la barre de chaque vue) */
+document.addEventListener('change', function(ev){
+  var t=ev.target; if(!t||!t.dataset) return;
+  if(t.dataset.fop!==undefined){ state.ui.op=t.value; state.ui.aff=''; save(); render(); return; }
+  if(t.dataset.faff!==undefined){ state.ui.aff=t.value; save(); render(); return; }
+});
 var vsel=document.getElementById('ver-sel');
 if(vsel) vsel.addEventListener('change', function(){
   if(this.value===''){ quitHist(); } else { enterHist(+this.value); }
@@ -4979,6 +5376,278 @@ try{
   initDataFile();
 }catch(e){
   try{ bootError(e); }catch(e2){}
+}
+
+
+/* ===== src/js/22-export-xlsx-excel.js ===== */
+/* ================= Export Excel (.xlsx) ================= */
+/* Générateur XLSX autonome (aucune dépendance externe) : un ZIP à entrées
+   stockées (sans compression) contenant les parties OOXML. Un onglet par type
+   de données + un onglet "Tableau de bord" qui reprend les données des courbes
+   (EJ cumulés, CP cumulés, reste à payer, hypothèses moyenne/haute, par mois)
+   avec un VRAI graphique Excel (courbes en lignes) dont chaque série référence
+   directement les cellules de l'onglet ('Tableau de bord'!$B$2:$B$26…). */
+
+function xmlEsc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+/* Nom de colonne Excel : 1 -> A, 26 -> Z, 27 -> AA, 28 -> AB… */
+function colName(n){
+  var s='';
+  while(n>0){ var r=(n-1)%26; s=String.fromCharCode(65+r)+s; n=Math.floor((n-1)/26); }
+  return s;
+}
+
+/* ---- CRC32 (table) ---- */
+var CRC_T=null;
+function crc32(bytes){
+  if(!CRC_T){
+    CRC_T=new Uint32Array(256);
+    for(var i=0;i<256;i++){ var c=i; for(var k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); CRC_T[i]=c>>>0; }
+  }
+  var c=0xFFFFFFFF;
+  for(var j=0;j<bytes.length;j++) c=CRC_T[(c^bytes[j])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;
+}
+
+/* ---- ZIP à entrées stockées (méthode 0) : entrée = {name, data(string|Uint8Array)} ---- */
+function zipStore(entries){
+  var enc=new TextEncoder(), parts=[], central=[], offset=0;
+  entries.forEach(function(e){
+    var nameB=enc.encode(e.name);
+    var dataB=(typeof e.data==='string')?enc.encode(e.data):e.data;
+    var crc=crc32(dataB);
+    var lh=new Uint8Array(30+nameB.length), dv=new DataView(lh.buffer);
+    dv.setUint32(0,0x04034b50,true); dv.setUint16(4,20,true); dv.setUint16(6,0x0800,true); /* UTF-8 */
+    dv.setUint16(8,0,true); dv.setUint16(10,0,true); dv.setUint16(12,0x21,true);
+    dv.setUint32(14,crc,true); dv.setUint32(18,dataB.length,true); dv.setUint32(22,dataB.length,true);
+    dv.setUint16(26,nameB.length,true); dv.setUint16(28,0,true);
+    lh.set(nameB,30);
+    parts.push(lh,dataB);
+    var ch=new Uint8Array(46+nameB.length), cv=new DataView(ch.buffer);
+    cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true);
+    cv.setUint16(8,0x0800,true); cv.setUint16(10,0,true); cv.setUint16(12,0,true); cv.setUint16(14,0x21,true);
+    cv.setUint32(16,crc,true); cv.setUint32(20,dataB.length,true); cv.setUint32(24,dataB.length,true);
+    cv.setUint16(28,nameB.length,true);
+    cv.setUint32(42,offset,true);
+    ch.set(nameB,46);
+    central.push(ch);
+    offset+=30+nameB.length+dataB.length;
+  });
+  var cdSize=0; central.forEach(function(c){ cdSize+=c.length; });
+  var end=new Uint8Array(22), ev=new DataView(end.buffer);
+  ev.setUint32(0,0x06054b50,true);
+  ev.setUint16(8,entries.length,true); ev.setUint16(10,entries.length,true);
+  ev.setUint32(12,cdSize,true); ev.setUint32(16,offset,true);
+  var out=new Uint8Array(offset+cdSize+22), p=0;
+  parts.forEach(function(x){ out.set(x,p); p+=x.length; });
+  central.forEach(function(x){ out.set(x,p); p+=x.length; });
+  out.set(end,p);
+  return out;
+}
+
+/* ---- Cellule / feuille OOXML ---- */
+function xcell(ref, v, s){
+  if(v==null||v==='') return '';
+  if(typeof v==='number'){
+    if(!isFinite(v)) return '';
+    return '<c r="'+ref+'"'+(s?' s="'+s+'"':'')+'><v>'+v+'</v></c>';
+  }
+  return '<c r="'+ref+'" t="inlineStr"'+(s?' s="'+s+'"':'')+'><is><t xml:space="preserve">'+xmlEsc(v)+'</t></is></c>';
+}
+/* rows = tableau de tableaux (string -> inlineStr, number -> <v>) ; ligne 0 = en-tête (style 1), nombres = style 2 */
+function sheetXML(rows, withDrawing){
+  var maxC=1;
+  rows.forEach(function(r){ if(r.length>maxC) maxC=r.length; });
+  var out=['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
+    '<dimension ref="A1:'+colName(maxC)+rows.length+'"/>',
+    '<sheetViews><sheetView workbookViewId="0"/></sheetViews>',
+    '<sheetFormatPr defaultRowHeight="15"/>',
+    '<sheetData>'];
+  rows.forEach(function(r,ri){
+    var cells='';
+    for(var ci=0;ci<r.length;ci++){
+      var v=r[ci], s=(ri===0)?1:(typeof v==='number'?2:0);
+      cells+=xcell(colName(ci+1)+(ri+1), v, s);
+    }
+    out.push('<row r="'+(ri+1)+'">'+cells+'</row>');
+  });
+  out.push('</sheetData>');
+  if(withDrawing) out.push('<drawing r:id="rId1"/>');
+  out.push('</worksheet>');
+  return out.join('');
+}
+
+/* ---- Séries du tableau de bord (même calcul que chartEntonnoir, période complète) ---- */
+function dashSeries(){
+  var ejs=state.ejs, from=null, to=null;
+  ejs.forEach(function(e){
+    if(!from||e.mois<from) from=e.mois;
+    occOf(e).forEach(function(o){ if(!from||o.m<from) from=o.m; if(!to||o.m>to) to=o.m; });
+    if(!to||e.mois>to) to=e.mois;
+  });
+  for(var k in state.cps){ var p=k.split('|'); if(ejs.some(function(e){ return e.id===p[0]; }) && (!to||p[1]>to)) to=p[1]; }
+  if(!from) from=to||curMois();
+  if(!to||to<from) to=from;
+  var months=mRange(from,to);
+  var mat=ejs.filter(isMaterialise), aleas=ejs.filter(isAlea), risques=ejs.filter(isRisque);
+  var ej=[], cp=[], rap=[], att=[], mx=[], cpC=0;
+  months.forEach(function(m){
+    var b=0,a=0,rF=0,rP=0,cpM=0;
+    mat.forEach(function(e){ if(e.mois<=m){ b+=montantOf(e); cpM+=cpPrevu(e,m); } });
+    aleas.forEach(function(e){ a+=montantOf(e)*cumOcc(e,m); });
+    risques.forEach(function(e){ rF+=montantHaut(e)*cumOcc(e,m); rP+=risquePondere(e)*cumOcc(e,m); });
+    cpC+=cpM;
+    ej.push(Math.round(b*100)/100); cp.push(Math.round(cpC*100)/100);
+    rap.push(Math.round((b-cpC)*100)/100);
+    att.push(Math.round((b+a+rP)*100)/100); mx.push(Math.round((b+a+rF)*100)/100);
+  });
+  return {months:months, ej:ej, cp:cp, rap:rap, att:att, mx:mx};
+}
+
+/* ---- Définition des onglets : un par type de données + Tableau de bord ---- */
+function xlsxSheetDefs(){
+  var defs=[], r2=function(v){ return Math.round((+v||0)*100)/100; };
+  defs.push({name:'Opérations', rows:[['N°','Nom','Description']].concat(
+    state.operations.map(function(o){ return [o.numero||'', o.nom||'', o.description||'']; }))});
+  defs.push({name:'Affaires', rows:[['N° opération','Opération','Affaire','Titulaire','Réf. contrat','Date réf. révision','Formule d\'indice']].concat(
+    state.affaires.map(function(a){ var o=opById(a.opId);
+      return [(o&&o.numero)||'', (o&&o.nom)||'', a.nom||'', a.titulaire||'', a.refContrat||'', a.dateRefRev||'', a.formule||'']; }))});
+  defs.push({name:'EJ', rows:[['Opération','Affaire','Numéro','Libellé','Stade','Mois','Montant (€)','Détail']].concat(
+    state.ejs.map(function(e){ var a=affaireById(e.affaireId), o=a?opById(a.opId):null, d='';
+      if(isAlea(e)) d='Aléa '+(e.aleaPct==null?5:e.aleaPct)+' %'+(e.montantExplicite?' (montant explicite)':' du reste à payer');
+      if(isRisque(e)) d='Risque — dist. '+(e.distType||'fixe')+' A='+(e.distA||'')+' B='+(e.distB==null?'':e.distB)+' C='+(e.distC==null?'':e.distC)+
+        ', proba '+(e.probabilite==null?100:e.probabilite)+' %, date '+(e.dateType||'ponctuelle')+(e.dateA?' '+e.dateA:'')+(e.dateB?'..'+e.dateB:'')+(e.freq?' (freq. '+e.freq+')':'');
+      return [(o&&o.nom)||'', (a&&a.nom)||'', e.numero||'', e.libelle||'', stadeLabel(e), e.mois||'', r2(montantOf(e)), d]; }))});
+  var cpKeys=Object.keys(state.cps).sort();
+  defs.push({name:'CP', rows:[['Opération','Affaire','EJ n°','Libellé EJ','Mois','CP (€)','Profil']].concat(
+    cpKeys.map(function(k){ var p=k.split('|'), e=ejById(p[0]), a=e?affaireById(e.affaireId):null, o=a?opById(a.opId):null, pr=state.profils[p[0]];
+      return [(o&&o.nom)||'', (a&&a.nom)||'', (e&&e.numero)||p[0], (e&&e.libelle)||'', p[1], r2(state.cps[k]), pr?pr.type:'']; }))});
+  defs.push({name:'Profils CP', rows:[['EJ n°','Libellé EJ','Affaire','Type','Début','Fin']].concat(
+    state.ejs.map(function(e){ var p=state.profils[e.id]||{}; var a=affaireById(e.affaireId);
+      return [e.numero||'', e.libelle||'', (a&&a.nom)||'', p.type||'', p.debut||'', p.fin||'']; }))});
+  defs.push({name:'Aléas & risques', rows:[['Opération','Affaire','Numéro','Libellé','Type','% aléa','Montant / espérance (€)','Montant haut (€)','Pondéré (€)','Distribution','A','B','C','Probabilité %','Type de date','Date A','Date B','Fréquence']].concat(
+    state.ejs.filter(function(e){ return isAlea(e)||isRisque(e); }).map(function(e){ var a=affaireById(e.affaireId), o=a?opById(a.opId):null;
+      return [(o&&o.nom)||'', (a&&a.nom)||'', e.numero||'', e.libelle||'', isAlea(e)?'Aléa':'Risque',
+        isAlea(e)?(e.aleaPct==null?5:e.aleaPct):'', r2(montantOf(e)), r2(montantHaut(e)), r2(risquePondere(e)),
+        e.distType||'', e.distA==null?'':e.distA, e.distB==null?'':e.distB, e.distC==null?'':e.distC,
+        e.probabilite==null?'':e.probabilite, e.dateType||'', e.dateA||'', e.dateB||'', e.freq==null?'':e.freq]; }))});
+  var rlKeys=Object.keys(state.realise).sort();
+  defs.push({name:'Réalisé', rows:[['Opération','Affaire','Mois','EJ réalisé (€)','CP réalisé (€)']].concat(
+    rlKeys.map(function(k){ var p=k.split('|'), a=affaireById(p[0]), o=a?opById(a.opId):null, r=state.realise[k];
+      return [(o&&o.nom)||'', (a&&a.nom)||'', p[1], r2(r&&r.ej), r2(r&&r.cp)]; }))});
+  var rc=computeRevisionsCalc(state), rvKeys=Object.keys(rc).sort();
+  defs.push({name:'Révisions de prix', rows:[['Opération','Affaire','Mois','Révision calculée (€)']].concat(
+    rvKeys.map(function(k){ var p=k.split('|'), a=affaireById(p[0]), o=a?opById(a.opId):null;
+      return [(o&&o.nom)||'', (a&&a.nom)||'', p[1], r2(rc[k])]; }))});
+  var allM={}; state.indices.forEach(function(ix){ for(var m in ix.valeurs) allM[m]=1; });
+  var ims=Object.keys(allM).sort();
+  defs.push({name:'Indices', rows:[['Indice'].concat(ims)].concat(
+    state.indices.map(function(ix){ return [ix.nom||''].concat(ims.map(function(m){ return ix.valeurs[m]==null?'':+ix.valeurs[m]; })); }))});
+  var ds=dashSeries();
+  defs.push({name:'Tableau de bord', chart:true, rows:[['Mois','EJ engagés cumulés (€)','CP prévus cumulés (€)','Reste à payer (€)','Hypothèse moyenne (€)','Hypothèse haute (€)']].concat(
+    ds.months.map(function(m,i){ return [m, ds.ej[i], ds.cp[i], ds.rap[i], ds.att[i], ds.mx[i]]; }))});
+  return defs;
+}
+
+/* ---- Graphique Excel (courbes en lignes) : les séries référencent les cellules de l'onglet ---- */
+function chartXML(sheetName, nRows){
+  var q="'"+String(sheetName).replace(/'/g,"''")+"'";
+  var cols=['B','C','D','E','F'];
+  var sers=cols.map(function(col,i){
+    return '<c:ser><c:idx val="'+i+'"/><c:order val="'+i+'"/>'+
+      '<c:tx><c:strRef><c:f>'+q+'!$'+col+'$1</c:f></c:strRef></c:tx>'+
+      '<c:cat><c:strRef><c:f>'+q+'!$A$2:$A$'+nRows+'</c:f></c:strRef></c:cat>'+
+      '<c:val><c:numRef><c:f>'+q+'!$'+col+'$2:$'+col+'$'+nRows+'</c:f></c:numRef></c:val>'+
+      '</c:ser>';
+  }).join('');
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+  '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
+  '<c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr b="1"/></a:pPr><a:r><a:rPr lang="fr-FR" b="1"/><a:t>Courbes cumulées (tableau de bord)</a:t></a:r></a:p></c:rich></c:tx></c:title>'+
+  '<c:autoTitleDeleted val="0"/>'+
+  '<c:plotArea><c:layout/>'+
+  '<c:lineChart><c:grouping val="standard"/><c:marker val="1"/>'+sers+'<c:axId val="111111111"/><c:axId val="222222222"/></c:lineChart>'+
+  '<c:catAx><c:axId val="111111111"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/></c:catAx>'+
+  '<c:valAx><c:axId val="222222222"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:numFmt formatCode="#,##0" sourceLinked="0"/></c:valAx>'+
+  '</c:plotArea><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart></c:chartSpace>';
+}
+function drawingXML(){
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+  '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'+
+  '<xdr:twoCellAnchor><xdr:from><xdr:col>7</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>'+
+  '<xdr:to><xdr:col>17</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>26</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>'+
+  '<xdr:graphicFrame><xdr:nvGraphicFramePr><xdr:cNvPr id="2" name="Courbes cumulées"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>'+
+  '<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>'+
+  '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rId1"/></a:graphicData></a:graphic>'+
+  '</xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor></xdr:wsDr>';
+}
+
+/* ---- Classeur complet ---- */
+function buildXLSX(){
+  var defs=xlsxSheetDefs(), n=defs.length;
+  var chartIdx=-1; defs.forEach(function(d,i){ if(d.chart) chartIdx=i; });
+  var ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+    '<Default Extension="xml" ContentType="application/xml"/>'+
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+
+    defs.map(function(d,i){ return '<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('')+
+    (chartIdx>=0?'<Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>'+
+      '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.spreadsheetDrawing+xml"/>':'')+
+    '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'+
+    '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'+
+    '</Types>';
+  var rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'+
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'+
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'+
+    '</Relationships>';
+  var wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+
+    defs.map(function(d,i){ return '<sheet name="'+xmlEsc(d.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>'; }).join('')+
+    '</sheets></workbook>';
+  var wbr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    defs.map(function(d,i){ return '<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>'; }).join('')+
+    '<Relationship Id="rId'+(n+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'+
+    '</Relationships>';
+  var styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+    '<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00"/></numFmts>'+
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'+
+    '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'+
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'+
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+    '<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
+    '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>'+
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  var core='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:creator>COSI</dc:creator><cp:lastModifiedBy>COSI</cp:lastModifiedBy><dcterms:created xmlns:dcterms="http://purl.org/dc/terms/" xsi:type="dcterms:W3CDTF" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'+new Date().toISOString()+'</dcterms:created></cp:coreProperties>';
+  var app='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>COSI</Application></Properties>';
+  var entries=[
+    {name:'[Content_Types].xml', data:ct},
+    {name:'_rels/.rels', data:rels},
+    {name:'xl/workbook.xml', data:wb},
+    {name:'xl/_rels/workbook.xml.rels', data:wbr},
+    {name:'xl/styles.xml', data:styles},
+    {name:'docProps/core.xml', data:core},
+    {name:'docProps/app.xml', data:app}
+  ];
+  defs.forEach(function(d,i){
+    entries.push({name:'xl/worksheets/sheet'+(i+1)+'.xml', data:sheetXML(d.rows, i===chartIdx)});
+    if(i===chartIdx){
+      entries.push({name:'xl/worksheets/_rels/sheet'+(i+1)+'.xml.rels', data:
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>'});
+      entries.push({name:'xl/drawings/drawing1.xml', data:drawingXML()});
+      entries.push({name:'xl/charts/chart1.xml', data:chartXML(d.name, d.rows.length)});
+    }
+  });
+  return zipStore(entries);
+}
+
+function exportXLSX(){
+  var b=buildXLSX();
+  var iso=new Date().toISOString().replace(/[:.]/g,'-');
+  download('cosi-export-'+iso+'.xlsx', b, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
 })();

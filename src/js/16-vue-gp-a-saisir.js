@@ -31,12 +31,13 @@ function cpAt(e, m){
 function gpVal(kind, aff, m){
   var cur=curMois();
   if(kind==='sej'||kind==='scp'){
-    /* Pas de double comptage saisi/réalisé : sur un mois PASSÉ avec réalisé saisi,
-       on garde le réalisé (immuable) ; sur le mois en cours (ou sans réalisé), on
-       garde le saisi (prévu). */
-    var r=(m<cur)?realOf(aff.id,m):null;
-    if(kind==='sej'){ var b=(r&&(r.ej||0)>0)?(r.ej||0):gpVal('ej',aff,m); return b+gpVal('ae',aff,m)+gpVal('rk',aff,m)+gpVal('rp',aff,m); }
-    var b2=(r&&(r.cp||0)>0)?(r.cp||0):gpVal('cp',aff,m); return b2+gpVal('ac',aff,m)+gpVal('rc',aff,m)+gpVal('rp',aff,m);
+    /* Pas de double comptage saisi/réalisé : dès qu'un réalisé est SAISI pour le
+       mois (même à 0 — saisi à zéro = constatation, distinct de non saisi), il
+       devient la vérité et remplace le saisi ; sinon on garde le saisi (prévu).
+       Ça vaut pour les mois passés ET le mois en cours (réalisé entré = priorité). */
+    var r=realOf(aff.id,m);
+    if(kind==='sej'){ var b=(r!=null)?(r.ej||0):gpVal('ej',aff,m); return b+gpVal('ae',aff,m)+gpVal('rk',aff,m)+gpVal('rp',aff,m); }
+    var b2=(r!=null)?(r.cp||0):gpVal('cp',aff,m); return b2+gpVal('ac',aff,m)+gpVal('rc',aff,m)+gpVal('rp',aff,m);
   }
   var s=0, ejs=ejsOfAffaire(aff.id), i;
   if(kind==='ej'){ ejs.forEach(function(e){ if(isMaterialise(e)&&gpShiftEjMonth(e.mois)===m) s+=montantOf(e); }); }
@@ -177,7 +178,7 @@ function gpYearText(affs, months){
     /* réalisé saisi de l'affaire à ce mois — seulement les mois PASSÉS (le mois en
        cours reste au saisi) ; un mois n'apparaît qu'une fois : réalisé OU saisi */
     var realEj={}, realCp={};
-    affs.forEach(function(a){ var r=realOf(a.id,m); if(past&&r){ if((r.ej||0)>0) realEj[a.id]=r.ej; if((r.cp||0)>0) realCp[a.id]=r.cp; } });
+    affs.forEach(function(a){ var r=realOf(a.id,m); if(r){ realEj[a.id]=r.ej||0; realCp[a.id]=r.cp||0; } }); /* saisi (même à 0) = vérité, mois passé comme mois en cours */
     state.ejs.forEach(function(e){
       if(!ids[e.affaireId]) return;
       var lbl=e.numero+(e.stade&&e.stade!=='prog'?' ('+stadeLabel(e)+')':'')+(e.libelle?' '+e.libelle:'');
@@ -210,9 +211,9 @@ function gpYearText(affs, months){
     }
     affs.forEach(function(a){
       var r=realOf(a.id,m);
-      if(!past||!r) return;
-      if((r.ej||0)>0) bucket(mEj.slice(0,4),'ej').real.push(mLabel(mEj)+' : '+kEur(r.ej)+' EJ réalisé — '+a.nom);
-      if((r.cp||0)>0) bucket(mCp.slice(0,4),'cp').real.push(mLabel(mCp)+' : '+kEur(r.cp)+' CP réalisé — '+a.nom);
+      if(!r) return; /* non saisi : on reste sur le prévu */
+      bucket(mEj.slice(0,4),'ej').real.push(mLabel(mEj)+' : '+kEur(r.ej||0)+' EJ réalisé — '+a.nom);
+      bucket(mCp.slice(0,4),'cp').real.push(mLabel(mCp)+' : '+kEur(r.cp||0)+' CP réalisé — '+a.nom);
     });
   });
   /* option "RP en décembre seulement" : ligne de décembre = somme des RP de l'année, dans les deux versions */
@@ -248,7 +249,7 @@ function renderGp(){
   var cur=curMois();
   var K=GP_KINDS.length;
 
-  var h='<div class="toolbar">'+
+  var h='<div class="toolbar">'+filtersBarHTML()+
     '<label class="gp-chk" title="Export : la ligne de décembre ne contient que la somme des RP de l\'année ; l\'EJ de décembre est mis en novembre et le CP de décembre en janvier (cumulatif avec « Pas de CP en janvier » : janvier -> février)"><input type="checkbox" id="gp-rpdec"'+(state.ui.gpRpDec?' checked':'')+'> RP en décembre seulement</label>'+
     '<label class="gp-chk" title="Export : décale les CP de décembre vers janvier de l\'année suivante (ne s\'applique pas aux RP)"><input type="checkbox" id="gp-nocpdec"'+(state.ui.gpNoCpDec?' checked':'')+'> Pas de CP en décembre</label>'+
     '<label class="gp-chk" title="Export : décale les CP de janvier vers février (cumulatif avec « Pas de CP en décembre »)"><input type="checkbox" id="gp-nocpjan"'+(state.ui.gpNoCpJan?' checked':'')+'> Pas de CP en janvier</label>'+
@@ -289,14 +290,11 @@ function renderGp(){
     else{ h3+='<th class="gp-kinds gp-h-tot gp-synth">Σ '+GP_SYNTH_LABEL.sej+'</th><th class="gp-kinds gp-h-tot gp-synth">Σ '+GP_SYNTH_LABEL.scp+'</th>'; }
   });
 
-  function cell(kind, scope, m, val, span){
-    if(!val) return '<td class="num"></td>';
-    var isReal=(kind==='rej'||kind==='rcp');
-    return '<td class="num"><span class="gp-cell'+(isReal?' gp-real':'')+'" data-gp="'+kind+'" data-scope="'+scope+'" data-m="'+m+'" data-span="'+span+'" title="'+(isReal?'Réalisé SAISI dans « Réalisé » — valeur immuable (pas un calcul) — cliquer pour le détail':'Voir le détail')+'">'+fmt0(val)+'</span></td>';
+  function cell(kind, scope, m, val, span, isReal){
+    isReal=isReal||kind==='rej'||kind==='rcp';
+    if(!val&&!isReal) return '<td class="num"></td>';
+    return '<td class="num"><span class="gp-cell'+(isReal?' gp-real':'')+'" data-gp="'+kind+'" data-scope="'+scope+'" data-m="'+m+'" data-span="'+span+'" title="'+(isReal?'S\'appuie sur le RÉALISÉ saisi dans « Réalisé » — valeur immuable (pas un calcul) — cliquer pour le détail':'Voir le détail')+'">'+fmt0(val)+'</span></td>';
   }
-
-  /* synthèse avec substitution : mois passé + réalisé -> réalisé ; sinon saisi */
-  function synthVals(v, m){ var past=m&&m<cur; return {sej:(past&&v.rej>0?v.rej:v.ej)+v.ae+v.rk+v.rp, scp:(past&&v.rcp>0?v.rcp:v.cp)+v.ac+v.rc+v.rp}; }
   var totalCols0=opCols.reduce(function(s,og){ return s+og.cs.reduce(function(s2,a){ return s2+gCols('a:'+a.id); },0)+gCols('o:'+og.o.id); },0)+1;
   var body='';
   body+=extRow('avant', totalCols0);
@@ -308,11 +306,11 @@ function renderGp(){
       og.cs.forEach(function(a){
         var ak='a:'+a.id, vA={};
         GP_KINDS.forEach(function(kk){ var v=gpVal(kk[0],a,m); vA[kk[0]]=v; sVals[kk[0]]+=v; });
-        if(gExp(ak)){ GP_KINDS.forEach(function(kk){ body+=cell(kk[0],ak,m,vA[kk[0]]); }); }
-        else{ var sv=synthVals(vA,m); body+=cell('sej',ak,m,sv.sej); body+=cell('scp',ak,m,sv.scp); }
+        if(gExp(ak)){ GP_KINDS.forEach(function(kk){ body+=cell(kk[0],ak,m,vA[kk[0]],null,kk[0]==='rej'||kk[0]==='rcp'); }); }
+        else{ var rr=realOf(a.id,m); body+=cell('sej',ak,m,gpVal('sej',a,m),null,rr!=null); body+=cell('scp',ak,m,gpVal('scp',a,m),null,rr!=null); }
       });
-      if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ body+=cell(kk[0],opKey,m,sVals[kk[0]]); }); }
-      else{ var sv2=synthVals(sVals,m); body+=cell('sej',opKey,m,sv2.sej); body+=cell('scp',opKey,m,sv2.scp); }
+      if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ body+=cell(kk[0],opKey,m,sVals[kk[0]],null,kk[0]==='rej'||kk[0]==='rcp'); }); }
+      else{ var sejO=0,scpO=0,realO=false; og.cs.forEach(function(a2){ sejO+=gpVal('sej',a2,m); scpO+=gpVal('scp',a2,m); if(realOf(a2.id,m)) realO=true; }); body+=cell('sej',opKey,m,sejO,null,realO); body+=cell('scp',opKey,m,scpO,null,realO); }
     });
     body+='</tr>';
   });
@@ -330,13 +328,15 @@ function renderGp(){
         vA[kk[0]]=v; oVals[kk[0]]+=v;
       });
       vA.sej=0; vA.scp=0;
-      months.forEach(function(m){ vA.sej+=gpVal('sej',a,m); vA.scp+=gpVal('scp',a,m); });
+      var realA=false;
+      months.forEach(function(m){ vA.sej+=gpVal('sej',a,m); vA.scp+=gpVal('scp',a,m); if(realOf(a.id,m)) realA=true; });
       oVals.sej+=vA.sej; oVals.scp+=vA.scp;
-      if(gExp(ak)){ GP_KINDS.forEach(function(kk){ foot+=cell(kk[0],ak,'',vA[kk[0]]); }); }
-      else{ foot+=cell('sej',ak,'',vA.sej); foot+=cell('scp',ak,'',vA.scp); }
+      if(gExp(ak)){ GP_KINDS.forEach(function(kk){ foot+=cell(kk[0],ak,'',vA[kk[0]],null,kk[0]==='rej'||kk[0]==='rcp'); }); }
+      else{ foot+=cell('sej',ak,'',vA.sej,null,realA); foot+=cell('scp',ak,'',vA.scp,null,realA); }
     });
-    if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ foot+=cell(kk[0],opKey,'',oVals[kk[0]]); }); }
-    else{ foot+=cell('sej',opKey,'',oVals.sej); foot+=cell('scp',opKey,'',oVals.scp); }
+    var realO2=false; og.cs.forEach(function(a2){ months.forEach(function(m){ if(realOf(a2.id,m)) realO2=true; }); });
+    if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ foot+=cell(kk[0],opKey,'',oVals[kk[0]],null,kk[0]==='rej'||kk[0]==='rcp'); }); }
+    else{ foot+=cell('sej',opKey,'',oVals.sej,null,realO2); foot+=cell('scp',opKey,'',oVals.scp,null,realO2); }
   });
   foot+='</tr>';
   var totalCols=opCols.reduce(function(s,og){ return s+og.cs.reduce(function(s2,a){ return s2+gCols('a:'+a.id); },0)+gCols('o:'+og.o.id); },0);

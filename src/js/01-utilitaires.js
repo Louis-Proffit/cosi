@@ -34,7 +34,7 @@ function openMonthPicker(input){
     for(var i=0;i<btns.length;i++){ btns[i].onclick=function(){
       input.value=mLabel(this.dataset.m);
       ov.remove();
-      if(input.dispatchEvent){ try{ input.dispatchEvent(new Event('change')); }catch(e){} }
+      if(input.dispatchEvent){ try{ input.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){} }
     }; }
   }
   render();

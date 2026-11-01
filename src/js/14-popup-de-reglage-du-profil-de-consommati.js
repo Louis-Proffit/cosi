@@ -55,9 +55,16 @@ function openProfilPopup(ejId){
     '<tfoot><tr><td>Total</td><td class="num mono" id="pp-total" title="Total des CP saisis pour cet EJ">'+fmt0(cpSumOf(e.id))+'</td><td colspan="4"></td></tr></tfoot></table></div>';
   var ov=document.createElement('div');
   ov.className='modal-ov';
-  ov.innerHTML='<div class="modal"><h2>Profil de consommation des CP — '+esc(e.numero)+'</h2>'+
-    '<p class="hint">'+stadeBadge(e)+' '+esc(e.libelle||'')+' · affaire « '+esc(affaireName(e.affaireId))+' » · mois de l\'EJ : '+mLong(e.mois)+
-    ' · montant : '+fmt(montantOf(e))+' · CP consommés à ce jour : <span id="pp-cpnow">'+fmt(cpSumOf(e.id))+'</span></p>'+
+  ov.innerHTML='<div class="modal"><h2>Fiche de l\'EJ « '+esc(e.numero)+' » — profil de consommation des CP</h2>'+
+    '<p class="hint">'+stadeBadge(e)+' affaire « '+esc(affaireName(e.affaireId))+' » · CP consommés à ce jour : <span id="pp-cpnow">'+fmt(cpSumOf(e.id))+'</span></p>'+
+    /* toutes les caractéristiques de l'EJ sont modifiables ici (la colonne de la
+       grille « Consommation CP » n'affiche que intitulé / date / montant / check Σ CP) */
+    '<div class="formrow">'+
+      '<label class="fld">N°<input type="text" id="pp-num" value="'+esc(e.numero)+'" title="Référence (n°) de l\'EJ — modifiable ici"></label>'+
+      '<label class="fld">Libellé<input type="text" id="pp-lib" value="'+esc(e.libelle||'')+'" title="Libellé de l\'EJ — modifiable ici"></label>'+
+      '<label class="fld">Montant (€)<input type="text" inputmode="decimal" id="pp-montant" value="'+(montantOf(e)||'')+'" title="Montant de l\'EJ — modifiable ici"></label>'+
+      '<label class="fld">Date de l\'EJ'+monthInputHTML('pp-mois',e.mois,'','Date de l\'EJ, MM/AAAA — modifiable ici ; recalcule les CP si le profil est ponctuel/uniforme')+'</label>'+
+    '</div>'+
     '<div class="modal-tabs">'+
       '<button type="button" data-tab="ponctuelle" class="'+(p.type==='ponctuelle'?'active':'')+'" title="Tout le montant consommé en un seul mois">Ponctuelle</button>'+
       '<button type="button" data-tab="uniforme" class="'+(p.type==='uniforme'?'active':'')+'" title="Montant réparti uniformément sur une période">Uniforme sur une période</button>'+
@@ -118,13 +125,19 @@ function openProfilPopup(ejId){
     Array.prototype.forEach.call(ov.querySelectorAll('input'),function(i){ i.disabled=true; });
   }
   saveBtn.addEventListener('click',function(){
+    var oldP=profilOf(e);
+    /* caractéristiques de l'EJ (modifiées dans cette fiche) */
+    var numV=ov.querySelector('#pp-num').value.trim(); if(numV) e.numero=numV;
+    e.libelle=ov.querySelector('#pp-lib').value;
+    var mv2=parseMontant(ov.querySelector('#pp-montant').value); if(mv2!=null) e.montant=mv2;
+    var dm2=parseIdxDate(ov.querySelector('#pp-mois').value); if(dm2) e.mois=dm2;
     var np={type:curTab, debut:'', fin:''};
-    if(curTab==='ponctuelle'){ np.debut=parseIdxDate(ov.querySelector('#pp-debut').value)||e.mois; np.fin=np.debut; }
+    if(curTab==='ponctuelle'){ np.debut=parseIdxDate(ov.querySelector('#pp-debut').value)||oldP.debut||e.mois; np.fin=np.debut; }
     else if(curTab==='uniforme'){
-      np.debut=parseIdxDate(ov.querySelector('#pu-debut').value)||e.mois;
-      np.fin=parseIdxDate(ov.querySelector('#pu-fin').value)||np.debut;
+      np.debut=parseIdxDate(ov.querySelector('#pu-debut').value)||oldP.debut||e.mois;
+      np.fin=parseIdxDate(ov.querySelector('#pu-fin').value)||oldP.fin||np.debut;
       if(np.fin<np.debut) np.fin=np.debut;
-    } else { var old=profilOf(e); np.debut=old.debut||e.mois; np.fin=old.fin||e.mois; }
+    } else { np.debut=oldP.debut||e.mois; np.fin=oldP.fin||e.mois; }
     /* pas de CP avant le mois de l'EJ : on cale le profil sur le mois de l'EJ */
     if(e.mois){
       if(np.debut&&np.debut<e.mois) np.debut=e.mois;

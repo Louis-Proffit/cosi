@@ -28,14 +28,14 @@ function demoState(){
     {id:'op1', numero:'101', nom:'Extension tramway — Ligne B', description:'Prolongement de 3,2 km avec viaduc et nouvelle station'},
     {id:'op2', numero:'102', nom:'Rénovation station d\'épuration', description:'Mise aux normes de la STEP du nord'}
   ];
-  function a(id,opId,nom,tit,ref,montant,fi){ return {id:id,opId:opId,nom:nom,titulaire:tit,refContrat:ref,montantInitial:montant,dateRefRev:'2026-01',formule:(fi||'')}; }
+  function a(id,opId,nom,tit,ref,fi){ return {id:id,opId:opId,nom:nom,titulaire:tit,refContrat:ref,dateRefRev:'2026-01',formule:(fi||'')}; }
   st.affaires=[
-    a('a1','op1','Génie civil — Viaduc','Colas TP','CTR-2026-014',12400000,'=0.6*{BT01}+0.4*{TP}'),
-    a('a2','op1','Équipements électromécaniques','Alstom','CTR-2026-021',6800000),
-    a('a3','op1','Maîtrise d\'œuvre','Egis','CTR-2026-030',900000),
-    a('a4','op2','Travaux hydrauliques','Vincent TP','CTR-2026-041',3200000),
-    a('a5','op2','Automatismes & régulation','Schneider','CTR-2026-052',1100000),
-    a('a6','op2','Maîtrise d\'œuvre','Artelia','CTR-2026-058',240000)
+    a('a1','op1','Génie civil — Viaduc','Colas TP','CTR-2026-014','=0.6*{BT01}+0.4*{TP}'),
+    a('a2','op1','Équipements électromécaniques','Alstom','CTR-2026-021'),
+    a('a3','op1','Maîtrise d\'œuvre','Egis','CTR-2026-030'),
+    a('a4','op2','Travaux hydrauliques','Vincent TP','CTR-2026-041'),
+    a('a5','op2','Automatismes & régulation','Schneider','CTR-2026-052'),
+    a('a6','op2','Maîtrise d\'œuvre','Artelia','CTR-2026-058')
   ];
   function e(id,affaireId,numero,libelle,mois,montant){ return {id:id,affaireId:affaireId,numero:numero,libelle:libelle,stade:'prog',mois:mois,montant:montant}; }
   st.ejs=[
@@ -158,7 +158,6 @@ function repairState(st){
     if(!a.id) a.id=uid();
     if(!a.opId||!opByIdRaw(st,a.opId)) a.opId=(st.operations[0]&&st.operations[0].id)||'';
     if(!a.nom) a.nom='Affaire';
-    a.montantInitial=+a.montantInitial||0;
     if(typeof a.refContrat!=='string') a.refContrat='';
     if(a.dateRefRev&&!/^\d{4}-\d{2}$/.test(a.dateRefRev)) a.dateRefRev=null;
     if(!a.dateRefRev) a.dateRefRev=firstIndexMonth(st)||curMois();
@@ -167,7 +166,7 @@ function repairState(st){
     if(/\{cf\}|\{cv\}/i.test(a.formule)) a.formule='';
     delete a.formuleIndice; delete a.formuleRev;
     /* anciens champs supprimés du modèle affaire */
-    delete a.partRevisable; delete a.indiceBase; delete a.coefFixe; delete a.coefVar;
+    delete a.partRevisable; delete a.indiceBase; delete a.coefFixe; delete a.coefVar; delete a.montantInitial;
   });
   var ejIds={};
   st.ejs.forEach(function(e){

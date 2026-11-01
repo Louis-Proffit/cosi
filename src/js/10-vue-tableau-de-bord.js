@@ -123,7 +123,6 @@ function renderDashboard(){
   var ids={}; affs.forEach(function(a){ ids[a.id]=1; });
 
   var mat=ejs.filter(isMaterialise), aleas=ejs.filter(isAlea), risques=ejs.filter(isRisque);
-  var opTot=0; affs.forEach(function(a){ opTot+=a.montantInitial||0; });
   var ejEng=sommeMontant(mat), aleaTot=sommeMontant(aleas);
   var rkTot=0, rkHaut=0, rkPond=0;
   risques.forEach(function(e){ rkTot+=espDist(e); rkHaut+=montantHaut(e); rkPond+=risquePondere(e); });
@@ -134,13 +133,16 @@ function renderDashboard(){
   var rapTot=0; affs.forEach(function(a){ rapTot+=resteAPayer(a, cur); });
 
   var per=dashPeriod(opId, affId);
+  var monthsP=applyPeriod(months,per);
+  var hasToday=monthsP.length && curMois()>=monthsP[0] && curMois()<=monthsP[monthsP.length-1];
+  var todayLegend=hasToday?'<span><span class="sw" style="background:#f59e0b"></span>Aujourd\'hui '+mLabel(curMois())+' (ligne verticale)</span>':'';
   var h='';
-  h+='<div class="toolbar">'+
+  h+='<div class="toolbar">'+filtersBarHTML()+
      '<label class="fld">'+monthInputHTML('dash-from',per.from,'','Premier mois affiché dans les graphiques (MM/AAAA)')+'<span>Début</span></label>'+
      '<label class="fld">'+monthInputHTML('dash-to',per.to,'','Dernier mois affiché dans les graphiques (MM/AAAA)')+'<span>Fin</span></label>'+
      '<button class="btn" id="dash-per-auto" title="Réinitialise la période : de la première apparition au dernier CP">Période auto</button></div>';
   h+='<div class="kpis">';
-  h+='<div class="kpi"><div class="l">Montant de l\'opération (hors risques/aléas)</div><div class="v mono">'+fmt(opTot)+'</div><div class="s">'+affs.length+' affaire(s)</div></div>';
+  h+='<div class="kpi"><div class="l">Affaires dans la sélection</div><div class="v mono">'+affs.length+'</div><div class="s">'+(opById(opId)?esc(opById(opId).nom):'toutes opérations')+'</div></div>';
   h+='<div class="kpi g"><div class="l">EJ engagés à date</div><div class="v mono">'+fmt(ejAd)+'</div><div class="s">'+mLong(cur)+' · '+mat.length+' EJ engagés au total : '+fmt(ejEng)+'</div></div>';
   h+='<div class="kpi g"><div class="l">CP faits à date</div><div class="v mono">'+fmt(cpAd)+'</div><div class="s">CP consommés cumulés des EJ engagés à '+mLong(cur)+'</div></div>';
   h+='<div class="kpi"><div class="l">Reste à payer à date</div><div class="v mono">'+fmt(rapTot)+'</div><div class="s">EJ engagés cumulés − CP cumulés (finit à 0)</div></div>';
@@ -156,20 +158,20 @@ function renderDashboard(){
      '<span><span class="sw" style="background:#059669"></span>CP prévus cumulés hors aléas/risques (lisse : du 1er au dernier jour)</span>'+
      '<span><span class="sw" style="background:#334155"></span>Reste à payer = EJ − CP à chaque instant (saut le 1er jour, pente CP ; jamais nul avant la fin, finit à 0)</span>'+
      '<span><span class="sw" style="background:#b45309"></span>Attendu (aléas + risques pondérés)</span>'+
-     '<span><span class="sw" style="background:#dc2626"></span>Tous aléas/risques matérialisés (haut)</span></div></div>';
+     '<span><span class="sw" style="background:#dc2626"></span>Tous aléas/risques matérialisés (haut)</span>'+todayLegend+'</div></div>';
 
   h+='<div class="card"><h2>Prévisionnel EJ par mois</h2><p class="hint">Par mois : <strong>EJ engagés</strong> (prévu, à leur mois), <strong>risques en hypothèse moyenne</strong> (espérance × probabilité, à leurs apparitions), <strong>aléas</strong> (répartis au hasard sur les mois restants de l\'opération) et <strong>révisions de prix (RP)</strong>. Survolez un mois pour le détail.</p>'+chartBarsEJ(affs,ejs,months,per)+
      '<div class="legend"><span><span class="sw" style="background:#059669"></span>EJ engagés (prévu)</span>'+
      '<span><span class="sw" style="background:#b45309"></span>Risques (hypothèse moyenne)</span>'+
      '<span><span class="sw" style="background:#2563eb"></span>Aléas</span>'+
-     '<span><span class="sw" style="background:#7c3aed"></span>Révisions de prix (RP)</span></div></div>';
+     '<span><span class="sw" style="background:#7c3aed"></span>Révisions de prix (RP)</span>'+todayLegend+'</div></div>';
 
   h+='<div class="card"><h2>Prévisionnel CP par mois</h2><p class="hint">Même découpage pour les CP — <strong>pour les RP, EJ = CP</strong> — plus le CP réalisé. Survolez un mois pour le détail.</p>'+chartBarsCPM(affs,ejs,months,per)+
      '<div class="legend"><span><span class="sw" style="background:#059669"></span>CP engagés (prévu)</span>'+
      '<span><span class="sw" style="background:#b45309"></span>Risques (hypothèse moyenne)</span>'+
      '<span><span class="sw" style="background:#2563eb"></span>Aléas (CP)</span>'+
      '<span><span class="sw" style="background:#7c3aed"></span>Révisions de prix (RP = EJ = CP)</span>'+
-     '<span><span class="sw" style="background:#64748b"></span>CP réalisé</span></div></div>';
+     '<span><span class="sw" style="background:#64748b"></span>CP réalisé</span>'+todayLegend+'</div></div>';
 
   var alerts=computeAlerts(opId, affId);
   h+='<div class="card"><h2>Alertes</h2>';
@@ -225,8 +227,8 @@ function renderDashboard(){
       if(pt&&pt.dataset&&pt.dataset.m){ openMonthPopup(pt.dataset.m, pt.dataset.s||null); }
     });
     var df=w.querySelector('#dash-from'), dt=w.querySelector('#dash-to');
-    if(df){ var hf=function(){ state.ui.dashFrom=parseIdxDate(df.value)||''; save(); render(); }; df.addEventListener('change',hf); df.addEventListener('input',hf); }
-    if(dt){ var ht=function(){ state.ui.dashTo=parseIdxDate(dt.value)||''; save(); render(); }; dt.addEventListener('change',ht); dt.addEventListener('input',ht); }
+    if(df){ var hf=function(){ state.ui.dashFrom=parseIdxDate(df.value)||''; save(); render(); }; df.addEventListener('change',hf); }
+    if(dt){ var ht=function(){ state.ui.dashTo=parseIdxDate(dt.value)||''; save(); render(); }; dt.addEventListener('change',ht); }
     var au=w.querySelector('#dash-per-auto');
     if(au) au.addEventListener('click',function(){ state.ui.dashFrom=''; state.ui.dashTo=''; save(); render(); });
   });
@@ -238,6 +240,19 @@ function renderDashboard(){
    Reste à payer = EJ cumulés − CP cumulés à chaque instant : jamais nul avant la
    fin, il finit à 0. CP cumulés hors aléas/risques : LISSE. Avec aléas/risques :
    courbe moyenne (attendu, pondéré) et haute (100 %). Un tooltip par mois. */
+/* Ligne verticale pointillée à la date du jour sur l'axe des mois (uniquement si
+   la date du jour est dans la période affichée). X(i) = début du slot du mois i,
+   X(i+1) = fin du slot (dernier jour du mois i). */
+function todayLineSVG(months, X, p, H){
+  var n=months.length, today=curMois();
+  if(n<1 || today<months[0] || today>months[n-1]) return '';
+  var dd=new Date(), dim=new Date(dd.getFullYear(),dd.getMonth()+1,0).getDate();
+  var k=0; while(k<n-1 && months[k+1]<=today) k++;
+  var frac=(dd.getDate()-1)/Math.max(1,dim-1); /* 0 = 1er jour du mois, 1 = dernier jour */
+  var xt=X(k)+frac*(X(k+1)-X(k));
+  return '<line class="today-line" x1="'+xt.toFixed(1)+'" y1="'+p.t+'" x2="'+xt.toFixed(1)+'" y2="'+(H-p.b)+'" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3"/>'+
+    '<text class="today-lbl" x="'+(xt+4).toFixed(1)+'" y="'+(p.t+10)+'" fill="#b45309" font-weight="600">Aujourd\'hui '+mLabel(today)+'</text>';
+}
 /* Applique la période choisie (début/fin) à la liste des mois : conserve les mois
    dans [per.from, per.to] et étend l'axe si la période dépasse les données. */
 function applyPeriod(months, per){
@@ -331,6 +346,8 @@ function chartEntonnoir(affs, ejs, months, per){
   }
   lineEnd(att,'#b45309',true,2);
   lineEnd(mx,'#dc2626',false,2);
+  /* ligne verticale à la date du jour */
+  s+=todayLineSVG(months,X,p,H);
   /* points cliquables par mois sur chaque courbe (clic -> popup détail du mois) */
   function pts(arr,color,s){
     var o='';
@@ -398,6 +415,8 @@ function chartBarsSeries(affs, ejs, months, per, series){
       if(v2>0) s+='<rect x="'+(x+si*(bw+1)).toFixed(1)+'" y="'+Y(v2).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(H-p.b-Y(v2)).toFixed(1)+'" fill="'+series[si].color+'" rx="1"/>';
     }
   }
+  /* ligne verticale à la date du jour */
+  s+=todayLineSVG(months,function(i){ return p.l+slot*i; },p,H);
   /* tooltips par mois (rects transparents en dernier pour être au-dessus) */
   if(ejs) s+=svgMonthTips(affs,ejs,months,p,W,H);
   s+='</svg>';

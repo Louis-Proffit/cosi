@@ -19,7 +19,8 @@ function revDetail(kind, scope, m, span){
       var v=revisionMois(a,m);
       if(v>0){
         var i=indiceApplicable(a,m), i0=indiceRef(a);
-        items.push({a:a,lbl:'RP = CP '+fmt0(cpMoisAff(a,m))+' × (I/I₀−1), I='+fmtIdx(i)+', I₀='+fmtIdx(i0),v:v});
+        var rB=realOf(a.id,m), baseB=(rB!=null)?(rB.cp||0):cpMoisAff(a,m);
+        items.push({a:a,lbl:'RP = CP '+fmt0(baseB)+(rB!=null?' (réalisé saisi)':' (prévu)')+' × (I/I₀−1), I='+fmtIdx(i)+', I₀='+fmtIdx(i0),v:v});
         tot+=v;
       }
     }
@@ -36,7 +37,7 @@ function renderRevisions(){
   var months=scopeMonths(opId,affId);
   var cur=curMois();
 
-  var h='<div class="toolbar">'+
+  var h='<div class="toolbar">'+filtersBarHTML()+
     '<button class="btn" id="r-csv" title="Exporter le tableau (mois × affaire : indice, CP, RP) en CSV">Exporter CSV</button></div>';
 
     '<p class="hint">Lecture seule : par affaire, <strong>indice I/I₀ recalé</strong>, <strong>CP du mois</strong>, <strong>RP = CP × (I/I₀−1)</strong> — des RP exactement là où il y a des CP. <strong>Clic sur une cellule CP/RP = détail de la somme/du calcul.</strong> Boutons <strong>fx / CP / idx</strong> dans les colonnes. <span class="hint-ic" title="{série_0} = valeur de la série au mois de référence de l\'affaire ; {i0} = indice à la date de réf. RP par défaut {c}*({i}/{i0}-1) avec {c} = CP du mois. 2e tableau : RP cumulées, années en lignes, opérations/affaires en colonnes.">i</span></p>';
@@ -83,15 +84,17 @@ function renderRevisions(){
       var tCp=0, tRp=0;
       og.cs.forEach(function(a){
         var ind=indiceApplicable(a,m), i0=indiceRef(a);
+        var rM=realOf(a.id,m); /* CP réel saisi = base de vérité pour la RP */
         var cp=0;
         ejsOfAffaire(a.id).forEach(function(e){ if(isMaterialise(e)) cp+=cpPrevu(e,m); });
+        var cpBase=(rM!=null)?(rM.cp||0):cp;
         var rp=revisionMois(a,m);
-        tCp+=cp; tRp+=rp;
+        tCp+=cpBase; tRp+=rp;
         var indTxt=(ind==null?'—':fmtIdx(ind))+(ind!=null&&i0?(' <span class="muted">I/I₀='+(ind/i0).toLocaleString('fr-FR',{maximumFractionDigits:3})+'</span>'):'&nbsp;');
         var forced=Object.prototype.hasOwnProperty.call(state.revisions,a.id+'|'+m);
         body+='<td class="num mono" title="Formule de l\'affaire : '+(a.formule||'(1ʳᵉ série)')+' — date de réf. '+(a.dateRefRev||'—')+' : I₀='+(i0==null?'?':fmtIdx(i0))+' (I/I₀ recalé à 1 à cette date)">'+indTxt+'</td>';
-        body+='<td class="num mono'+(cp>0?' gp-cell':'')+'"'+(cp>0?' data-rev="cp|a:'+a.id+'|'+m+'" title="CP prévisionnels ce mois (somme) — cliquer pour le détail des EJ"':' title="CP prévisionnels ce mois (EJ engagés) — régler dans « Consommation CP »"')+'>'+fmt0(cp)+'</td>';
-        body+='<td class="num mono rev-rp'+(forced?' forced':'')+(rp>0?' gp-cell':'')+'"'+(rp>0?' data-rev="rp|a:'+a.id+'|'+m+'" title="RP du mois = CP du mois × (I/I₀−1) — cliquer pour le détail du calcul"':' title="RP du mois (formule de révision'+(forced?', valeur forcée':'')+') — modifier la formule dans « Opérations & affaires »"')+'>'+fmt0(rp)+'</td>';
+        body+='<td class="num mono'+(rM!=null?' gp-real':'')+(cpBase>0?' gp-cell':'')+'"'+(cpBase>0?' data-rev="cp|a:'+a.id+'|'+m+'" title="'+(rM!=null?'CP RÉALISÉ saisi dans « Réalisé » (valeur immuable, base de la RP)':'CP prévisionnels ce mois (somme) — cliquer pour le détail des EJ')+'"':' title="'+(rM!=null?'CP RÉALISÉ saisi dans « Réalisé » (base de la RP)':'CP prévisionnels ce mois (EJ engagés) — régler dans « Consommation CP »')+'"')+'>'+fmt0(cpBase)+'</td>';
+        body+='<td class="num mono rev-rp'+(rM!=null?' gp-real':'')+(forced?' forced':'')+(rp>0?' gp-cell':'')+'"'+(rp>0?' data-rev="rp|a:'+a.id+'|'+m+'" title="RP du mois = base CP × (I/I₀−1)'+(rM!=null?' — base = CP RÉALISÉ saisi':'')+' — cliquer pour le détail du calcul"':' title="RP du mois (formule de révision'+(forced?', valeur forcée':'')+') — modifier la formule dans « Opérations & affaires »"')+'>'+fmt0(rp)+'</td>';
       });
       if(og.cs.length>1) body+='<td class="num mono rev-tot'+(tCp>0?' gp-cell':'')+'"'+(tCp>0?' data-rev="cp|o:'+og.o.id+'|'+m+'" title="Total opération — CP du mois (somme des affaires) — cliquer pour le détail"':' title="Total opération — CP du mois"')+'>'+fmt0(tCp)+'</td>'+
             '<td class="num mono rev-tot'+(tRp>0?' gp-cell':'')+'"'+(tRp>0?' data-rev="rp|o:'+og.o.id+'|'+m+'" title="Total opération — RP du mois (somme des affaires) — cliquer pour le détail"':' title="Total opération — RP du mois"')+'>'+fmt0(tRp)+'</td>';
