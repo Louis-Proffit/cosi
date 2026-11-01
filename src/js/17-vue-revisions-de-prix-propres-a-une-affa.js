@@ -68,7 +68,7 @@ function renderRevisions(){
       h3+='<th class="rev-h-col" title="Indice applicable = formule de l\'affaire'+(a.formule?(' : '+a.formule):' (1ʳᵉ série)')+', recalé I/I₀ à 1 à la date de réf. '+(a.dateRefRev||'—')+'">Indice'+
            ' <button class="btn small" data-go="structure" data-op="'+og.o.id+'" data-aff="'+a.id+'" title="Modifier la formule et la date de réf. de cette affaire dans « Opérations & affaires »">fx</button></th>'+
            '<th class="rev-h-col" title="CP prévisionnels du mois (EJ engagés, selon leurs profils) — à régler dans « Consommation CP »">CP'+
-           ' <button class="btn small" data-go="conso" data-op="'+og.o.id+'" data-aff="'+a.id+'" title="Régler les CP (profils des EJ) de cette affaire dans « Consommation CP »">CP</button></th>'+
+           ' <button class="btn small" data-go="affaire" data-op="'+og.o.id+'" data-aff="'+a.id+'" title="Régler les CP (profils des EJ) de cette affaire dans l\'onglet « Affaire »">CP</button></th>'+
            '<th class="rev-h-col" title="Révision de prix du mois, automatique : '+DEFAULT_REV_FORMULA+' — séries d\'indices à saisir dans « Indices »">RP'+
            ' <button class="btn small" data-go="indices" title="Saisir les séries d\'indices (tableau, collage Excel) dans « Indices »">idx</button></th>';
     });
@@ -164,7 +164,7 @@ function renderRevisions(){
       var b=ev.target.closest('button[data-go]'); if(!b) return;
       var kind=b.dataset.go;
       if(kind==='structure'){ state.ui.op=b.dataset.op||''; state.ui.aff=b.dataset.aff||''; state.ui.view='structure'; save(); render(); return; }
-      if(kind==='conso'){ state.ui.op=b.dataset.op||''; state.ui.aff=b.dataset.aff||''; state.ui.view='conso'; save(); render(); return; }
+      if(kind==='affaire'){ state.ui.op=b.dataset.op||''; state.ui.aff=b.dataset.aff||''; state.ui.view='affaire'; save(); render(); return; }
       if(kind==='indices'){ state.ui.view='indices'; save(); render(); return; }
     });
   });

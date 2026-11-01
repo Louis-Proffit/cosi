@@ -215,12 +215,12 @@ const testCode = `
   ok(rv.indexOf("RP cumulées par année")>=0 && rv.indexOf(">2026<")>=0 && rv.indexOf(">2027<")>=0, "revisions: tableau synthèse RP par année (2026, 2027)");
   var rp26=0; scopeMonths("op1","a1").forEach(function(m){ if(m.slice(0,4)==="2026") rp26+=revisionMois(a1,m); });
   ok(rv.indexOf(fmt0(rp26))>=0 && rp26>0, "revisions: RP cumulées a1 en 2026 = somme des RP mensuelles = "+fmt0(rp26));
-  ok((rv.match(/data-go="structure"/g)||[]).length===scopedAffaires("op1","").length && (rv.match(/data-go="conso"/g)||[]).length===scopedAffaires("op1","").length && (rv.match(/data-go="indices"/g)||[]).length===scopedAffaires("op1","").length, "revisions: boutons de lien fx/CP/idx par affaire");
+  ok((rv.match(/data-go="structure"/g)||[]).length===scopedAffaires("op1","").length && (rv.match(/data-go="affaire"/g)||[]).length===scopedAffaires("op1","").length && (rv.match(/data-go="indices"/g)||[]).length===scopedAffaires("op1","").length, "revisions: boutons de lien fx/CP/idx par affaire");
   // clic sur bouton de lien CP -> onglet conso pré-sélectionné
   var hostR=document.getElementById("view-revisions"); var wR=hostR.children[0];
-  var bGo=makeEl("button"); bGo.dataset.go="conso"; bGo.dataset.op="op1"; bGo.dataset.aff="a2"; bGo._closest=bGo;
+  var bGo=makeEl("button"); bGo.dataset.go="affaire"; bGo.dataset.op="op1"; bGo.dataset.aff="a2"; bGo._closest=bGo;
   fire(wR,"click",{target:bGo});
-  ok(state.ui.view==="conso" && state.ui.op==="op1" && state.ui.aff==="a2", "revisions: bouton CP -> onglet Consommation CP pré-sélectionné (op1/a2)");
+  ok(state.ui.view==="affaire" && state.ui.op==="op1" && state.ui.aff==="a2", "bouton CP -> onglet Affaire pré-sélectionné (op1/a2)");
   // sélecteur affaire
   state.ui.view="revisions"; renderRevisions(); wR=document.getElementById("view-revisions").children[0];
   var faffStub=makeEl("select"); faffStub.dataset.faff="1"; faffStub.value="a3";
@@ -421,13 +421,34 @@ const testCode = `
   state=demoState(); recomputeProfils(state);
 
 
+  // ---- branche onglet-affaire-unique : vue unifiée 'affaire' (une seule affaire à la fois) ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var af1=htmlOf('affaire');
+  ok(af1.indexOf('id="aff-solo"')>=0, "vue affaire: sélecteur d'affaire unique (aff-solo)");
+  ok(af1.indexOf('GC-01')>=0 && af1.indexOf('HYD-01')<0, "vue affaire: une seule affaire lisible à la fois (a1 -> GC-01 oui, HYD-01 non)");
+  ok(af1.indexOf('EJ engagé')>=0 && af1.indexOf('CP prévu')>=0 && af1.indexOf('RP')>=0 && af1.indexOf('EJ réel')>=0 && af1.indexOf('CP réel')>=0, "vue affaire: tableau mensuel à plusieurs colonnes (EJ engagé, CP prévu, RP, EJ réel, CP réel, écarts, statut)");
+  ok(af1.indexOf('data-real="a1|')>=0, "vue affaire: saisie du réalisé dans le tableau mensuel");
+  var wAf=document.getElementById('view-affaire').children[0];
+  var selAf=wAf.querySelector('#aff-solo'); selAf.value='a4';
+  fire(selAf,'change',{target:selAf});
+  ok(state.ui.aff==='a4', "vue affaire: changer l'affaire du sélecteur (a4)");
+  render(); var af2=htmlOf('affaire');
+  ok(af2.indexOf('HYD-01')>=0 && af2.indexOf('GC-01')<0, "vue affaire: le tableau ne montre que l'affaire choisie (a4 -> HYD-01)");
+  state.ui.view='affaire'; state.ui.aff='a1'; state.ui.focusCol='e2'; render(); var af3=htmlOf('affaire');
+  ok(af3.indexOf('col-focus')>=0, "vue affaire: ligne EJ focalisée (focusCol depuis une alerte)");
+  // lien Traiter d'une alerte -> onglet affaire + affaire + colonne
+  var bG2=makeEl('button'); bG2.dataset.goto='affaire'; bG2.dataset.col='e1'; bG2.dataset.aff='a1'; bG2._closest=bG2;
+  fireDoc('click',{target:bG2});
+  ok(state.ui.view==='affaire' && state.ui.aff==='a1' && state.ui.focusCol==='e1', "lien Traiter alerte -> onglet affaire (affaire a1, EJ e1 focalisé)");
+  state = demoState(); recomputeProfils(state);
+
   // ---- ordre des onglets + filtres globaux en en-tête ----
   state = demoState(); recomputeProfils(state);
   render();
   var navHtml=document.getElementById("nav").innerHTML;
   var order=[...navHtml.matchAll(/data-view="([a-z]+)"/g)].map(m=>m[1]);
   ok(navHtml.indexOf("fr-nav__list")>=0 && navHtml.indexOf("fr-nav__link")>=0, "nav DSFR: ul.fr-nav__list > li.fr-nav__item > .fr-nav__link");
-  ok(JSON.stringify(order)===JSON.stringify(["dashboard","structure","risques","conso","revisions","realise","gp","indices","donnees"]), "ordre des onglets: "+order.join(","));
+  ok(JSON.stringify(order)===JSON.stringify(["dashboard","structure","affaire","indices","donnees"]), "ordre des onglets (branche unifiée): "+order.join(","));
   var dF=htmlOf("dashboard");
   ok(dF.indexOf("data-fop")>=0 && dF.indexOf("data-faff")>=0 && dF.indexOf("Extension tramway")>=0 && dF.indexOf("Génie civil")>=0, "filtres dans la barre de chaque onglet (dashboard ici), remplis (opérations + affaires)");
   state.ui.view="structure"; renderStructure();
@@ -506,7 +527,7 @@ const testCode = `
   var thIndice=colTh(rv3, ">Indice");
   ok(thIndice.indexOf('data-go="structure"')>=0, "revisions: bouton fx dans la colonne Indice");
   var thCP=colTh(rv3, ">CP <");
-  ok(thCP.indexOf('data-go="conso"')>=0, "revisions: bouton CP dans la colonne CP");
+  ok(thCP.indexOf('data-go="affaire"')>=0, "revisions: bouton CP -> onglet Affaire");
   var thRP=colTh(rv3, ">RP");
   ok(thRP.indexOf('data-go="indices"')>=0, "revisions: bouton idx dans la colonne RP");
   state.ui.aff="a1"; renderRevisions(); var rv4=htmlOf("revisions");
@@ -734,11 +755,11 @@ const testCode = `
   fire(wRe,'change',{target:inEmpty});
   ok(state.realise['a2|2026-05']===undefined, "réalisé: vider le champ supprime l'entrée (non saisi)");
   var als0=computeAlerts('','');
-  var missA2=als0.filter(function(x){ return x.view==='realise' && x.aff==='a2' && x.level==='warn' && x.txt.indexOf('non saisi')>=0; });
+  var missA2=als0.filter(function(x){ return x.view==='affaire' && x.aff==='a2' && x.level==='warn' && x.txt.indexOf('non saisi')>=0; });
   ok(missA2.length===1 && missA2[0].txt.indexOf('janv. 2026')>=0, "alerte: réalisé non saisi sur mois révolus (a2, depuis la date de réf. la plus ancienne 2026-01)");
   state.realise['a2|2026-01']={ej:0,cp:0}; state.realise['a2|2026-02']={ej:0,cp:0};
   var als1=computeAlerts('','');
-  var missA2b=als1.filter(function(x){ return x.view==='realise' && x.aff==='a2' && x.level==='warn' && x.txt.indexOf('non saisi')>=0; });
+  var missA2b=als1.filter(function(x){ return x.view==='affaire' && x.aff==='a2' && x.level==='warn' && x.txt.indexOf('non saisi')>=0; });
   ok(missA2b.length===1 && missA2b[0].txt.indexOf('8 mois')>=0, "réalisé saisi à 0 = constatation : plus d'alerte pour ces mois (reste 8 mois non saisis sur 2026-01..2026-10)");
   // révisions: cellule CP/RP grisée (gp-real) quand basée sur le réalisé
   state = demoState(); recomputeProfils(state);
@@ -757,15 +778,15 @@ const testCode = `
   for(var k in state.cps){ if(k.indexOf('e1|')===0) delete state.cps[k]; }
   state.cps['e1|2026-10']=100000; /* somme CP (100k) != montant EJ (2,4M) */
   var als=computeAlerts('','');
-  var coh=als.filter(function(x){ return x.view==='conso'&&x.col==='e1'; });
-  ok(coh.length===1 && coh[0].level==='over', "alerte cohérence EJ: montant 2,4M vs somme CP 100k -> alerte avec view=conso, col=e1");
-  var hasInfo=als.some(function(x){ return x.level==='info' && x.view==='realise'; });
+  var coh=als.filter(function(x){ return x.view==='affaire'&&x.col==='e1'; });
+  ok(coh.length===1 && coh[0].level==='over', "alerte cohérence EJ: montant 2,4M vs somme CP 100k -> alerte avec view=affaire, col=e1");
+  var hasInfo=als.some(function(x){ return x.level==='info' && x.view==='affaire'; });
   ok(hasInfo, "info orange: mois en cours pas encore saisi dans Réalisé (niveau 'info', pas une alerte)");
   ok(als.every(function(x){ return x.level!=='over'||!x.txt||true; }), "alertes présentes");
   state.ui.view='dashboard'; render();
   var dh2=htmlOf('dashboard');
-  ok(dh2.indexOf('data-goto="conso"')>=0 && dh2.indexOf('data-col="e1"')>=0, "dashboard: alerte avec bouton Traiter -> onglet conso, colonne e1");
-  ok(dh2.indexOf('data-goto="realise"')>=0, "dashboard: info/alertes réalisé avec lien Traiter -> onglet realise");
+  ok(dh2.indexOf('data-goto="affaire"')>=0 && dh2.indexOf('data-col="e1"')>=0, "dashboard: alerte avec bouton Traiter -> onglet affaire, colonne e1");
+  ok(dh2.indexOf('data-goto="affaire"')>=0, "dashboard: alertes réalisé avec lien Traiter -> onglet affaire");
   ok((dh2.match(/class="info"/g)||[]).length>=0 && dh2.indexOf('info')>=0, "dashboard: classe info (orange) présente dans les alertes");
   // conso : badge écart + colonne focalisée + plus de "du mois" + n° EJ éditable
   state.ui.view='conso'; state.ui.focusCol='e1'; renderConso(); var co3=htmlOf('conso');
@@ -775,9 +796,9 @@ const testCode = `
   ok(co3.indexOf('col-focus')>=0, "conso: colonne focalisée (focusCol) surlignée");
   ok(co3.indexOf('data-totcp=')>=0, "conso: total CP du mois cliquable (détail)");
   // handler data-goto global
-  var bG=makeEl('button'); bG.dataset.goto='conso'; bG.dataset.col='e1'; bG._closest=bG;
+  var bG=makeEl('button'); bG.dataset.goto='affaire'; bG.dataset.col='e1'; bG._closest=bG;
   fireDoc('click',{target:bG});
-  ok(state.ui.view==='conso' && state.ui.focusCol==='e1', "lien Traiter: ramène sur l'onglet conso avec la colonne e1 focalisée");
+  ok(state.ui.view==='affaire' && state.ui.focusCol==='e1', "lien Traiter: ramène sur l'onglet affaire avec la colonne e1 focalisée");
   // ---- révisions : cellules sommes cliquables + 2e tableau transposé ----
   state = demoState(); recomputeProfils(state); state.ui.view='revisions'; state.ui.op='op1'; state.ui.aff=''; renderRevisions();
   var rv2=htmlOf('revisions');
@@ -798,7 +819,7 @@ const testCode = `
   var bE=makeEl('button'); bE.dataset.addej='a1'; bE._closest=bE;
   var ejCount=state.ejs.length;
   fire(wS,'click',{target:bE});
-  ok(state.ejs.length===ejCount+1 && state.ui.view==='conso' && state.ui.aff==='a1' && state.ui.focusCol===state.ejs[state.ejs.length-1].id, "+EJ dans structure: EJ créé puis ramené sur l'onglet conso (affaire a1, colonne du nouvel EJ focalisée)");
+  ok(state.ejs.length===ejCount+1 && state.ui.view==='affaire' && state.ui.aff==='a1' && state.ui.focusCol===state.ejs[state.ejs.length-1].id, "+EJ dans structure: EJ créé puis ramené sur l'onglet affaire (affaire a1, EJ focalisé)");
   // ---- dashboard : étiquettes anti-chevauchement + popup détail au clic ----
   state = demoState(); recomputeProfils(state);
   var ent2=chartEntonnoir(scopedAffaires('',''),scopedEjs('',''),scopeMonths('',''),null);
