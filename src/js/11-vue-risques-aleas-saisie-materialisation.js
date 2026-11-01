@@ -99,8 +99,8 @@ function openRisquePopup(ejId){
     '<button type="button" class="btn" id="rk-cancel" title="Fermer sans enregistrer">Annuler</button></div></div>';
   document.body.appendChild(ov);
   function fldHtml(f, val){
-    var type=(f[2]==='month')?'month':(f[2]==='number'?'text':'text');
-    return '<label class="fld">'+f[0]+'<input type="'+type+'"'+(f[2]==='number'?' inputmode="decimal"':'')+' data-pf="'+f[1]+'" value="'+esc(val==null?'':val)+'" title="'+esc(f[3])+'"></label>';
+    if(f[2]==='month') return '<label class="fld">'+f[0]+monthInputHTML('',val,'',''+f[3],'data-pf="'+f[1]+'"')+'</label>';
+    return '<label class="fld">'+f[0]+'<input type="text" inputmode="decimal" data-pf="'+f[1]+'" value="'+esc(val==null?'':val)+'" title="'+esc(f[3])+'"></label>';
   }
   function renderParams(){
     var dt=ov.querySelector('#rk-disttype').value;
@@ -131,7 +131,7 @@ function openRisquePopup(ejId){
     Array.prototype.forEach.call(ov.querySelectorAll('[data-pf]'),function(inp){
       var f=inp.dataset.pf, raw=String(inp.value).trim();
       if(f==='mois'||f==='dateA'||f==='dateB'){
-        if(raw==='') e[f]=null; else if(/^\d{4}-\d{2}$/.test(raw)) e[f]=raw;
+        var dm2=parseIdxDate(raw); if(raw==='') e[f]=null; else if(dm2) e[f]=dm2;
       } else if(f==='freq'){
         var n3=parseFloat(raw); e[f]=isNaN(n3)?null:n3;
       } else {
@@ -179,7 +179,7 @@ function renderRisques(){
   risques.forEach(function(e){ rkEsp+=espDist(e); rkPond+=risquePondere(e); });
 
   var h='<div class="toolbar"></div>';
-  h+='<p class="hint">Les montants de l\'opération passent par plusieurs stades : <strong>aléa</strong> (part forfaitaire — par défaut 5 % du <strong>reste à payer à date de l\'affaire, calculé hors aléas</strong> pour éviter toute boucle — modifiable en % ou en montant ; <strong>un aléa ne se matérialise pas</strong>), puis <strong>risque</strong> (montant selon une distribution, probabilité d\'apparition, date d\'apparition ponctuelle / récurrente / uniforme dans une période — <strong>cliquez sur le petit graphique</strong> du tableau pour les modifier), puis <strong>engagé</strong> quand le risque est matérialisé (vrai EJ à date fixée, dont on règle ensuite le profil de CP dans « Consommation CP »).</p>';
+  h+='<p class="hint">Stades d\'un montant : <strong>aléa</strong> (forfait, non matérialisable) → <strong>risque</strong> (distribution + probabilité + date d\'apparition — modifiable en cliquant sur le petit graphique) → <strong>engagé</strong> (matérialisé). <span class="hint-ic" title="Aléa = part forfaitaire (défaut 5 % du reste à payer à date de l\'affaire, hors aléas pour éviter toute boucle), modifiable en % ou en montant ; un aléa ne se matérialise pas. Risque = montant selon une distribution (fixe/uniforme/triangulaire/gaussienne), probabilité, date d\'apparition (ponctuelle/récurrente/uniforme) ; matérialiser = vrai EJ à date fixée, profil de CP réglable ensuite dans Consommation CP.">i</span></p>';
 
   h+='<div class="kpis">';
   h+='<div class="kpi" style="border-left-color:var(--blue)"><div class="l">Aléas</div><div class="v mono">'+fmt(aleaTot)+'</div><div class="s">'+aleas.length+' aléa(s)</div></div>';
@@ -264,7 +264,7 @@ function renderRisques(){
       if(f==='affaireId'){ if(affaireById(t.value)) e.affaireId=t.value; }
       else if(f==='montantAlea'){ var n=parseMontant(t.value); if(n==null){ e.montantExplicite=false; e.montant=null; } else { e.montantExplicite=true; e.montant=n; } }
       else if(f==='probabilite'||f==='aleaPct'){ var n2=parseFloat(t.value); e[f]=isNaN(n2)?null:n2; }
-      else if(f==='mois'){ if(/^\d{4}-\d{2}$/.test(t.value)||t.value==='') e.mois=t.value||null; }
+      else if(f==='mois'){ if(t.value.trim()==='') e.mois=null; else { var dm3=parseIdxDate(t.value); if(dm3) e.mois=dm3; } }
       else e[f]=t.value;
       recomputeProfils(state);
       save(); renderRisques();

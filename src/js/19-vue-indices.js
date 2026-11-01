@@ -2,7 +2,7 @@
 
 function renderIndices(){
   var h='<div class="card"><h2>Indices de prix</h2>'+
-    '<p class="hint">Déclarez une série par indice (ex. BT01, TP — indices INSEE). Chaque affaire combine ces séries dans sa <strong>formule d\'indice</strong> (onglet « Révisions de prix ») ; une série y est référencée par son nom entre accolades, ex. <code>{BT01}</code>. Pour un mois donné, la valeur retenue d\'une série est la dernière définie à ou avant ce mois. <strong>Saisie en tableau</strong> ci-dessous : une ligne par mois, de l\'affaire la plus ancienne au dernier CP de toutes les opérations ; toutes les séries en colonnes — collez directement un bloc copié depuis Excel (1ʳᵉ colonne = mois, colonnes suivantes = valeurs des séries dans l\'ordre).</p>'+
+    '<p class="hint"><strong>Séries d\'indices en tableau</strong> : lignes = mois (de l\'affaire la plus ancienne au dernier CP), colonnes = séries — <strong>collage direct depuis Excel</strong>. Référencées par {NOM} dans les formules d\'affaire. <span class="hint-ic" title="Chaque affaire combine les séries dans sa formule d\'indice (onglet Révisions de prix), ex. {BT01} ou {BT01}/{BT01_0} (série au mois de référence). Pour un mois donné, la valeur retenue est la dernière définie à ou avant ce mois. Collage Excel : 1ère colonne = mois (AAAA-MM, MM/AAAA, MM/AA ou n° de série), colonnes suivantes = valeurs des séries dans l\'ordre.">i</span></p>'+
     (cmpVer()?'<p class="hint">Mode comparaison : les séries d\'indices ne sont pas versionnées — elles sont identiques dans toutes les versions sauvegardées ; seuls les montants de révision figés à chaque sauvegarde diffèrent.</p>':'');
 
   if(state.indices.length===0) h+='<p class="hint">Aucune série d\'indices définie.</p>';

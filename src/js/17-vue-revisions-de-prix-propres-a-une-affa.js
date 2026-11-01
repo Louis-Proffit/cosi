@@ -1,5 +1,35 @@
 /* ================= Vue : Révisions de prix (propres à une affaire) ================= */
 
+/* Détail d'une cellule somme de l'onglet Révisions : CP du mois (par EJ) ou RP du
+   mois (détail du calcul : CP du mois × (I/I₀ − 1), avec I et I₀). */
+function revDetail(kind, scope, m, span){
+  var sel=scopedAffaires(state.ui.op||'', state.ui.aff||'');
+  var affs;
+  if(scope.indexOf('o:')===0){ var opId=scope.slice(2); affs=sel.filter(function(a){ return a.opId===opId; }); }
+  else { var a0=affaireById(scope.slice(2)); affs=a0&&sel.indexOf(a0)>=0?[a0]:[]; }
+  var items=[], tot=0;
+  affs.forEach(function(a){
+    if(kind==='cp'){
+      ejsOfAffaire(a.id).forEach(function(e){
+        if(!isMaterialise(e)) return;
+        var v=cpPrevu(e,m);
+        if(v>0){ items.push({a:a,lbl:e.numero+(e.libelle?' ('+e.libelle+')':''),v:v}); tot+=v; }
+      });
+    }else{
+      var v=revisionMois(a,m);
+      if(v>0){
+        var i=indiceApplicable(a,m), i0=indiceRef(a);
+        items.push({a:a,lbl:'RP = CP '+fmt0(cpMoisAff(a,m))+' × (I/I₀−1), I='+fmtIdx(i)+', I₀='+fmtIdx(i0),v:v});
+        tot+=v;
+      }
+    }
+  });
+  if(!items.length) return '<td colspan="'+span+'" class="gp-detail">Aucun détail.</td>';
+  var h='<td colspan="'+span+'" class="gp-detail"><strong>'+(kind==='cp'?'CP':'RP')+' '+mLong(m)+' — total '+fmt0(tot)+' :</strong>';
+  items.forEach(function(it){ h+='<div>'+(affs.length>1?esc(it.a.nom)+' · ':'')+esc(it.lbl)+' : <span class="mono">'+fmt0(it.v)+'</span></div>'; });
+  return h+'</td>';
+}
+
 function renderRevisions(){
   var opId=state.ui.op||'', affId=state.ui.aff||'';
   var affs=scopedAffaires(opId,affId);
@@ -9,7 +39,7 @@ function renderRevisions(){
   var h='<div class="toolbar">'+
     '<button class="btn" id="r-csv" title="Exporter le tableau (mois × affaire : indice, CP, RP) en CSV">Exporter CSV</button></div>';
 
-  h+='<div class="card"><h2>Révisions de prix (lecture seule)</h2>'+
+    '<p class="hint">Lecture seule : par affaire, <strong>indice I/I₀ recalé</strong>, <strong>CP du mois</strong>, <strong>RP = CP × (I/I₀−1)</strong> — des RP exactement là où il y a des CP. <strong>Clic sur une cellule CP/RP = détail de la somme/du calcul.</strong> Boutons <strong>fx / CP / idx</strong> dans les colonnes. <span class="hint-ic" title="{série_0} = valeur de la série au mois de référence de l\'affaire ; {i0} = indice à la date de réf. RP par défaut {c}*({i}/{i0}-1) avec {c} = CP du mois. 2e tableau : RP cumulées, années en lignes, opérations/affaires en colonnes.">i</span></p>';
     '<p class="hint">Tout se calcule depuis les autres onglets — <strong>rien n\'est modifiable ici</strong>. Par affaire, <strong>3 colonnes</strong> : <strong>indice applicable</strong> au marché (formule de l\'affaire, rappelée en en-tête — {série_0} = série au mois de réf. — avec le <strong>recalage I/I₀ à 1 à la date de référence</strong> de l\'affaire), <strong>CP prévisionnels du mois</strong> (profils de « Consommation CP »), <strong>RP du mois</strong> = somme des <strong>CP du mois</strong> × (I/I₀ − 1) — par défaut {c}*({i}/{i0}-1) : {c} = CP prévus de l\'affaire sur le mois, {i} = indice du mois, {i0} = indice à la date de réf. (des RP exactement là où il y a des CP). Les <strong>opérations</strong> ont en plus une <strong>colonne de total</strong> (Σ CP, Σ RP). Boutons de lien vers la saisie : <strong>fx</strong> = formules &amp; date de réf. (« Opérations &amp; affaires »), <strong>CP</strong> = profils (« Consommation CP »), <strong>idx</strong> = séries (« Indices »).</p>';
 
   /* groupes : opération -> affaires */
@@ -58,11 +88,11 @@ function renderRevisions(){
         var indTxt=(ind==null?'—':fmtIdx(ind))+(ind!=null&&i0?(' <span class="muted">I/I₀='+(ind/i0).toLocaleString('fr-FR',{maximumFractionDigits:3})+'</span>'):'&nbsp;');
         var forced=Object.prototype.hasOwnProperty.call(state.revisions,a.id+'|'+m);
         body+='<td class="num mono" title="Formule de l\'affaire : '+(a.formule||'(1ʳᵉ série)')+' — date de réf. '+(a.dateRefRev||'—')+' : I₀='+(i0==null?'?':fmtIdx(i0))+' (I/I₀ recalé à 1 à cette date)">'+indTxt+'</td>';
-        body+='<td class="num mono" title="CP prévisionnels ce mois (EJ engagés) — régler dans « Consommation CP »">'+fmt0(cp)+'</td>';
-        body+='<td class="num mono rev-rp'+(forced?' forced':'')+'" title="RP du mois (formule de révision'+(forced?', valeur forcée':'')+') — modifier la formule dans « Opérations & affaires »">'+fmt0(rp)+'</td>';
+        body+='<td class="num mono'+(cp>0?' gp-cell':'')+'"'+(cp>0?' data-rev="cp|a:'+a.id+'|'+m+'" title="CP prévisionnels ce mois (somme) — cliquer pour le détail des EJ"':' title="CP prévisionnels ce mois (EJ engagés) — régler dans « Consommation CP »"')+'>'+fmt0(cp)+'</td>';
+        body+='<td class="num mono rev-rp'+(forced?' forced':'')+(rp>0?' gp-cell':'')+'"'+(rp>0?' data-rev="rp|a:'+a.id+'|'+m+'" title="RP du mois = CP du mois × (I/I₀−1) — cliquer pour le détail du calcul"':' title="RP du mois (formule de révision'+(forced?', valeur forcée':'')+') — modifier la formule dans « Opérations & affaires »"')+'>'+fmt0(rp)+'</td>';
       });
-      if(og.cs.length>1) body+='<td class="num mono rev-tot" title="Total opération — CP du mois">'+fmt0(tCp)+'</td>'+
-            '<td class="num mono rev-tot" title="Total opération — RP du mois">'+fmt0(tRp)+'</td>';
+      if(og.cs.length>1) body+='<td class="num mono rev-tot'+(tCp>0?' gp-cell':'')+'"'+(tCp>0?' data-rev="cp|o:'+og.o.id+'|'+m+'" title="Total opération — CP du mois (somme des affaires) — cliquer pour le détail"':' title="Total opération — CP du mois"')+'>'+fmt0(tCp)+'</td>'+
+            '<td class="num mono rev-tot'+(tRp>0?' gp-cell':'')+'"'+(tRp>0?' data-rev="rp|o:'+og.o.id+'|'+m+'" title="Total opération — RP du mois (somme des affaires) — cliquer pour le détail"':' title="Total opération — RP du mois"')+'>'+fmt0(tRp)+'</td>';
     });
     body+='</tr>';
   });
@@ -77,39 +107,54 @@ function renderRevisions(){
   if(!yrs.length){
     h+='<p class="hint">Aucune révision sur la période.</p></div>';
   }else{
-    h+='<table class="liste"><thead><tr><th>Opération</th><th>Affaire</th>'+
-       yrs.map(function(y){ return '<th class="num">'+y+'</th>'; }).join('')+
-       '<th class="num">Total</th></tr></thead><tbody>';
-    var gt={}; yrs.forEach(function(y){ gt[y]=0; });
-    opCols.forEach(function(og){
-      var opT={}; yrs.forEach(function(y){ opT[y]=0; });
-      og.cs.forEach(function(a){
-        var row={}; yrs.forEach(function(y){ row[y]=0; });
-        months.forEach(function(m){
-          var v=revisionMois(a,m);
-          if(v){ var y=m.slice(0,4); row[y]+=v; opT[y]+=v; gt[y]+=v; }
+    /* tableau transposé : ANNÉES en lignes, opérations/affaires en colonnes */
+    h+='<table class="liste rev-year"><thead><tr><th rowspan="2">Année</th>';
+    opCols.forEach(function(og){ h+='<th class="rev-h-op" colspan="'+og.cs.length+'">Opération : '+esc(og.o.nom)+'</th>'; });
+    h+='<th rowspan="2" class="num" title="Total de l\'année sur toutes les affaires">Total</th></tr><tr>';
+    opCols.forEach(function(og){ og.cs.forEach(function(a){ h+='<th class="rev-h-aff" title="Affaire « '+esc(a.nom)+' »">N° '+esc(og.o.numero||'')+' — '+esc(a.nom)+'</th>'; }); });
+    h+='</tr></thead><tbody>';
+    yrs.forEach(function(y){
+      h+='<tr><td><strong>'+y+'</strong></td>';
+      var yTot=0;
+      opCols.forEach(function(og){
+        og.cs.forEach(function(a){
+          var v=0;
+          months.forEach(function(m){ if(m.slice(0,4)===y) v+=revisionMois(a,m); });
+          yTot+=v;
+          h+='<td class="num mono">'+(v?fmt0(v):'—')+'</td>';
         });
-        var tot=0; yrs.forEach(function(y){ tot+=row[y]; });
-        h+='<tr><td>'+esc(og.o.nom)+'</td><td>'+esc(a.nom)+'</td>'+
-           yrs.map(function(y){ return '<td class="num mono">'+(row[y]?fmt0(row[y]):'—')+'</td>'; }).join('')+
-           '<td class="num mono"><strong>'+fmt0(tot)+'</strong></td></tr>';
       });
-      var ot=0; yrs.forEach(function(y){ ot+=opT[y]; });
-      h+='<tr class="gp-tot"><td colspan="2">Σ '+esc(og.o.nom)+'</td>'+
-         yrs.map(function(y){ return '<td class="num mono">'+(opT[y]?fmt0(opT[y]):'—')+'</td>'; }).join('')+
-         '<td class="num mono"><strong>'+fmt0(ot)+'</strong></td></tr>';
+      h+='<td class="num mono"><strong>'+(yTot?fmt0(yTot):'—')+'</strong></td></tr>';
     });
-    var gtt=0; yrs.forEach(function(y){ gtt+=gt[y]; });
-    h+='<tr class="gp-gt"><td colspan="2">Total général</td>'+
-       yrs.map(function(y){ return '<td class="num mono">'+(gt[y]?fmt0(gt[y]):'—')+'</td>'; }).join('')+
-       '<td class="num mono"><strong>'+fmt0(gtt)+'</strong></td></tr>';
+    h+='<tr class="gp-tot"><td>Total</td>';
+    var gtt=0;
+    opCols.forEach(function(og){
+      og.cs.forEach(function(a){
+        var v=0;
+        months.forEach(function(m){ v+=revisionMois(a,m); });
+        gtt+=v;
+        h+='<td class="num mono"><strong>'+(v?fmt0(v):'—')+'</strong></td>';
+      });
+    });
+    h+='<td class="num mono"><strong>'+(gtt?fmt0(gtt):'—')+'</strong></td></tr>';
     h+='</tbody></table></div>';
   }
 
   mount('view-revisions', h, function(w){
     wireRevHeader(w);
-    /* boutons de lien vers les onglets de saisie */
     w.addEventListener('click', function(ev){
+      /* cellule somme cliquable -> ligne de détail */
+      var rc=ev.target.closest('[data-rev]');
+      if(rc&&rc.dataset&&rc.dataset.rev){
+        var parts=rc.dataset.rev.split('|'), kind=parts[0], scope=parts[1], m=parts[2];
+        var row=rc.closest('tr'), next=row.nextSibling, key=rc.dataset.rev;
+        var span=2+opCols.reduce(function(s,og){ return s+og.cs.length*3+((og.cs.length>1)?2:0); },0);
+        var html=revDetail(kind,scope,m,span);
+        if(next&&next.classList&&next.classList.contains('gp-detail-row')){ if(next.dataset.for===key){ next.parentNode.removeChild(next); return; } next.dataset.for=key; next.innerHTML=html; return; }
+        var tr=document.createElement('tr'); tr.className='gp-detail-row'; tr.dataset.for=key; tr.innerHTML=html;
+        row.parentNode.insertBefore(tr, row.nextSibling);
+        return;
+      }
       var b=ev.target.closest('button[data-go]'); if(!b) return;
       var kind=b.dataset.go;
       if(kind==='structure'){ state.ui.op=b.dataset.op||''; state.ui.aff=b.dataset.aff||''; state.ui.view='structure'; save(); render(); return; }

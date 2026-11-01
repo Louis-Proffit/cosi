@@ -29,14 +29,36 @@ function cpAt(e, m){
    janvier -> février (« Pas de CP en janvier »), et en « RP en décembre
    seulement » la colonne RP de décembre vaut la somme des RP de l'année. */
 function gpVal(kind, aff, m){
-  if(GP_SYNTH[kind]){ var s0=0; GP_SYNTH[kind].forEach(function(k){ s0+=gpVal(k,aff,m); }); return s0; }
+  var cur=curMois();
+  if(kind==='sej'||kind==='scp'){
+    /* Pas de double comptage saisi/réalisé : sur un mois PASSÉ avec réalisé saisi,
+       on garde le réalisé (immuable) ; sur le mois en cours (ou sans réalisé), on
+       garde le saisi (prévu). */
+    var r=(m<cur)?realOf(aff.id,m):null;
+    if(kind==='sej'){ var b=(r&&(r.ej||0)>0)?(r.ej||0):gpVal('ej',aff,m); return b+gpVal('ae',aff,m)+gpVal('rk',aff,m)+gpVal('rp',aff,m); }
+    var b2=(r&&(r.cp||0)>0)?(r.cp||0):gpVal('cp',aff,m); return b2+gpVal('ac',aff,m)+gpVal('rc',aff,m)+gpVal('rp',aff,m);
+  }
   var s=0, ejs=ejsOfAffaire(aff.id), i;
   if(kind==='ej'){ ejs.forEach(function(e){ if(isMaterialise(e)&&gpShiftEjMonth(e.mois)===m) s+=montantOf(e); }); }
   else if(kind==='cp'){ ejs.forEach(function(e){ if(isMaterialise(e)) s+=cpAt(e,m); }); }
-  else if(kind==='ae'){ ejs.forEach(function(e){ if(isAlea(e)) occOf(e).forEach(function(o){ if(gpShiftEjMonth(o.m)===m) s+=montantOf(e)*o.w; }); }); }
-  else if(kind==='ac'){ ejs.forEach(function(e){ if(isAlea(e)) s+=cpAt(e,m); }); }
-  else if(kind==='rk'){ ejs.forEach(function(e){ if(isRisque(e)) occOf(e).forEach(function(o){ if(gpShiftEjMonth(o.m)===m) s+=espDist(e)*o.w; }); }); }
-  else if(kind==='rc'){ ejs.forEach(function(e){ if(isRisque(e)) s+=cpAt(e,m); }); }
+  else if(kind==='ae'){ ejs.forEach(function(e){ if(isAlea(e)){
+    if(state.ui.gpARDec){ /* aléas de l'année regroupés en décembre */
+      if(m.slice(5)==='12'){ var y=m.slice(0,4), y0=(+y-1)+'-12'; s+=montantOf(e)*(cumOcc(e,y+'-12')-cumOcc(e,y0)); }
+    } else occOf(e).forEach(function(o){ if(gpShiftEjMonth(o.m)===m) s+=montantOf(e)*o.w; });
+  } }); }
+  else if(kind==='ac'){ ejs.forEach(function(e){ if(isAlea(e)){
+    if(state.ui.gpARDec){ if(m.slice(5)==='12'){ var y2=m.slice(0,4), y02=(+y2-1)+'-12'; s+=cpSumOf(e.id,y2+'-12')-cpSumOf(e.id,y02); } }
+    else s+=cpAt(e,m);
+  } }); }
+  else if(kind==='rk'){ ejs.forEach(function(e){ if(isRisque(e)){
+    if(state.ui.gpARDec){ /* aléas ET risques de l'année regroupés en décembre */
+      if(m.slice(5)==='12'){ var y3=m.slice(0,4), y03=(+y3-1)+'-12'; s+=espDist(e)*(cumOcc(e,y3+'-12')-cumOcc(e,y03)); }
+    } else occOf(e).forEach(function(o){ if(gpShiftEjMonth(o.m)===m) s+=espDist(e)*o.w; });
+  } }); }
+  else if(kind==='rc'){ ejs.forEach(function(e){ if(isRisque(e)){
+    if(state.ui.gpARDec){ if(m.slice(5)==='12'){ var y4=m.slice(0,4), y04=(+y4-1)+'-12'; s+=cpSumOf(e.id,y4+'-12')-cpSumOf(e.id,y04); } }
+    else s+=cpAt(e,m);
+  } }); }
   else if(kind==='rp'){
     if(state.ui.gpRpDec){ if(m.slice(5)==='12'){ scopeMonths(state.ui.op||'',state.ui.aff||'').forEach(function(mm){ if(mm.slice(0,4)===m.slice(0,4)) s+=revisionMois(aff,mm); }); } }
     else s=revisionMois(aff,m);
@@ -146,31 +168,52 @@ function gpYearText(affs, months){
       });
     });
   }
+  var cur=curMois();
   months.forEach(function(m){
     var y=m.slice(0,4), isDec=(m.slice(5)==='12');
     var mCp=gpShiftCpMonth(m); /* mois d'affichage des lignes CP */
+    var mEj=gpShiftEjMonth(m);
+    var past=m<cur;
+    /* réalisé saisi de l'affaire à ce mois — seulement les mois PASSÉS (le mois en
+       cours reste au saisi) ; un mois n'apparaît qu'une fois : réalisé OU saisi */
+    var realEj={}, realCp={};
+    affs.forEach(function(a){ var r=realOf(a.id,m); if(past&&r){ if((r.ej||0)>0) realEj[a.id]=r.ej; if((r.cp||0)>0) realCp[a.id]=r.cp; } });
     state.ejs.forEach(function(e){
       if(!ids[e.affaireId]) return;
       var lbl=e.numero+(e.stade&&e.stade!=='prog'?' ('+stadeLabel(e)+')':'')+(e.libelle?' '+e.libelle:'');
-      /* version EJ : l'EJ engagé à son mois (décembre -> novembre si RP en décembre seulement) */
-      if(isMaterialise(e)&&e.mois===m&&montantOf(e)>0){
-        var mEj=gpShiftEjMonth(m);
+      /* version EJ : l'EJ engagé à son mois — ligne saisie supprimée si le réalisé existe (pas de double comptage) */
+      if(isMaterialise(e)&&e.mois===m&&montantOf(e)>0&&!realEj[e.affaireId]){
         bucket(mEj.slice(0,4),'ej').prevu.push(mLabel(mEj)+' : '+kEur(montantOf(e))+' '+lbl);
       }
       /* version CP : CP prévus ce mois (mois décalé selon les options) */
       var v=cpPrevu(e,m);
-      if(v>0){
+      if(v>0&&!realCp[e.affaireId]&&!(state.ui.gpARDec&&(isAlea(e)||isRisque(e)))){
         bucket(mCp.slice(0,4),'cp').prevu.push(mLabel(mCp)+' : '+kEur(v)+' '+lbl);
       }
     });
-    for(var k in state.realise){
-      var p=k.split('|');
-      if(!ids[p[0]]||p[1]!==m) continue;
-      var r=state.realise[k];
-      var a=affaireById(p[0]);
-      if(r&&(r.ej||0)>0){ var mEjR=gpShiftEjMonth(m); bucket(mEjR.slice(0,4),'ej').real.push(mLabel(mEjR)+' : '+kEur(r.ej)+' EJ réalisé'+(a?' — '+a.nom:'')); }
-      if(r&&(r.cp||0)>0) bucket(mCp.slice(0,4),'cp').real.push(mLabel(mCp)+' : '+kEur(r.cp)+' CP réalisé'+(a?' — '+a.nom:''));
+    /* option "aléa et risque en décembre" : aléas ET risques de l'année regroupés en décembre (versions EJ et CP) */
+    if(state.ui.gpARDec){
+      state.ejs.forEach(function(e){
+        if(!ids[e.affaireId]||!(isAlea(e)||isRisque(e))) return;
+        var lblA=e.numero+' ('+stadeLabel(e)+')'+(e.libelle?' '+e.libelle:'');
+        var mot=isAlea(e)?'aléas':'risques';
+        months.forEach(function(mm){
+          if(mm.slice(5)!=='12') return;
+          var y=mm.slice(0,4), y0=(+y-1)+'-12';
+          var occPart=cumOcc(e,y+'-12')-cumOcc(e,y0);
+          var vEj=(isAlea(e)?montantOf(e):espDist(e))*occPart;
+          var vCp=cpSumOf(e.id,y+'-12')-cpSumOf(e.id,y0);
+          if(vEj>0) bucket(y,'ej').prevu.push(mLabel(mm)+' : '+kEur(vEj)+' '+lblA+' — '+mot+' '+y+' regroupés en décembre');
+          if(vCp>0) bucket(y,'cp').prevu.push(mLabel(gpShiftCpMonth(mm))+' : '+kEur(vCp)+' '+lblA+' — '+mot+' '+y+' regroupés en décembre');
+        });
+      });
     }
+    affs.forEach(function(a){
+      var r=realOf(a.id,m);
+      if(!past||!r) return;
+      if((r.ej||0)>0) bucket(mEj.slice(0,4),'ej').real.push(mLabel(mEj)+' : '+kEur(r.ej)+' EJ réalisé — '+a.nom);
+      if((r.cp||0)>0) bucket(mCp.slice(0,4),'cp').real.push(mLabel(mCp)+' : '+kEur(r.cp)+' CP réalisé — '+a.nom);
+    });
   });
   /* option "RP en décembre seulement" : ligne de décembre = somme des RP de l'année, dans les deux versions */
   if(state.ui.gpRpDec){
@@ -209,10 +252,11 @@ function renderGp(){
     '<label class="gp-chk" title="Export : la ligne de décembre ne contient que la somme des RP de l\'année ; l\'EJ de décembre est mis en novembre et le CP de décembre en janvier (cumulatif avec « Pas de CP en janvier » : janvier -> février)"><input type="checkbox" id="gp-rpdec"'+(state.ui.gpRpDec?' checked':'')+'> RP en décembre seulement</label>'+
     '<label class="gp-chk" title="Export : décale les CP de décembre vers janvier de l\'année suivante (ne s\'applique pas aux RP)"><input type="checkbox" id="gp-nocpdec"'+(state.ui.gpNoCpDec?' checked':'')+'> Pas de CP en décembre</label>'+
     '<label class="gp-chk" title="Export : décale les CP de janvier vers février (cumulatif avec « Pas de CP en décembre »)"><input type="checkbox" id="gp-nocpjan"'+(state.ui.gpNoCpJan?' checked':'')+'> Pas de CP en janvier</label>'+
+    '<label class="gp-chk" title="Tableau + export : les aléas ET risques de chaque année sont regroupés en décembre de l\'année, en EJ et en CP"><input type="checkbox" id="gp-ardec"'+(state.ui.gpARDec?' checked':'')+'> Aléa et risque en décembre</label>'+
     '<button class="btn" id="gp-ext">+ 12 mois</button>'+
     (state.ui.ext>0?'<button class="btn" id="gp-shrink">− 12 mois</button>':'')+
     '</div>';
-  h+='<p class="hint">Montants prévisionnels par mois, agrégés par affaire puis par opération, en distinguant <strong>EJ/CP engagés</strong> (programmés ou matérialisés), <strong>aléas</strong>, <strong>risques</strong> (espérance pondérée de leur apparition, CP selon leur profil) et <strong>révisions de prix</strong> (propres à chaque affaire), avec le <strong>réalisé</strong> saisi dans l\'onglet « Réalisé ». Cliquez sur une cellule pour le détail, ou sur <strong>+</strong> dans l\'en-tête d\'un groupe (opération / affaire) pour déplier les colonnes par type (EJ pur, aléa, risque, RP, réalisé). Les cases à cocher s\'appliquent au tableau et à l\'export texte.</p>';
+  h+='<p class="hint">Montants par mois agrégés par affaire puis par opération. <strong>Clic sur une cellule = détail de la somme ; bouton + dans un en-tête = déplier par type</strong> (EJ pur, aléa, risque, RP, réalisé). Les cases à cocher s\'appliquent au tableau et à l\'export texte. <span class="hint-ic" title="Colonnes par défaut : Synthèse EJ / Synthèse CP (somme de tous les types). Le bouton + déplie le détail par type. Types : EJ/CP engagés (programmés ou matérialisés), aléas, risques (espérance pondérée, CP selon le profil), révisions de prix propres à chaque affaire, réalisé saisi dans l\'onglet Réalisé.">i</span></p>';
 
   /* groupes : opération -> affaires */
   var opCols=[];
@@ -225,28 +269,34 @@ function renderGp(){
   function gExp(key){ return !!(state.ui.gpExp&&state.ui.gpExp[key]); }
   function gCols(key){ return gExp(key)?K:2; }
   function plusBtn(key){ return ' <button type="button" class="gp-plus" data-gpexp="'+key+'" title="'+(gExp(key)?'Replier':'Déplier')+' le détail des colonnes par type (EJ pur, aléa, risque, RP, réalisé)">'+(gExp(key)?'−':'+')+'</button>'; }
-  var h1='<th rowspan="2">Mois</th>';
-  var h2='';
+  /* en-tête sur 3 lignes comme le tableau Révisions de prix :
+     ligne 1 = opération (colspan groupe + totaux), ligne 2 = affaire + Σ opération (rowspan 2),
+     ligne 3 = colonnes (détail par type si déplié, sinon Synthèse EJ/CP) */
+  var h1='<th rowspan="3">Mois</th>';
+  var h2='', h3='';
   opCols.forEach(function(og){
     var opKey='o:'+og.o.id;
     var opSpan=og.cs.reduce(function(s,a){ return s+gCols('a:'+a.id); },0)+gCols(opKey);
-    h1+='<th class="gp-h-op" colspan="'+opSpan+'">Opération : '+esc(og.o.nom)+plusBtn(opKey)+'</th>';
+    h1+='<th class="gp-h-op" colspan="'+opSpan+'">Opération '+(og.o.numero?og.o.numero+' — ':'')+': '+esc(og.o.nom)+plusBtn(opKey)+'</th>';
     og.cs.forEach(function(a){
       var ak='a:'+a.id;
-      h1+='<th class="gp-h-ctr" colspan="'+gCols(ak)+'">'+esc(a.nom)+plusBtn(ak)+'</th>';
-      if(gExp(ak)){ GP_KINDS.forEach(function(kk){ h2+='<th class="gp-kinds">'+kk[1]+'</th>'; }); }
-      else{ h2+='<th class="gp-kinds gp-synth">'+GP_SYNTH_LABEL.sej+'</th><th class="gp-kinds gp-synth">'+GP_SYNTH_LABEL.scp+'</th>'; }
+      h2+='<th class="gp-h-ctr" colspan="'+gCols(ak)+'">'+esc(a.nom)+plusBtn(ak)+'</th>';
+      if(gExp(ak)){ GP_KINDS.forEach(function(kk){ h3+='<th class="gp-kinds">'+kk[1]+'</th>'; }); }
+      else{ h3+='<th class="gp-kinds gp-synth">'+GP_SYNTH_LABEL.sej+'</th><th class="gp-kinds gp-synth">'+GP_SYNTH_LABEL.scp+'</th>'; }
     });
-    if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ h2+='<th class="gp-kinds gp-h-ctr">Σ '+kk[1]+'</th>'; }); }
-    else{ h2+='<th class="gp-kinds gp-h-ctr gp-synth">'+GP_SYNTH_LABEL.sej+'</th><th class="gp-kinds gp-h-ctr gp-synth">'+GP_SYNTH_LABEL.scp+'</th>'; }
+    h2+='<th class="gp-h-tot" rowspan="2" colspan="'+gCols(opKey)+'">Σ '+esc(og.o.nom)+'</th>';
+    if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ h3+='<th class="gp-kinds gp-h-tot">Σ '+kk[1]+'</th>'; }); }
+    else{ h3+='<th class="gp-kinds gp-h-tot gp-synth">Σ '+GP_SYNTH_LABEL.sej+'</th><th class="gp-kinds gp-h-tot gp-synth">Σ '+GP_SYNTH_LABEL.scp+'</th>'; }
   });
 
   function cell(kind, scope, m, val, span){
     if(!val) return '<td class="num"></td>';
-    return '<td class="num"><span class="gp-cell" data-gp="'+kind+'" data-scope="'+scope+'" data-m="'+m+'" data-span="'+span+'" title="Voir le détail">'+fmt0(val)+'</span></td>';
+    var isReal=(kind==='rej'||kind==='rcp');
+    return '<td class="num"><span class="gp-cell'+(isReal?' gp-real':'')+'" data-gp="'+kind+'" data-scope="'+scope+'" data-m="'+m+'" data-span="'+span+'" title="'+(isReal?'Réalisé SAISI dans « Réalisé » — valeur immuable (pas un calcul) — cliquer pour le détail':'Voir le détail')+'">'+fmt0(val)+'</span></td>';
   }
 
-  function synthVals(v){ return {sej:v.ej+v.ae+v.rk+v.rp+v.rej, scp:v.cp+v.ac+v.rc+v.rcp+v.rp}; }
+  /* synthèse avec substitution : mois passé + réalisé -> réalisé ; sinon saisi */
+  function synthVals(v, m){ var past=m&&m<cur; return {sej:(past&&v.rej>0?v.rej:v.ej)+v.ae+v.rk+v.rp, scp:(past&&v.rcp>0?v.rcp:v.cp)+v.ac+v.rc+v.rp}; }
   var body='';
   months.forEach(function(m){
     body+='<tr'+(m===cur?' class="gp-cur"':'')+'><td'+(m===cur?' style="background:var(--amber-bg);font-weight:600"':'')+'>'+mLong(m)+'</td>';
@@ -257,10 +307,10 @@ function renderGp(){
         var ak='a:'+a.id, vA={};
         GP_KINDS.forEach(function(kk){ var v=gpVal(kk[0],a,m); vA[kk[0]]=v; sVals[kk[0]]+=v; });
         if(gExp(ak)){ GP_KINDS.forEach(function(kk){ body+=cell(kk[0],ak,m,vA[kk[0]]); }); }
-        else{ var sv=synthVals(vA); body+=cell('sej',ak,m,sv.sej); body+=cell('scp',ak,m,sv.scp); }
+        else{ var sv=synthVals(vA,m); body+=cell('sej',ak,m,sv.sej); body+=cell('scp',ak,m,sv.scp); }
       });
       if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ body+=cell(kk[0],opKey,m,sVals[kk[0]]); }); }
-      else{ var sv2=synthVals(sVals); body+=cell('sej',opKey,m,sv2.sej); body+=cell('scp',opKey,m,sv2.scp); }
+      else{ var sv2=synthVals(sVals,m); body+=cell('sej',opKey,m,sv2.sej); body+=cell('scp',opKey,m,sv2.scp); }
     });
     body+='</tr>';
   });
@@ -276,17 +326,20 @@ function renderGp(){
         months.forEach(function(m){ v+=gpVal(kk[0],a,m); });
         vA[kk[0]]=v; oVals[kk[0]]+=v;
       });
+      vA.sej=0; vA.scp=0;
+      months.forEach(function(m){ vA.sej+=gpVal('sej',a,m); vA.scp+=gpVal('scp',a,m); });
+      oVals.sej+=vA.sej; oVals.scp+=vA.scp;
       if(gExp(ak)){ GP_KINDS.forEach(function(kk){ foot+=cell(kk[0],ak,'',vA[kk[0]]); }); }
-      else{ var sv=synthVals(vA); foot+=cell('sej',ak,'',sv.sej); foot+=cell('scp',ak,'',sv.scp); }
+      else{ foot+=cell('sej',ak,'',vA.sej); foot+=cell('scp',ak,'',vA.scp); }
     });
     if(gExp(opKey)){ GP_KINDS.forEach(function(kk){ foot+=cell(kk[0],opKey,'',oVals[kk[0]]); }); }
-    else{ var sv2=synthVals(oVals); foot+=cell('sej',opKey,'',sv2.sej); foot+=cell('scp',opKey,'',sv2.scp); }
+    else{ foot+=cell('sej',opKey,'',oVals.sej); foot+=cell('scp',opKey,'',oVals.scp); }
   });
   foot+='</tr>';
   var totalCols=opCols.reduce(function(s,og){ return s+og.cs.reduce(function(s2,a){ return s2+gCols('a:'+a.id); },0)+gCols('o:'+og.o.id); },0);
 
-  h+='<div class="grid-wrap"><table class="liste gp-table">'+
-     '<thead><tr>'+h1+'</tr><tr>'+h2+'</tr></thead>'+
+  h+='<div class="grid-wrap"><table class="liste gp-table rev-table">'+
+     '<thead><tr>'+h1+'</tr><tr>'+h2+'</tr><tr>'+h3+'</tr></thead>'+
      '<tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>';
 
   /* ---- Export texte par année : "mm/AA : X k€ intitulé", versions EJ et CP ----
@@ -296,7 +349,7 @@ function renderGp(){
   var yt=gpYearText(affs, months);
   var years=Object.keys(yt).sort();
   h+='<div class="card"><h2>Export texte par année — versions EJ et CP</h2>'+
-     '<p class="hint">Une ligne par montant : <strong>« mm/AA : X k€ intitulé »</strong>. <strong>Deux versions par année</strong> : <strong>EJ</strong> (engagements à leur mois / EJ réalisés) et <strong>CP</strong> (CP prévus par EJ selon les profils / CP payés). <strong>REALISE</strong> = saisi dans « Réalisé », <strong>PREVU</strong> = prévisionnel. Si les deux existent : « REALISE: » puis « PREVU: » ; sinon le bloc seul, sans diviser. Le bouton <strong>Copier</strong> place le bloc dans le presse-papiers, à coller dans un autre logiciel.</p>';
+     '<p class="hint">Par année, <strong>2 versions (EJ / CP)</strong>, lignes « mm/AA : X k€ intitulé », blocs <strong>REALISE:</strong> / <strong>PREVU:</strong> ; bouton <strong>Copier</strong>. <span class="hint-ic" title="Une ligne par montant « mm/AA : X k€ intitulé », UNE SEULE FOIS par mois : sur un mois passé avec réalisé saisi, on garde le réalisé (REALISE:, immuable) ; sinon le saisi (PREVU:, mois en cours et à venir). Copier place le bloc dans le presse-papiers, à coller dans un autre logiciel. Options de décalage (RP en décembre seulement, pas de CP en décembre/janvier) appliquées ici.">i</span></p>';
   if(!years.length){ h+='<p class="hint">Aucune année avec au moins un EJ ou un CP dans cette sélection.</p>'; }
   else{
     h+='<table class="liste gp-year"><thead><tr><th style="width:70px">Année</th><th>Version EJ</th><th>Version CP</th><th></th></tr></thead><tbody>';
@@ -352,6 +405,8 @@ function wireGpHeader(w){
   if(ncd) ncd.addEventListener('change',function(){ state.ui.gpNoCpDec=ncd.checked; save(); render(); });
   var ncj=w.querySelector('#gp-nocpjan');
   if(ncj) ncj.addEventListener('change',function(){ state.ui.gpNoCpJan=ncj.checked; save(); render(); });
+  var ald=w.querySelector('#gp-ardec');
+  if(ald) ald.addEventListener('change',function(){ state.ui.gpARDec=ald.checked; save(); render(); });
   var ext=w.querySelector('#gp-ext');
   if(ext) ext.addEventListener('click',function(){ state.ui.ext=(state.ui.ext||0)+12; save(); render(); });
   var shr=w.querySelector('#gp-shrink');

@@ -18,7 +18,7 @@ function defaultState(){
     revisions:{},
     indices:[],
     versions:[],
-    ui:{ view:'dashboard', op:'', aff:'', ext:0, idxSerie:'', gpRpDec:false, gpNoCpDec:false, gpNoCpJan:false, dashFrom:'', dashTo:'', gpExp:{} }
+    ui:{ view:'dashboard', op:'', aff:'', ext:0, idxSerie:'', gpRpDec:false, gpNoCpDec:false, gpNoCpJan:false, gpARDec:false, dashFrom:'', dashTo:'', gpExp:{} }
   };
 }
 

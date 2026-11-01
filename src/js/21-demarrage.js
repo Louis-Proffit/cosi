@@ -4,6 +4,8 @@ document.getElementById('nav').addEventListener('click', function(ev){
   var b=ev.target.closest('button'); if(!b) return;
   setView(b.dataset.view);
 });
+var brandLink=document.getElementById('brand-link');
+if(brandLink) brandLink.addEventListener('click', function(ev){ ev.preventDefault(); setView('dashboard'); });
 
 document.getElementById('btn-open').addEventListener('click', openDataFileAction);
 document.getElementById('btn-save').addEventListener('click', saveToDir);
@@ -67,6 +69,15 @@ function bootError(e){
     location.reload();
   });
 }
+
+/* Sélecteurs de mois custom : le bouton ▾ ouvre le calendrier mensuel */
+document.addEventListener('click', function(ev){
+  var mb=ev.target&&ev.target.closest?ev.target.closest('.month-btn'):null;
+  if(!mb) return;
+  var wrap=mb.closest('.month-wrap');
+  var input=wrap?wrap.querySelector('input'):null;
+  if(input) openMonthPicker(input);
+});
 
 /* Liens des alertes : amènent sur l'onglet (et la colonne / affaire) où traiter */
 document.addEventListener('click', function(ev){

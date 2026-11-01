@@ -50,7 +50,7 @@ function renderConso(){
     r5+='<th class="dcol hl5"><input type="text" inputmode="decimal" class="hdr-in" data-ejf="'+e.id+'" data-f="montant" value="'+(montantOf(e)||'')+'" placeholder="Montant" title="Montant de l\'EJ engagé"></th>';
     r6+='<th class="dcol hl6"><button type="button" class="btn btn-prof" data-profbtn="'+e.id+'" title="Ouvrir le réglage du profil de consommation des CP (ponctuelle / uniforme / personnalisée)">'+esc(profilSummary(p))+'</button></th>';
     var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
-    r7+='<th class="dcol hl7'+(state.ui.focusCol===e.id?' col-focus':'')+'"><input type="month" class="hdr-in" data-ejf="'+e.id+'" data-f="mois" value="'+e.mois+'" title="Date de l\'EJ (mois) — modifiable ici ; recalcule les CP si le profil est ponctuel/uniforme"><div class="hdr-sub'+(cohOk?'':' coh-bad')+'" title="Somme des CP = '+fmt0(somCp)+' ; montant de l\'EJ = '+fmt0(mtE)+(cohOk?' — cohérent':' — ÉCART de '+fmt0(mtE-somCp)+' : alerte reportée sur le tableau de bord (colonne de cet EJ)')+'">CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart '+fmt0(mtE-somCp)+'</span>')+'</div></th>';
+    r7+='<th class="dcol hl7'+(state.ui.focusCol===e.id?' col-focus':'')+'">'+monthInputHTML('',e.mois,'hdr-in','Date de l\'EJ, MM/AAAA — modifiable ici ; recalcule les CP si le profil est ponctuel/uniforme','data-ejf="'+e.id+'" data-f="mois"')+'<div class="hdr-sub'+(cohOk?'':' coh-bad')+'" title="Somme des CP = '+fmt0(somCp)+' ; montant de l\'EJ = '+fmt0(mtE)+(cohOk?' — cohérent':' — ÉCART de '+fmt0(mtE-somCp)+' : alerte reportée sur le tableau de bord (colonne de cet EJ)')+'">CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart '+fmt0(mtE-somCp)+'</span>')+'</div></th>';
   });
 
   var body='';
@@ -79,7 +79,7 @@ function renderConso(){
   ejs.forEach(function(e){ var s=cpSumOf(e.id); gt+=s; foot+='<td class="dcol ccell tot">'+fmt0(s)+'</td>'; });
   foot+='<td class="dcol ccell tot">'+fmt0(gt)+'</td></tr>';
 
-  h+='<div class="card"><h2>Consommation des CP par EJ</h2>'+
+     '<p class="hint">Une ligne par mois, une colonne par <strong>EJ matérialisé</strong> (aléas/risques : onglet dédié). Profil de CP via le bouton dans l\'en-tête de colonne. Cellules violettes = calculées, grisées = verrouillées (avant le mois de l\'EJ). <strong>Clic sur le total du mois : détail.</strong> <span class="hint-ic" title="Profils : ponctuelle (tout le CP à un mois), uniforme (réparti sur une période), personnalisée (saisie libre cellule par cellule). Le montant de l\'EJ et la somme de ses CP doivent être cohérents : sinon badge d\'écart ici et alerte sur le tableau de bord (avec lien vers la colonne). Tous les CP alimentent le tableau de bord et la GP à saisir.">i</span></p></div>';
      '<p class="hint">Une ligne par mois, une colonne par <strong>EJ matérialisé</strong> (programmé ou engagé) — les <strong>aléas et risques</strong> se gèrent dans l\'onglet dédié « Risques &amp; aléas ». Le <strong>profil de consommation</strong> se règle en cliquant sur le bouton de profil dans l\'en-tête de la colonne (fenêtre avec un onglet par mode : <strong>ponctuelle</strong>, <strong>uniforme sur une période</strong> — pour un EJ issu d\'un risque matérialisé, la date choisie peut servir de début — ou <strong>personnalisée</strong>). En profil ponctuel/uniforme les CP sont recalculés automatiquement (cellules violet) ; en profil personnalisé, saisissez les CP directement dans les cellules. Tous les CP alimentent le tableau de bord et la GP à saisir.</p></div>';
   h+='<div class="grid-wrap"><table class="grid conso"><thead><tr class="hl1">'+r1+'</tr><tr class="hl2">'+r2+'</tr><tr class="hl3">'+r3+'</tr><tr class="hl4">'+r4+'</tr><tr class="hl5">'+r5+'</tr><tr class="hl6">'+r6+'</tr><tr class="hl7">'+r7+'</tr></thead>'+
      '<tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>';
@@ -88,7 +88,7 @@ function renderConso(){
     wireConsoHeader(w,affs);
     w.addEventListener('click', function(ev){
       var tc=ev.target.closest('[data-totcp]');
-      if(tc){
+      if(tc&&tc.dataset&&tc.dataset.totcp){
         var m=tc.dataset.totcp, row=tc.closest('tr');
         var next=row.nextSibling;
         var key='totcp|'+m;
@@ -113,7 +113,7 @@ function renderConso(){
         var e2=ejById(t.dataset.ejf); if(!e2) return;
         var f=t.dataset.f;
         if(f==='montant'){ var v=parseMontant(t.value); e2.montant=(v==null?0:v); }
-        else if(f==='mois'){ if(/^\d{4}-\d{2}$/.test(t.value)) e2.mois=t.value; }
+        else if(f==='mois'){ var dm=parseIdxDate(t.value); if(dm) e2.mois=dm; }
         else e2[f]=t.value;
         recomputeProfils(state); save(); render(); return;
       }

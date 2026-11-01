@@ -9,39 +9,27 @@
   --head:#eef1f6;
 }
 *{box-sizing:border-box}
-body{margin:0;font:14px/1.45 "Segoe UI",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}
-header{background:#fff;color:#1c1c1c;border-bottom:1px solid #ddd;padding:0;display:block}
-.hd-top{display:flex;align-items:center;gap:22px;padding:10px 18px;flex-wrap:wrap}
-.hd-nav{display:flex;align-items:center;gap:18px;padding:0 18px;border-top:1px solid #eee;background:#fff;flex-wrap:wrap}
-.bloc-marque{display:flex;align-items:center;gap:12px;padding-right:16px;border-right:1px solid #ddd}
-.bloc-marque svg,.bloc-marque img{display:block;height:62px;width:auto}
-.bm-sep{display:block;width:1px;height:54px;background:#ddd}
-header h1{font-size:20px;margin:0;font-weight:700;color:#1c1c1c;letter-spacing:.2px}
-header h1 small{display:block;font-size:12px;font-weight:400;color:#666;margin-top:2px}
-#filebar{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-header .btn{background:#fff;border:1px solid #ddd;color:#1c1c1c;font-size:12px;padding:5px 10px}
-header .btn:hover{background:#f6f6f6}
-header .btn.primary{background:#000091;border-color:#000091;color:#fff}
-header .btn.primary:hover{background:#161691}
-header select{background:#fff;border:1px solid #ddd;color:#1c1c1c;font-size:12px;padding:4px 6px}
-header select option{color:#000}
-#user-name{background:#fff;border:1px solid #ddd;color:#1c1c1c}
-#user-name::placeholder{color:#999}
-#file-status{font-size:12px;color:#666;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body{margin:0;background:var(--bg);color:var(--text);font-size:1rem;line-height:1.5} /* typo DSFR (Marianne) via dsfr.min.css */
+/* ---- bandeau DSFR (fr-header) : ajustements app ---- */
+.fr-header .fr-container{max-width:1500px}
+.fr-header__operator img{height:64px;width:auto;display:block}
+#filebar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#filebar .fr-input,#filebar .fr-select{font-size:12px;max-width:240px;width:auto;padding:4px 8px}
+#file-status{font-size:12px;color:#666;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #file-status .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:6px;vertical-align:1px}
 #file-status.ok .dot{background:#34d399}
-#ver-sel{max-width:240px;font-size:12px;padding:4px 6px}
+.fr-header__menu-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+#nav.fr-nav .fr-nav__list{display:flex;flex-wrap:wrap;margin:0;padding:0;list-style:none}
+#nav .fr-nav__link{font-size:14px;padding:12px 12px;background-image:none}
+#nav .fr-nav__link::after{content:" ▾";font-size:10px;color:#929292}
+#nav .fr-nav__link--active{box-shadow:inset 0 -3px 0 0 var(--blue);font-weight:700;color:var(--blue)}
 #filters{display:flex;gap:10px;align-items:center;margin-left:auto;padding:6px 0}
-#filters select{max-width:220px;font-size:12px;padding:4px 6px;background:#fff;border:1px solid #ddd;color:#1c1c1c}
-#filters .fld{font-size:11px;color:#666}
+#filters .fld{flex-direction:row;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+#filters .fr-select{font-size:12px;max-width:220px;width:auto;padding:4px 8px}
 
 body.histmode main input,body.histmode main select,body.histmode main button{pointer-events:none;opacity:.6}
 body.histmode main #hist-banner input,body.histmode main #hist-banner select,body.histmode main #hist-banner button{pointer-events:auto;opacity:1}
-nav{display:flex;gap:2px;flex-wrap:wrap}
-nav button{background:transparent;border:none;border-bottom:3px solid transparent;color:#1c1c1c;padding:12px 12px;cursor:pointer;font:inherit;font-size:14px;border-radius:0}
-nav button::after{content:" ▾";font-size:10px;color:#929292}
-nav button:hover{background:#f6f6f6}
-nav button.active{border-bottom-color:#000091;font-weight:700;color:#000}
+/* nav : voir règles #nav.fr-nav ci-dessus */
 main{max-width:1500px;margin:0 auto;padding:16px 18px 60px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
 .card h2{font-size:15px;margin:0 0 10px;font-weight:600}
@@ -50,13 +38,13 @@ main{max-width:1500px;margin:0 auto;padding:16px 18px 60px}
 select,input[type=text],input[type=number],input[type=month]{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--text)}
 select:focus,input:focus{outline:2px solid var(--blue-bg);border-color:var(--blue)}
 label.fld{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
-.btn{font:inherit;font-size:13px;padding:6px 13px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;color:var(--text)}
+.btn{font:inherit;font-size:.875rem;padding:.5rem 1rem;border:1px solid var(--border-default-grey,#dddddd);border-radius:.25rem .25rem 0 0;background:var(--background-default-grey,#fff);cursor:pointer;color:var(--text-default-grey,#1c2733)}
 .btn:hover{background:#f0f3f8}
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 .btn.primary:hover{background:#1d4ed8}
 .btn.danger{color:var(--red);border-color:#f3c8c8}
 .btn.danger:hover{background:var(--red-bg)}
-.btn.small{font-size:11px;padding:3px 8px;border-radius:5px}
+.btn.small{font-size:.75rem;padding:.25rem .5rem}
 .toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:10px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:14px}
 .kpi{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:8px;padding:10px 12px}
@@ -231,3 +219,37 @@ table.grid.conso th.scol,table.grid.conso td.scol{white-space:nowrap}
 td.col-focus,th.col-focus{outline:2px solid #f59e0b;outline-offset:-2px;background:#fff7e6}
 .hdr-sub.coh-bad{color:#b91c1c;font-weight:600}
 ul.alerts li.info{border-left-color:#f59e0b;background:#fff7e6}
+.badge.info{background:#fff3e0;color:#c2410c;border:1px solid #fcd9b0}
+.hint-ic{display:inline-flex;width:16px;height:16px;border-radius:50%;background:#e3e3fd;color:#000091;font-size:11px;font-weight:700;align-items:center;justify-content:center;cursor:help;vertical-align:1px;margin-left:4px}
+
+/* champs de formulaire façon DSFR (filet bas) */
+label.fld input,label.fld select,.fr-input.fr-input,.fr-select.fr-select{border:none;border-bottom:2px solid var(--border-default-grey,#3a3a3a);border-radius:.25rem .25rem 0 0;background:var(--background-contrast-grey,#eeeeee)}
+.badge{border-radius:1rem}
+.gp-cell.gp-real{background:#ececec;color:#3a3a3a;border:1px dashed #b5b5b5;text-decoration:none;cursor:help}
+
+/* ---- sélecteur de mois custom (remplace input type=month) ---- */
+.month-wrap{display:inline-flex;align-items:stretch;gap:2px;max-width:100%}
+.month-in{width:78px;max-width:100%;text-align:center;box-sizing:border-box}
+.month-btn{padding:2px 7px;font-size:11px;line-height:1.4}
+.month-pick{max-width:340px}
+.month-pick .mp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.month-pick .mp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.mp-m{text-align:center}
+/* ---- alignement des tableaux et champs de saisie ---- */
+table.liste td input,table.liste td select,table.liste th input{width:100%;max-width:100%;box-sizing:border-box}
+table.liste td select{min-width:130px}
+.hdr-in{box-sizing:border-box}
+table.grid input{box-sizing:border-box}
+table.grid th.dcol,table.grid td.dcol{vertical-align:middle}
+.cell{text-align:right}
+.real-in{width:96px;max-width:100%;box-sizing:border-box;text-align:right}
+.formrow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.formrow .fld{flex:1 1 150px;min-width:150px;max-width:300px}
+.fld input,.fld select{width:100%;box-sizing:border-box}
+.toolbar{align-items:flex-end}
+.toolbar .fld{min-width:170px}
+.toolbar .month-wrap{width:100%}
+.gp-year td .copyblk{max-width:100%;box-sizing:border-box}
+.mp-pop .mp-rows .mp-row,.mp-pop .mp-contrib .mp-row{padding:3px 2px;border-bottom:1px dotted var(--line2);font-size:13px}
+.mp-pop .mp-contrib .mp-row:last-child{border-bottom:none}
+table.liste th.gp-h-tot{background:#e3e3fd;font-weight:700;white-space:normal;text-align:left}

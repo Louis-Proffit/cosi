@@ -50,8 +50,36 @@ function svgMonthTips(affs, ejs, months, p, W, H){
   }
   return out;
 }
-/* Popup de détail d'un mois (clic sur un point des courbes ou sur un mois des barres) */
-function openMonthPopup(m){
+/* Détail d'une courbe à un mois : UNIQUEMENT les valeurs qui contribuent à cette courbe */
+function monthCurveDetail(affs, ejs, months, m, s){
+  var ejM=0, ejN=[], cE=0, cEN=[], alL=[], rkP=[], rkF=[];
+  ejs.forEach(function(e){
+    var v=cpPrevu(e,m), w=occW(e,m), nm=e.numero+(e.libelle?' '+e.libelle:'');
+    if(isMaterialise(e)){ if(e.mois===m){ ejM+=montantOf(e); ejN.push(nm+' : '+fmt0(montantOf(e))); } if(v>0){ cE+=v; cEN.push(nm+' : '+fmt0(v)); } }
+    else if(isAlea(e)){ if(w) alL.push(nm+' : '+fmt(montantOf(e)*w)); }
+    else if(isRisque(e)){ if(w){ rkP.push(nm+' : '+fmt(risquePondere(e)*w)); rkF.push(nm+' : '+fmt(montantHaut(e)*w)); } }
+  });
+  var ejC=0, cpC=0;
+  months.forEach(function(mm){ if(mm>m) return; ejs.forEach(function(e){ if(isMaterialise(e)){ if(e.mois<=mm) ejC+=montantOf(e); cpC+=cpPrevu(e,mm); } }); });
+  var aC=0, rPC=0, rFC=0;
+  ejs.forEach(function(e){ if(isAlea(e)) aC+=montantOf(e)*cumOcc(e,m); else if(isRisque(e)){ rPC+=risquePondere(e)*cumOcc(e,m); rFC+=montantHaut(e)*cumOcc(e,m); } });
+  var ejLine=ejM?('EJ engagés ce mois : '+fmt(ejM)+(ejN.length?' — '+tipNames(ejN):'')):'Aucun EJ engagé ce mois';
+  var cpLine=cE?('CP engagés ce mois (hors aléas/risques) : '+fmt0(cE)+(cEN.length?' — '+tipNames(cEN):'')):'Aucun CP engagé ce mois';
+  var alTot=0; alL.forEach(function(){ }); ejs.forEach(function(e){ if(isAlea(e)&&occW(e,m)) alTot+=montantOf(e)*occW(e,m); });
+  var alLine=alL.length?('Aléas apparaissant : '+fmt(alTot)+' — '+tipNames(alL)):null;
+  var rPLine=rkP.length?('Risques pondérés apparaissant : '+fmt(rPC)+' — '+tipNames(rkP)):null;
+  var rFLine=rkF.length?('Risques (haut 100 %) apparaissant : '+fmt(rFC)+' — '+tipNames(rkF)):null;
+  var D={
+    ej:{label:'EJ engagés cumulés', value:ejC, lines:[ejLine]},
+    cp:{label:'CP prévus cumulés (hors aléas/risques)', value:cpC, lines:[cpLine]},
+    rap:{label:'Reste à payer à cette date', value:ejC-cpC, lines:['= EJ cumulés '+fmt0(ejC)+' − CP cumulés '+fmt0(cpC)]},
+    att:{label:'Attendu (EJ + aléas + risques pondérés)', value:ejC+aC+rPC, lines:[ejLine, alLine, rPLine].filter(function(x){ return x; })},
+    mx:{label:'Haut (EJ + aléas + risques à 100 %)', value:ejC+aC+rFC, lines:[ejLine, alLine, rFLine].filter(function(x){ return x; })}
+  };
+  return D[s]||D.ej;
+}
+/* Popup de détail d'un mois (clic sur un point des courbes = la courbe cliquée seule ; clic sur un mois des barres = toutes les courbes) */
+function openMonthPopup(m, s){
   var opId=state.ui.op||'', affId=state.ui.aff||'';
   var affs=scopedAffaires(opId,affId), ejs=scopedEjs(opId,affId), months=scopeMonths(opId,affId);
   var lines=monthLines(affs,ejs,months,m);
@@ -64,11 +92,21 @@ function openMonthPopup(m){
     'Reste à payer à cette date : <strong>'+fmt(ejC-cpC)+'</strong>',
     'Attendu (aléas + risques pondérés) : <strong>'+fmt(ejC+a+rP)+'</strong>',
     'Haut (tous aléas/risques à 100 %) : <strong>'+fmt(ejC+a+rF)+'</strong>'];
+  var titre, corps;
+  if(s){
+    /* point d'une courbe cliquée : UNIQUEMENT les valeurs qui contribuent à CETTE courbe */
+    var d=monthCurveDetail(affs,ejs,months,m,s);
+    titre='Courbe « '+d.label+' » — '+mLong(m)+(m===curMois()?' (mois en cours)':'');
+    corps='<p class="hint">Valeur cumulée de la courbe à cette date : <strong class="mono">'+fmt(d.value)+'</strong></p>'+
+      '<div class="mp-contrib">'+d.lines.map(function(l){ return '<div class="mp-row">'+esc(l)+'</div>'; }).join('')+'</div>';
+  } else {
+    titre='Détail du mois '+mLong(m)+(m===curMois()?' (mois en cours)':'');
+    corps='<div class="mp-rows">'+vals.map(function(v){ return '<div class="mp-row">'+v+'</div>'; }).join('')+'</div>'+
+      '<div class="mp-rows">'+lines.map(function(l){ return '<div class="mp-row">'+esc(l)+'</div>'; }).join('')+'</div>';
+  }
   var ov=document.createElement('div');
   ov.className='modal-ov';
-  ov.innerHTML='<div class="modal"><h2>Détail du mois '+mLong(m)+(m===curMois()?' (mois en cours)':'')+'</h2>'+
-    '<p class="hint">'+vals.join('<br>')+'</p>'+
-    '<ul class="alerts">'+lines.map(function(l){ return '<li>'+esc(l)+'</li>'; }).join('')+'</ul>'+
+  ov.innerHTML='<div class="modal mp-pop"><h2>'+titre+'</h2>'+corps+
     '<div class="formrow"><button type="button" class="btn primary" id="mp-close">Fermer</button></div></div>';
   document.body.appendChild(ov);
   function close(){ ov.remove(); document.removeEventListener('keydown',escH); }
@@ -98,8 +136,8 @@ function renderDashboard(){
   var per=dashPeriod(opId, affId);
   var h='';
   h+='<div class="toolbar">'+
-     '<label class="fld"><input type="month" id="dash-from" value="'+per.from+'" title="Premier mois affiché dans les graphiques du tableau de bord"><span>Début</span></label>'+
-     '<label class="fld"><input type="month" id="dash-to" value="'+per.to+'" title="Dernier mois affiché dans les graphiques du tableau de bord"><span>Fin</span></label>'+
+     '<label class="fld">'+monthInputHTML('dash-from',per.from,'','Premier mois affiché dans les graphiques (MM/AAAA)')+'<span>Début</span></label>'+
+     '<label class="fld">'+monthInputHTML('dash-to',per.to,'','Dernier mois affiché dans les graphiques (MM/AAAA)')+'<span>Fin</span></label>'+
      '<button class="btn" id="dash-per-auto" title="Réinitialise la période : de la première apparition au dernier CP">Période auto</button></div>';
   h+='<div class="kpis">';
   h+='<div class="kpi"><div class="l">Montant de l\'opération (hors risques/aléas)</div><div class="v mono">'+fmt(opTot)+'</div><div class="s">'+affs.length+' affaire(s)</div></div>';
@@ -111,8 +149,8 @@ function renderDashboard(){
   h+='<div class="kpi p"><div class="l">Atterrissage haut</div><div class="v mono">'+fmt(atter)+'</div><div class="s">EJ engagés + aléas + risques (100 %)</div></div>';
   h+='</div>';
 
-  h+='<div class="card"><h2>Courbes cumulées de l\'opération</h2>'+
-     '<p class="hint"><strong>EJ engagés intégralement le 1<sup>er</sup> jour de leur mois</strong> : courbe des <strong>EJ engagés cumulés en escalier</strong> (saut vertical au début de chaque mois), et <strong>reste à payer</strong> = exactement EJ cumulés − CP cumulés à chaque instant : saut le 1<sup>er</sup> jour (EJ), puis descente linéaire jusqu\'au dernier jour du mois (CP écoulés progressivement) — <strong>jamais nul avant la fin</strong>, il finit à 0. La <strong>zone colorée</strong> est l\'écart entre l\'<strong>hypothèse basse</strong> (EJ cumulés seuls, en bas en escalier) et l\'<strong>hypothèse haute</strong> (tous aléas/risques matérialisés, en haut). <strong>CP consommés progressivement entre le 1<sup>er</sup> et le dernier jour du mois</strong> : courbe des <strong>CP prévus cumulés hors aléas/risques lisse</strong>. Avec aléas et risques : courbe <strong>moyenne</strong> (attendu : risques pondérés de leur probabilité, aléas en forfait) et courbe <strong>haute</strong> (tous les aléas/risques matérialisés à 100 %). Survolez un mois pour le détail (EJ engagés, CP, reste à payer, risques/aléas apparus, révisions, réalisé).</p>'+
+  h+='<div class="card"><h2 title="EJ engagés intégralement le 1er jour de leur mois (escalier) ; CP écoulés progressivement du 1er au dernier jour du mois (lisse) ; reste à payer = EJ cumulés − CP cumulés à chaque instant (saut le 1er jour, pente ensuite ; jamais nul avant la fin, finit à 0). Zone colorée = écart entre hypothèse basse (EJ cumulés seuls) et hypothèse haute (tous aléas/risques matérialisés à 100 %). Courbes moyenne (attendu = aléas + risques pondérés) et haute. Survolez ou cliquez sur un mois pour le détail ; les étiquettes de fin de courbes sont empilées sans se chevaucher.">Courbes cumulées de l\'opération</h2>'+
+     '<p class="hint">EJ au 1<sup>er</sup> jour du mois (escalier) · CP du 1<sup>er</sup> au dernier jour (lisse) · reste à payer = EJ − CP à chaque instant, finit à 0. <strong>Survol ou clic sur un mois : détail.</strong> <span class="hint-ic" title="Zone colorée = écart hypothèse basse (EJ seuls, escalier) / haute (tous aléas+risques à 100 %). Courbes moyenne (attendu, pondéré) et haute. Cliquez sur un point d\'une courbe : popup avec les valeurs et le détail du calcul du mois.">i</span></p>'+
      chartEntonnoir(affs,ejs,months,per)+
      '<div class="legend"><span><span class="sw" style="background:#2563eb"></span>EJ engagés cumulés (escalier : saut le 1er jour du mois)</span>'+
      '<span><span class="sw" style="background:#059669"></span>CP prévus cumulés hors aléas/risques (lisse : du 1er au dernier jour)</span>'+
@@ -184,11 +222,11 @@ function renderDashboard(){
   mount('view-dashboard', h, function(w){
     w.addEventListener('click', function(ev){
       var pt=ev.target&&ev.target.closest?ev.target.closest('.chart-pt,.chart-tip'):null;
-      if(pt&&pt.dataset&&pt.dataset.m){ openMonthPopup(pt.dataset.m); }
+      if(pt&&pt.dataset&&pt.dataset.m){ openMonthPopup(pt.dataset.m, pt.dataset.s||null); }
     });
     var df=w.querySelector('#dash-from'), dt=w.querySelector('#dash-to');
-    if(df){ var hf=function(){ state.ui.dashFrom=df.value; save(); render(); }; df.addEventListener('change',hf); df.addEventListener('input',hf); }
-    if(dt){ var ht=function(){ state.ui.dashTo=dt.value; save(); render(); }; dt.addEventListener('change',ht); dt.addEventListener('input',ht); }
+    if(df){ var hf=function(){ state.ui.dashFrom=parseIdxDate(df.value)||''; save(); render(); }; df.addEventListener('change',hf); df.addEventListener('input',hf); }
+    if(dt){ var ht=function(){ state.ui.dashTo=parseIdxDate(dt.value)||''; save(); render(); }; dt.addEventListener('change',ht); dt.addEventListener('input',ht); }
     var au=w.querySelector('#dash-per-auto');
     if(au) au.addEventListener('click',function(){ state.ui.dashFrom=''; state.ui.dashTo=''; save(); render(); });
   });
@@ -294,14 +332,14 @@ function chartEntonnoir(affs, ejs, months, per){
   lineEnd(att,'#b45309',true,2);
   lineEnd(mx,'#dc2626',false,2);
   /* points cliquables par mois sur chaque courbe (clic -> popup détail du mois) */
-  function pts(arr,color){
+  function pts(arr,color,s){
     var o='';
     for(var i2=0;i2<n;i2++){
-      o+='<circle class="chart-pt" data-m="'+months[i2]+'" cx="'+X(i2+1).toFixed(1)+'" cy="'+Y(arr[i2]).toFixed(1)+'" r="3.5" fill="'+color+'"><title>'+mLabel(months[i2])+' : '+fmtM(arr[i2])+' — cliquer pour le détail du mois</title></circle>';
+      o+='<circle class="chart-pt" data-m="'+months[i2]+'" data-s="'+s+'" cx="'+X(i2+1).toFixed(1)+'" cy="'+Y(arr[i2]).toFixed(1)+'" r="3.5" fill="'+color+'"><title>'+mLabel(months[i2])+' : '+fmtM(arr[i2])+' — cliquer pour voir ce qui contribue à cette courbe</title></circle>';
     }
     return o;
   }
-  s+=pts(mn,'#2563eb')+pts(cpP,'#059669')+pts(rapArr,'#334155')+pts(att,'#b45309')+pts(mx,'#dc2626');
+  s+=pts(mn,'#2563eb','ej')+pts(cpP,'#059669','cp')+pts(rapArr,'#334155','rap')+pts(att,'#b45309','att')+pts(mx,'#dc2626','mx');
   /* tooltips par mois (rects transparents en dernier pour être au-dessus) */
   s+=svgMonthTips(affs,ejs,months,p,W,H);
   /* étiquettes de fin de courbes, empilées sans se chevaucher */

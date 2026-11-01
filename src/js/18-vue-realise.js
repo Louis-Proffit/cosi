@@ -1,5 +1,18 @@
 /* ================= Vue : Réalisé ================= */
 
+/* Détail d'une cellule somme de l'onglet Réalisé (EJ engagés du mois / CP prévus du mois) */
+function realSumDetail(kind, affId, m){
+  var a=affaireById(affId); if(!a) return '<td colspan="9" class="gp-detail">?</td>';
+  var items=[], tot=0;
+  ejsOfAffaire(a.id).filter(isMaterialise).forEach(function(e){
+    var v=(kind==='ej')?(e.mois===m?montantOf(e):0):cpPrevu(e,m);
+    if(v>0){ items.push(e.numero+(e.libelle?' ('+e.libelle+')':'')); tot+=v; }
+  });
+  if(!items.length) return '<td colspan="9" class="gp-detail">Aucun détail.</td>';
+  return '<td colspan="9" class="gp-detail"><strong>'+(kind==='ej'?'EJ engagés':'CP prévus')+' '+mLong(m)+' — total '+fmt0(tot)+' :</strong> '+
+    items.map(function(l){ return esc(l); }).join(' · ')+'</td>';
+}
+
 function renderRealise(){
   var opId=state.ui.op||'', affId=state.ui.aff||'';
   var affs=scopedAffaires(opId,affId);
@@ -7,14 +20,19 @@ function renderRealise(){
   var cur=curMois();
 
   var h='<div class="toolbar"></div>';
-  h+='<p class="hint">Saisissez ici, par affaire et par mois <strong>passé</strong>, ce qui a effectivement été réalisé (EJ constatés, CP payés). Le réalisé est enregistré dans les fichiers de données, repris dans la <strong>GP à saisir</strong> (colonnes « EJ réel » / « CP réel ») et comparé aux prévisions mois par mois : <strong>un écart en retard comme en avance est une incohérence</strong>, avec le retard des EJ et celui des CP signalés séparément (statut et alertes ci-dessous et dans le tableau de bord). Quand un écart est constaté, la colonne « Actions » propose de corriger, côté EJ (mettre à jour le montant de l\'EJ prévu : ajuster au réalisé, décaler au mois suivant, créer un EJ engagé pour l\'écart, constater le prévu, matérialiser un risque passé) comme côté CP (constater le prévu, reporter au mois suivant, régler le profil de CP).</p>';
+  h+='<p class="hint">Saisissez le <strong>réalisé</strong> (EJ constatés, CP payés) par affaire et par mois passé ou en cours. Écart sur un <strong>mois écoulé</strong> = alerte (+ lien « Traiter ») ; mois en cours non saisi = <strong>info orange</strong>. <span class="hint-ic" title="Le réalisé est enregistré dans les fichiers de données, repris dans la GP à saisir (EJ réel / CP réel) et comparé aux prévisions mois par mois : retard et avance sont des incohérences, signalés séparément (statut, alertes ici et tableau de bord). Colonne Actions : ajuster l\'EJ au réalisé, décaler au mois suivant, créer un EJ engagé pour l\'écart, constater le prévu, matérialiser un risque passé ; côté CP : constater le prévu, reporter au mois suivant, régler le profil de CP. Clic sur les cellules EJ/CP du mois = détail de la somme.">i</span></p>';
 
   var alerts=computeAlerts(opId, affId);
-  h+='<div class="card"><h2>Alertes de cohérence avec le réalisé</h2>';
+  h+='<div class="card"><h2>Alertes de cohérence avec le réalisé</h2>'+
+     '<p class="hint" title="Les alertes ne portent que sur les mois ÉCOULÉS. Le mois en cours peut ne pas être encore saisi : simple information orange, pas une alerte. Chaque alerte a un lien « Traiter » vers l\'onglet concerné.">Alerte = problème sur un mois écoulé ; mois en cours non saisi = information orange.</p>';
   if(!alerts.length){ h+='<p class="hint">Aucune alerte.</p>'; }
   else{
     h+='<ul class="alerts">';
-    alerts.forEach(function(al){ h+='<li class="'+(al.level==='over'?'':'warn')+'">'+esc(al.txt)+'</li>'; });
+    alerts.forEach(function(al){
+      h+='<li class="'+(al.level==='over'?'over':(al.level==='info'?'info':'warn'))+'">'+esc(al.txt);
+      if(al.view) h+=' <button type="button" class="btn small" data-goto="'+al.view+'"'+(al.col?' data-col="'+al.col+'"':'')+(al.aff?' data-aff="'+al.aff+'"':'')+' title="Aller à l\'onglet / la colonne où traiter cela">Traiter</button>';
+      h+='</li>';
+    });
     h+='</ul>';
   }
   h+='</div>';
@@ -48,12 +66,15 @@ function renderRealise(){
     months.forEach(function(m){
       var ejM=0, cpM=0;
       ejs.forEach(function(e){ if(e.mois===m) ejM+=montantOf(e); cpM+=cpPrevu(e,m); });
-      var past=m<=cur;
+      var past=m<cur; /* alerte uniquement sur les mois ÉCOULÉS ; le mois courant reste saisissable */
       var r=realOf(a.id,m)||{ej:0,cp:0};
-      var eEj=past?(r.ej||0)-ejM:0, eCp=past?(r.cp||0)-cpM:0;
+      var eEj=(r.ej||0)-ejM, eCp=(r.cp||0)-cpM;
       var tolEj=Math.max(1,ejM*0.01), tolCp=Math.max(1,cpM*0.02);
       var inco=past&&(Math.abs(eEj)>tolEj||Math.abs(eCp)>tolCp);
-      var statut=past?(badgeEcart(eEj,tolEj,'EJ')+' '+badgeEcart(eCp,tolCp,'CP')):'';
+      var statut;
+      if(past) statut=badgeEcart(eEj,tolEj,'EJ')+' '+badgeEcart(eCp,tolCp,'CP');
+      else if(m===cur) statut=(r.ej||r.cp)?(badgeEcart(eEj,tolEj,'EJ')+' '+badgeEcart(eCp,tolCp,'CP')):'<span class="badge info" title="Mois en cours : le réalisé peut ne pas être encore saisi — information, pas une alerte">à saisir</span>';
+      else statut='';
       var actions='';
       if(inco){
         /* --- corrections EJ (montant de l'EJ prévu) --- */
@@ -77,10 +98,10 @@ function renderRealise(){
         }
       }
       h+='<tr'+(m===cur?' class="gp-cur"':'')+'><td'+(m===cur?' style="background:var(--amber-bg);font-weight:600"':'')+'>'+mLong(m)+(past?'':' (à venir)')+'</td>'+
-         '<td class="num mono">'+fmt0(ejM)+'</td>'+
-         '<td class="num mono">'+fmt0(cpM)+'</td>'+
-         '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+a.id+'|'+m+'" data-f="ej" value="'+(r.ej?fmt0(r.ej):'')+'"'+(past?'':' disabled')+' title="EJ effectivement constatés en '+mLong(m)+' (mois passé : saisir le réalisé)"></td>'+
-         '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+a.id+'|'+m+'" data-f="cp" value="'+(r.cp?fmt0(r.cp):'')+'"'+(past?'':' disabled')+' title="CP effectivement payés en '+mLong(m)+' (mois passé : saisir le réalisé)"></td>'+
+         '<td class="num mono'+(ejM>0?' gp-cell':'')+'"'+(ejM>0?' data-realsum="ej|'+a.id+'|'+m+'" title="Somme des EJ engagés à ce mois — cliquer pour le détail"':'')+'>'+fmt0(ejM)+'</td>'+
+         '<td class="num mono'+(cpM>0?' gp-cell':'')+'"'+(cpM>0?' data-realsum="cp|'+a.id+'|'+m+'" title="Somme des CP prévus à ce mois — cliquer pour le détail"':'')+'>'+fmt0(cpM)+'</td>'+
+         '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+a.id+'|'+m+'" data-f="ej" value="'+(r.ej?fmt0(r.ej):'')+'"'+(m<=cur?'':' disabled')+' title="EJ effectivement constatés en '+mLong(m)+' (mois passé ou en cours : saisir le réalisé)"></td>'+
+         '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+a.id+'|'+m+'" data-f="cp" value="'+(r.cp?fmt0(r.cp):'')+'"'+(m<=cur?'':' disabled')+' title="CP effectivement payés en '+mLong(m)+' (mois passé ou en cours : saisir le réalisé)"></td>'+
          '<td class="num mono">'+(past?fmtS(eEj):'')+'</td>'+
          '<td class="num mono">'+(past?fmtS(eCp):'')+'</td>'+
          '<td>'+statut+'</td>'+
@@ -103,6 +124,16 @@ function renderRealise(){
       }
     });
     w.addEventListener('click', function(ev){
+      var rs=ev.target.closest('[data-realsum]');
+      if(rs&&rs.dataset&&rs.dataset.realsum){
+        var p2=rs.dataset.realsum.split('|'), kind=p2[0], aid=p2[1], m=p2[2];
+        var row=rs.closest('tr'), next=row.nextSibling, key=rs.dataset.realsum;
+        var html=realSumDetail(kind,aid,m);
+        if(next&&next.classList&&next.classList.contains('gp-detail-row')){ if(next.dataset.for===key){ next.parentNode.removeChild(next); return; } next.dataset.for=key; next.innerHTML=html; return; }
+        var tr=document.createElement('tr'); tr.className='gp-detail-row'; tr.dataset.for=key; tr.innerHTML=html;
+        row.parentNode.insertBefore(tr, row.nextSibling);
+        return;
+      }
       var b=ev.target.closest('button[data-act]'); if(!b) return;
       var act=b.dataset.act;
       if(act==='const-ej'||act==='const-cp'){

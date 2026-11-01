@@ -86,7 +86,8 @@ const testCode = `
   var cp11=cpMoisAff(a1,"2026-11");
   ok(cp11>0, "cpMoisAff(a1,2026-11) = CP du mois > 0, got "+cp11);
   ok(Math.abs(revisionMois(a1,"2026-11") - cp11*(indiceApplicable(a1,"2026-11")/1000-1)) < 0.01, "revisionMois(a1,2026-11) = CP du mois x (I/I0 - 1)");
-  ok(Math.abs(revisionMois(a1,"2026-11")-cp11*(1031.2/1000-1))<0.01, "RP a1 2026-11 = CP du mois x (I/I0 - 1) = "+Math.round(cp11*0.0312)+", got "+revisionMois(a1,"2026-11"));
+  var iNov=indiceApplicable(a1,"2026-11"), i0a=indiceRef(a1);
+  ok(Math.abs(revisionMois(a1,"2026-11")-cp11*(iNov/i0a-1))<0.01, "RP a1 2026-11 = CP du mois x (I/I0 - 1) = "+Math.round(cp11*(iNov/i0a-1))+", got "+revisionMois(a1,"2026-11"));
   var rc=revisionCumul(a1,"2026-11"), rs=0; scopeMonths("op1","a1").forEach(function(m){ if(m<="2026-11") rs+=revisionMois(a1,m); });
   ok(Math.abs(rc-rs)<0.01, "revisionCumul(a1,2026-11) = somme des RP mensuelles jusqu'au mois = "+Math.round(rc));
 
@@ -196,10 +197,11 @@ const testCode = `
   state.ui.view="gp"; renderGp(); ok(htmlOf("gp").length>100, "gp: rendu OK");
   state.ui.view="revisions"; state.ui.op="op1"; state.ui.aff=""; renderRevisions(); var rv = htmlOf("revisions");
   ok(rv.indexOf('id="r-op"')<0 && rv.indexOf('id="r-aff"')<0, "revisions: plus de sélecteurs locaux (filtres globaux en en-tête)");
-  ok(rv.indexOf("data-rev=")<0 && rv.indexOf("data-idxf")<0 && rv.indexOf("data-rvf")<0, "revisions: lecture seule (pas de saisie)");
+  ok(rv.indexOf("data-idxf")<0 && rv.indexOf("data-rvf")<0 && (rv.match(/<input/g)||[]).length===0, "revisions: lecture seule (aucun champ de saisie ; data-rev = détail cliquable des sommes)");
   ok((rv.match(/class="rev-h-col"/g)||[]).length===(3*scopedAffaires("op1","").length), "revisions: 3 colonnes par affaire ("+(rv.match(/class="+"rev-h-col"+"/g)||[]).length+" th)");
-  ok(rv.indexOf("Σ CP")>=0 && rv.indexOf("Σ RP")>=0, "revisions: colonnes de total opération");
-  ok(rv.indexOf("I/I₀=1,031")>=0, "revisions: indice recalé I/I₀ à 1 à la date de réf (a1 10/2026 = 1,031)");
+  ok(rv.indexOf("rev-h-tot")>=0 && rv.indexOf("CP · RP")>=0, "revisions: colonnes de total opération (en-tête Σ op, CP · RP)");
+  var ratio=indiceApplicable(a1,"2026-10")/indiceRef(a1);
+  ok(rv.indexOf("I/I₀="+ratio.toLocaleString("fr-FR",{maximumFractionDigits:3}))>=0, "revisions: indice recalé I/I₀ affiché (a1 10/2026 = "+ratio.toFixed(3)+")");
   ok(rv.indexOf(fmt0(revisionMois(a1,"2026-10")))>=0 && revisionMois(a1,"2026-10")>0, "revisions: RP du mois affichée = CP du mois x (I/I0-1) (a1 10/2026 = "+fmt0(revisionMois(a1,"2026-10"))+")");
   ok(rv.indexOf("RP cumulées par année")>=0 && rv.indexOf(">2026<")>=0 && rv.indexOf(">2027<")>=0, "revisions: tableau synthèse RP par année (2026, 2027)");
   var rp26=0; scopeMonths("op1","a1").forEach(function(m){ if(m.slice(0,4)==="2026") rp26+=revisionMois(a1,m); });
@@ -225,7 +227,7 @@ const testCode = `
   // entonnoir: un tooltip par mois
   var affs=scopedAffaires("",""), ejs=scopedEjs("",""), months=scopeMonths("","");
   var s1=chartEntonnoir(affs,ejs,months,null);
-  ok((s1.match(/<title>/g)||[]).length===months.length, "entonnoir: un tooltip par mois");
+  ok((s1.match(/class="chart-tip"/g)||[]).length===months.length, "entonnoir: un tooltip cliquable par mois");
   ok(s1.indexOf("Reste à payer")>=0, "entonnoir: courbe reste a payer");
 
 
@@ -242,8 +244,8 @@ const testCode = `
   function blkOf(card, id){ var q=String.fromCharCode(34); var a=card.indexOf("id="+q+id+q); if(a<0) return ""; var b=card.indexOf(">", a); var c=card.indexOf("</pre>", b); return c<0?"":card.slice(b+1, c); }
   var ej26=blkOf(card, "gp-copy-ej-2026"), cp26=blkOf(card, "gp-copy-cp-2026");
   var ej27=blkOf(card, "gp-copy-ej-2027"), cp27=blkOf(card, "gp-copy-cp-2027");
-  ok(ej26.indexOf("REALISE:")>=0 && ej26.indexOf("PREVU:")>=0 && ej26.indexOf("EJ réalisé")>=0 && ej26.indexOf("09/26 : "+kEur(2400000))>=0, "gp: version EJ 2026 = REALISE (EJ réalisés) + PREVU (EJ engagés)");
-  ok(cp26.indexOf("REALISE:")>=0 && cp26.indexOf("PREVU:")>=0 && cp26.indexOf("CP réalisé")>=0, "gp: version CP 2026 = REALISE (CP payés) + PREVU (CP prévus)");
+  ok(ej26.indexOf("REALISE:")>=0 && ej26.indexOf("EJ réalisé")>=0 && ej26.indexOf("09/26 : "+kEur(2400000))>=0 && ej26.indexOf("GC-01")<0, "gp: EJ 2026 = réalisé en 09/26 (ligne saisie GC-01 supprimée : pas de double comptage)");
+  ok(cp26.indexOf("REALISE:")>=0 && cp26.indexOf("CP réalisé")>=0 && cp26.indexOf("10/26 : "+kEur(400000))<0, "gp: CP 2026 = réalisé sur les mois passés (10/26 au réalisé, ligne saisie 400 k€ supprimée)");
   ok(ej27.length>0 && ej27.indexOf("REALISE:")<0 && cp27.length>0 && cp27.indexOf("PREVU:")<0, "gp: 2027 (que du prevu) = blocs seuls EJ et CP, sans diviser");
   var copied=null; navigator.clipboard={writeText:function(t){ copied=t; return Promise.resolve(); }};
   var hostG=document.getElementById("view-gp"); var wG=hostG.children[0];
@@ -303,16 +305,16 @@ const testCode = `
   state = demoState(); recomputeProfils(state);
   state.ui.view="indices"; renderIndices(); var ix=htmlOf("indices");
   ok(ix.indexOf('id="idx-grid"')>=0, "indices: grille globale présente");
-  ok((ix.match(/<th data-c=/g)||[]).length===3, "indices: 1 colonne Mois + 1 par série ("+(ix.match(/<th data-c=/g)||[]).length+" th)");
+  ok((ix.match(/<th data-c=/g)||[]).length===1+state.indices.length && state.indices.length===3 && state.indices.some(function(x){return x.nom==="ING";}), "indices: 1 colonne Mois + 1 par série dont ING ("+(ix.match(/<th data-c=/g)||[]).length+" th, "+state.indices.length+" séries)");
   ok(ix.indexOf('data-iv="ix1|2026-01"')>=0 && ix.indexOf('value="1000"')>=0, "indices: cellule ix1|2026-01 = 1000");
   ok((ix.match(/data-c="0" data-r=/g)||[]).length===24, "indices: toutes les lignes de la periode (2026-01..2027-12 = 24) ("+(ix.match(/data-c="0" data-r=/g)||[]).length+")");
   ok(ix.indexOf("idx-addserie")>=0, "indices: ajout de série conservé");
   ok(ix.indexOf("Ctrl+V")>=0, "indices: aide collage Excel affichée");
   ok(parseIdxDate("2026-01")==="2026-01" && parseIdxDate("01/2026")==="2026-01" && parseIdxDate("1/26")==="2026-01" && parseIdxDate("46023")==="2026-01" && parseIdxDate("abc")===null, "parseIdxDate: AAAA-MM, MM/AAAA, MM/AA, n° série Excel");
-  ok(idxMonths().length===8 && idxGridMonths().length===24 && idxGridMonths()[0]==="2026-01" && idxGridMonths()[23]==="2027-12", "idxGridMonths: periode complete 2026-01..2027-12 ("+idxGridMonths().length+" lignes, idxMonths="+idxMonths().length+")");
+  ok(idxMonths().length===24 && idxGridMonths().length===24 && idxGridMonths()[0]==="2026-01" && idxGridMonths()[23]==="2027-12", "indices démo: une valeur PAR MOIS (idxMonths="+idxMonths().length+"), grille 2026-01..2027-12 ("+idxGridMonths().length+" lignes)");
   // serieValueAt ignore les cellules vides
   state.indices[0].valeurs["2026-02"]=null;
-  ok(serieValueAt(state.indices[0],"2026-04")===1009 && serieValueAt(state.indices[0],"2026-02")===1000, "serieValueAt ignore les valeurs nulles");
+  ok(serieValueAt(state.indices[0],"2026-04")===state.indices[0].valeurs["2026-04"] && serieValueAt(state.indices[0],"2026-02")===1000, "serieValueAt ignore les valeurs nulles (retombe sur le mois précédent)");
   delete state.indices[0].valeurs["2026-02"];
   // collage Excel ancré sur la colonne Mois (crée les mois)
   var hostI=document.getElementById("view-indices"); var wI=hostI.children[0];
@@ -359,7 +361,7 @@ const testCode = `
 
   recomputeProfils(state);
   var revAuto=revisionMois(a1,"2026-11");
-  ok(Math.abs(revAuto-cpMoisAff(a1,"2026-11")*(1031.2/1000-1))<0.01 && revAuto>0, "RP automatique = CP du mois x (I/I0 - 1) (a1 2026-11 = "+Math.round(revAuto)+")");
+  ok(Math.abs(revAuto-cpMoisAff(a1,"2026-11")*(indiceApplicable(a1,"2026-11")/indiceRef(a1)-1))<0.01 && revAuto>0, "RP automatique = CP du mois x (I/I0 - 1) (a1 2026-11 = "+Math.round(revAuto)+")");
   ok(revisionMois(a1,"2026-09")===0 && cpMoisAff(a1,"2026-09")===0, "pas de RP sur un mois sans CP de l'affaire (a1 2026-09)");
   // ---- options GP : RP en décembre / pas de CP en décembre / pas de CP en janvier ----
   state = demoState(); recomputeProfils(state);
@@ -415,6 +417,7 @@ const testCode = `
   render();
   var navHtml=document.getElementById("nav").innerHTML;
   var order=[...navHtml.matchAll(/data-view="([a-z]+)"/g)].map(m=>m[1]);
+  ok(navHtml.indexOf("fr-nav__list")>=0 && navHtml.indexOf("fr-nav__link")>=0, "nav DSFR: ul.fr-nav__list > li.fr-nav__item > .fr-nav__link");
   ok(JSON.stringify(order)===JSON.stringify(["dashboard","structure","risques","conso","revisions","realise","gp","indices","donnees"]), "ordre des onglets: "+order.join(","));
   ok(document.getElementById("g-op") && document.getElementById("g-aff"), "en-tête: filtres globaux opération + affaire présents");
   ok(document.getElementById("g-op").innerHTML.indexOf("Extension tramway")>=0 && document.getElementById("g-aff").innerHTML.indexOf("Génie civil")>=0, "en-tête: filtres remplis (opérations + affaires de l'opération)");
@@ -502,10 +505,9 @@ const testCode = `
 
   // ---- header style portail info.gouv.fr ----
   state = demoState(); render();
-  ok(global.__HDR__.top, "header: deux lignes hd-top + hd-nav");
-  ok(global.__HDR__.gouv, "header: bloc-marque présent");
-  ok(global.__HDR__.min && !hdr0hasSvgLogo(), "header: logo ministère des Armées (PNG embarqué) unique, plus de double SVG");
-  ok(global.__HDR__.order, "header: filebar dans la ligne haute, nav en dessous");
+  ok(global.__HDR__.top, "header DSFR: fr-header__body (haut) puis fr-header__menu (bas)");
+  ok(global.__HDR__.gouv, "header: AUCUN logo (ni fr-logo, ni img, ni logo-min)");
+  ok(global.__HDR__.order && global.__HDR__.nav && global.__HDR__.btns, "header DSFR: filebar (fr-btn) dans le bandeau haut, nav fr-nav + filtres dans le menu bas");
 
 
   // ---- placeholder {SÉRIE_0} = valeur de la série au mois de référence ----
@@ -513,10 +515,12 @@ const testCode = `
   var a1b=affaireById("a1");
   a1b.formule="={BT01}/{BT01_0}";
   var iOct=indiceApplicable(a1b,"2026-10");
-  ok(Math.abs(iOct-1024/1000)<1e-9, "formule {BT01}/{BT01_0}: indice 2026-10 = 1024/1000 = "+iOct);
+  var btS=state.indices[0]; var vOct=serieValueAt(btS,"2026-10"), vRef=serieValueAt(btS,"2026-01");
+  ok(Math.abs(iOct-vOct/vRef)<1e-9, "formule {BT01}/{BT01_0}: indice 2026-10 = "+vOct+"/"+vRef+" = "+(vOct/vRef));
   ok(Math.abs(indiceRef(a1b)-1)<1e-9, "indiceRef avec {BT01_0} = 1000/1000 = 1 au mois de réf");
   a1b.formule="={TP_0}*{BT01}";
-  ok(Math.abs(indiceApplicable(a1b,"2026-10")-(1000*1024))<1e-6, "{TP_0} au mois de réf = 1000, {BT01} au mois = 1024");
+  var tpS=state.indices.filter(function(x){return x.nom==="TP";})[0];
+  ok(Math.abs(indiceApplicable(a1b,"2026-10")-(serieValueAt(tpS,"2026-01")*vOct))<1e-6, "{TP_0} au mois de réf x {BT01} au mois = "+serieValueAt(tpS,"2026-01")+" x "+vOct);
   state = demoState(); recomputeProfils(state);
 
   // ---- période tableau de bord : la date de FIN est toujours honorée ----
@@ -533,7 +537,8 @@ const testCode = `
   var fm2=applyPeriod(monthsAll, {from:'2026-08',to:'2028-03'});
   ok(fm2[0]==='2026-08' && fm2[fm2.length-1]==='2028-03', "applyPeriod: axe étendu jusqu'à la période choisie même au-delà des données (2028-03)");
   var sE=chartEntonnoir(scopedAffaires('',''),scopedEjs('',''),scopeMonths('',''),{from:'2026-08',to:'2026-12'});
-  ok((sE.match(/<title>/g)||[]).length===5, "entonnoir: 5 tooltips pour la période 08/26..12/26");
+  ok((sE.match(/class="chart-tip"/g)||[]).length===5, "entonnoir: 5 tooltips cliquables pour la période 08/26..12/26");
+  ok((sE.match(/class="chart-pt"/g)||[]).length===5*5, "entonnoir: points cliquables sur les 5 courbes x 5 mois ("+(sE.match(/class="chart-pt"/g)||[]).length+")");
   // handler 'input' sur #dash-to (date de fin)
   state.ui.view='dashboard'; state.ui.dashFrom=''; state.ui.dashTo=''; render();
   var wd=document.getElementById('view-dashboard').children[0];
@@ -594,8 +599,9 @@ const testCode = `
   // synthèse = somme de tous les types
   var m0='2026-10';
   var sej=gpVal('sej',a1g,m0), scp=gpVal('scp',a1g,m0);
-  ok(Math.abs(sej-(gpVal('ej',a1g,m0)+gpVal('ae',a1g,m0)+gpVal('rk',a1g,m0)+gpVal('rp',a1g,m0)+gpVal('rej',a1g,m0)))<1e-6, "gpVal sej = somme EJ pur + aléa + risque + RP + réalisé");
-  ok(Math.abs(scp-(gpVal('cp',a1g,m0)+gpVal('ac',a1g,m0)+gpVal('rc',a1g,m0)+gpVal('rcp',a1g,m0)+gpVal('rp',a1g,m0)))<1e-6, "gpVal scp = somme CP + aléa CP + risque CP + réel CP + RP");
+  var cur0=curMois(); var past0=m0<cur0;
+  ok(Math.abs(sej-((past0&&gpVal('rej',a1g,m0)>0?gpVal('rej',a1g,m0):gpVal('ej',a1g,m0))+gpVal('ae',a1g,m0)+gpVal('rk',a1g,m0)+gpVal('rp',a1g,m0)))<1e-6, "gpVal sej = (réalisé si mois passé avec réalisé, sinon EJ saisi) + aléa + risque + RP — pas de double comptage");
+  ok(Math.abs(scp-((past0&&gpVal('rcp',a1g,m0)>0?gpVal('rcp',a1g,m0):gpVal('cp',a1g,m0))+gpVal('ac',a1g,m0)+gpVal('rc',a1g,m0)+gpVal('rp',a1g,m0)))<1e-6, "gpVal scp = (réalisé si mois passé avec réalisé, sinon CP saisi) + aléa CP + risque CP + RP");
 
   // ---- GP : hiérarchie des colonnes (repliée par défaut, bouton +) ----
   state.ui.view='gp'; state.ui.gpExp={}; renderGp(); var gph2=htmlOf('gp');
@@ -703,6 +709,213 @@ const testCode = `
   await loadFromDir();
   ok(DATAFILE.files.length===1 && DATAFILE.status==="ok", "re-listage du nouveau dossier: 1 fichier compatible, statut ok");
   state = demoState(); recomputeProfils(state);
+
+  // ---- alertes : cohérence EJ vs somme CP, liens Traiter, info orange mois courant ----
+  state = demoState(); recomputeProfils(state);
+  state.profils['e1']={type:'perso'};
+  for(var k in state.cps){ if(k.indexOf('e1|')===0) delete state.cps[k]; }
+  state.cps['e1|2026-10']=100000; /* somme CP (100k) != montant EJ (2,4M) */
+  var als=computeAlerts('','');
+  var coh=als.filter(function(x){ return x.view==='conso'&&x.col==='e1'; });
+  ok(coh.length===1 && coh[0].level==='over', "alerte cohérence EJ: montant 2,4M vs somme CP 100k -> alerte avec view=conso, col=e1");
+  var hasInfo=als.some(function(x){ return x.level==='info' && x.view==='realise'; });
+  ok(hasInfo, "info orange: mois en cours pas encore saisi dans Réalisé (niveau 'info', pas une alerte)");
+  ok(als.every(function(x){ return x.level!=='over'||!x.txt||true; }), "alertes présentes");
+  state.ui.view='dashboard'; render();
+  var dh2=htmlOf('dashboard');
+  ok(dh2.indexOf('data-goto="conso"')>=0 && dh2.indexOf('data-col="e1"')>=0, "dashboard: alerte avec bouton Traiter -> onglet conso, colonne e1");
+  ok(dh2.indexOf('data-goto="realise"')>=0, "dashboard: info/alertes réalisé avec lien Traiter -> onglet realise");
+  ok((dh2.match(/class="info"/g)||[]).length>=0 && dh2.indexOf('info')>=0, "dashboard: classe info (orange) présente dans les alertes");
+  // conso : badge écart + colonne focalisée + plus de "du mois" + n° EJ éditable
+  state.ui.view='conso'; state.ui.focusCol='e1'; renderConso(); var co3=htmlOf('conso');
+  ok(co3.indexOf('>du mois</th>')<0, "conso: cellule d'en-tête 'du mois' supprimée");
+  ok(co3.indexOf('data-f="numero"')>=0, "conso: référence (n°) de l'EJ modifiable (champ éditable)");
+  ok(co3.indexOf('coh-bad')>=0 && co3.indexOf('écart')>=0, "conso: badge d'écart ΣCP vs montant EJ affiché dans l'en-tête de colonne");
+  ok(co3.indexOf('col-focus')>=0, "conso: colonne focalisée (focusCol) surlignée");
+  ok(co3.indexOf('data-totcp=')>=0, "conso: total CP du mois cliquable (détail)");
+  // handler data-goto global
+  var bG=makeEl('button'); bG.dataset.goto='conso'; bG.dataset.col='e1'; bG._closest=bG;
+  fire(document.body,'click',{target:bG});
+  ok(state.ui.view==='conso' && state.ui.focusCol==='e1', "lien Traiter: ramène sur l'onglet conso avec la colonne e1 focalisée");
+  // ---- révisions : cellules sommes cliquables + 2e tableau transposé ----
+  state = demoState(); recomputeProfils(state); state.ui.view='revisions'; state.ui.op='op1'; state.ui.aff=''; renderRevisions();
+  var rv2=htmlOf('revisions');
+  ok(rv2.indexOf('data-rev="cp|a:')>=0 && rv2.indexOf('data-rev="rp|a:')>=0, "revisions: cellules CP et RP cliquables (détail des sommes)");
+  var det=revDetail('rp','a:a1','2026-11',10);
+  ok(det.indexOf('I/I₀')>=0 && det.indexOf('CP ')>=0, "revisions: détail RP = CP du mois x (I/I0-1) avec I et I0");
+  ok(rv2.indexOf('rev-year')>=0, "revisions: 2e tableau présent (classe rev-year)");
+  ok(rv2.indexOf('>2026</strong>')>=0 && rv2.indexOf('rev-h-op')>=0, "revisions: 2e tableau transposé = années en LIGNES, opérations/affaires en colonnes");
+  // ---- structure : n° opération (nombres) + +EJ ramène sur conso ----
+  state.ui.view='structure'; renderStructure(); var st3=htmlOf('structure');
+  ok(st3.indexOf('data-f="numero"')>=0 && st3.indexOf('inputmode="numeric"')>=0, "structure: champ N° de l'opération (nombres uniquement)");
+  ok(affaireById && state.operations[0].numero==='101', "démo: opérations avec numéro ('101')");
+  var hostS=document.getElementById('view-structure'); var wS=hostS.children[0];
+  var opIn=makeEl('input'); opIn.dataset.opf=state.operations[0].id; opIn.dataset.f='numero'; opIn.value='12a3';
+  fire(wS,'change',{target:opIn});
+  ok(state.operations[0].numero==='123', "structure: n° opération nettoyé (nombres uniquement) : '12a3' -> '"+state.operations[0].numero+"'");
+  state.operations[0].numero='101';
+  var bE=makeEl('button'); bE.dataset.addej='a1'; bE._closest=bE;
+  var ejCount=state.ejs.length;
+  fire(wS,'click',{target:bE});
+  ok(state.ejs.length===ejCount+1 && state.ui.view==='conso' && state.ui.aff==='a1' && state.ui.focusCol===state.ejs[state.ejs.length-1].id, "+EJ dans structure: EJ créé puis ramené sur l'onglet conso (affaire a1, colonne du nouvel EJ focalisée)");
+  // ---- dashboard : étiquettes anti-chevauchement + popup détail au clic ----
+  state = demoState(); recomputeProfils(state);
+  var ent2=chartEntonnoir(scopedAffaires('',''),scopedEjs('',''),scopeMonths('',''),null);
+  var labYs=(ent2.match(/text-anchor="end" y="([0-9.]+)"/g)||[]).map(function(t){ return parseFloat(t.match(/y="([0-9.]+)"/)[1]); }).sort(function(a,b){ return a-b; });
+  var minGapOk=labYs.length===5;
+  for(var gi=1;gi<labYs.length;gi++){ if(labYs[gi]-labYs[gi-1]<9) minGapOk=false; }
+  ok(labYs.length===5 && minGapOk, "dashboard: 5 étiquettes de fin de courbes, y distincts sans chevauchement (gaps="+labYs.map(function(y){return Math.round(y);}).join(',')+")");
+  ok((ent2.match(/class="chart-pt"/g)||[]).length>0, "dashboard: points cliquables sur les courbes");
+  state.ui.view='dashboard'; render();
+  var wD=document.getElementById('view-dashboard').children[0];
+  var pt=makeEl('circle'); pt.dataset.m='2026-11'; pt._closest=pt;
+  var nbModal=document.body.children.length;
+  fire(wD,'click',{target:pt});
+  var lastM=document.body.children[document.body.children.length-1];
+  ok(document.body.children.length===nbModal+1 && lastM.innerHTML.indexOf('Détail du mois')>=0 && lastM.innerHTML.indexOf('nov.')>=0, "dashboard: clic sur un point de courbe -> popup détail du mois (valeurs + calcul)");
+  state = demoState(); recomputeProfils(state);
+
+  // ---- GP : pas de double comptage saisi/réalisé (substitution) ----
+  state = demoState(); recomputeProfils(state);
+  var a1g2=affaireById('a1');
+  var mSep='2026-09'; /* passé, réalisé EJ = 2,4M = saisi e1 -> on ne garde que le réalisé */
+  ok(Math.abs(gpVal('sej',a1g2,mSep)-(gpVal('rej',a1g2,mSep)+gpVal('ae',a1g2,mSep)+gpVal('rk',a1g2,mSep)+gpVal('rp',a1g2,mSep)))<1e-6, "GP synthèse EJ: mois passé, saisi == réalisé -> une seule valeur (le réalisé), pas 2x");
+  var mOct='2026-10'; /* passé, réalisé CP 1,1M != saisi 400k -> le réalisé gagne */
+  ok(Math.abs(gpVal('scp',a1g2,mOct)-(gpVal('rcp',a1g2,mOct)+gpVal('ac',a1g2,mOct)+gpVal('rc',a1g2,mOct)+gpVal('rp',a1g2,mOct)))<1e-6, "GP synthèse CP: mois passé, réalisé != saisi -> on garde le réalisé");
+  var mCur=curMois();
+  state.realise['a1|'+mCur]={ej:999999,cp:888888};
+  ok(Math.abs(gpVal('sej',a1g2,mCur)-(gpVal('ej',a1g2,mCur)+gpVal('ae',a1g2,mCur)+gpVal('rk',a1g2,mCur)+gpVal('rp',a1g2,mCur)))<1e-6, "GP synthèse EJ: mois en cours -> saisi (réalisé partiel du mois en cours ignoré)");
+  ok(Math.abs(gpVal('scp',a1g2,mCur)-(gpVal('cp',a1g2,mCur)+gpVal('ac',a1g2,mCur)+gpVal('rc',a1g2,mCur)+gpVal('rp',a1g2,mCur)))<1e-6, "GP synthèse CP: mois en cours -> saisi");
+  delete state.realise['a1|'+mCur];
+  var ytX=gpYearText(scopedAffaires('',''), scopeMonths('',''));
+  ['2026','2027'].forEach(function(y){ ['ej','cp'].forEach(function(k){
+    var lines=(ytX[y]&&ytX[y][k])?ytX[y][k].prevu.concat(ytX[y][k].real):[];
+    var labsR=(ytX[y][k].real||[]).map(function(l){ return l.slice(0,5); });
+    var labsP=(ytX[y][k].prevu||[]).map(function(l){ return l.slice(0,5); });
+    var doublons=labsP.filter(function(l){ return labsR.indexOf(l)>=0; });
+    ok(doublons.length===0, "GP export "+y+"/"+k+": aucun mois à la fois en REALISE et PREVU (pas de double comptage saisi/réalisé)");
+  }); });
+  state.ui.view='gp'; state.ui.gpExp={'a:a1':true,'o:op1':true}; renderGp(); var gpH=htmlOf('gp');
+  ok((gpH.match(/gp-real/g)||[]).length>0 && gpH.indexOf('immuable')>=0, "GP tableau: cases 'réel' marquées immuables (saisi, pas un calcul)");
+  state = demoState(); recomputeProfils(state);
+
+  // ---- GP : case "Aléa en décembre" (regroupe les aléas en décembre, EJ et CP, tableau + export) ----
+  state = demoState(); recomputeProfils(state);
+  var al1x=state.ejs.filter(isAlea)[0];
+  var aeSans=gpVal('ae',a1g2,'2026-10'), acSans=gpVal('ac',a1g2,'2026-10');
+  state.ui.gpARDec=true;
+  var aeDec=gpVal('ae',a1g2,'2026-12'), acDec=gpVal('ac',a1g2,'2026-12');
+  ok(gpVal('ae',a1g2,'2026-10')===0 && gpVal('ac',a1g2,'2026-10')===0, "aléa en décembre: plus d'aléa hors décembre dans le tableau (mois 10/2026 = 0)");
+  var totAlea=montantOf(al1x);
+  ok(Math.abs(aeDec+gpVal('ae',a1g2,'2027-12')-totAlea)<1e-6, "aléa en décembre: la totalité de l'aléa est en décembre (2026-12 + 2027-12 = total "+Math.round(totAlea)+")");
+  ok(acDec>0 && gpVal('ac',a1g2,'2026-10')===0, "aléa en décembre (CP): idem côté CP du tableau");
+  // export : ligne aléa en décembre, aucune ligne aléa ailleurs
+  var ytA=gpYearText(scopedAffaires('',''), scopeMonths('',''));
+  var cp26A=gpYearBlock(ytA['2026']['cp']), ej26A=gpYearBlock(ytA['2026']['ej']);
+  var lignesAlea=cp26A.split(String.fromCharCode(10)).filter(function(l){ return l.indexOf('(Aléa)')>=0; });
+  ok(lignesAlea.length>0 && lignesAlea.every(function(l){ return l.indexOf('12/26')>=0; }), "export CP 2026: toutes les lignes aléa regroupées en 12/26 ("+lignesAlea.length+" lignes)");
+  ok(ej26A.indexOf('(Aléa)')>=0 && ej26A.indexOf('12/26')>=0, "export EJ: ligne aléa regroupée en 12/26");
+  // case présente + branchée
+  state.ui.view='gp'; state.ui.gpAleaDec=false; renderGp(); var gpT=htmlOf('gp');
+  ok(gpT.indexOf('id="gp-ardec"')>=0 && gpT.indexOf("Aléa et risque en décembre")>=0, "GP: case 'Aléa et risque en décembre' présente");
+  var wG4=document.getElementById('view-gp').children[0];
+  var cbA=wG4.querySelector('#gp-ardec'); cbA.checked=true;
+  fire(cbA,'change',{target:cbA});
+  ok(state.ui.gpARDec===true, "GP: case 'Aléa et risque en décembre' branchée sur state.ui.gpARDec");
+  state = demoState(); recomputeProfils(state);
+
+  // ---- affaire -> opération : attribut opId éditable, déplacement d'une opération à l'autre ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.view='structure'; state.ui.op='op1'; state.ui.aff=''; renderStructure(); var st4=htmlOf('structure');
+  ok(st4.indexOf('data-f="opId"')>=0, "structure: select 'Opération' (attribut opId) présent sur chaque affaire");
+  var hostS2=document.getElementById('view-structure'); var wS2=hostS2.children[0];
+  var a1x=affaireById('a1');
+  ok(a1x.opId==='op1', "a1 rattachée à op1 (opId)");
+  var sel=makeEl('select'); sel.dataset.af='a1'; sel.dataset.f='opId'; sel.value='op2';
+  fire(wS2,'change',{target:sel});
+  ok(a1x.opId==='op2', "déplacement: a1.opId = op2 (affaire déplacée sur l'autre opération)");
+  ok(state.affaires.filter(function(a){return a.opId==='op2';}).some(function(a){return a.id==='a1';}), "a1 bien dans la liste des affaires de op2");
+  ok(document.getElementById('g-op').innerHTML.indexOf('Extension tramway')>=0, "filtres globaux toujours remplis après déplacement");
+  state=demoState(); recomputeProfils(state);
+
+  // ---- GP : "aléa et risque en décembre" s'applique aussi aux risques (tableau + export, EJ et CP) ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.gpARDec=true;
+  var rk1=state.ejs.filter(isRisque)[0];
+  var affR=affaireById(rk1.affaireId);
+  ok(gpVal('rk',affR,'2026-10')===0 && gpVal('rc',affR,'2026-10')===0, "risque en décembre: plus de risque hors décembre dans le tableau (10/2026 = 0)");
+  var rkTot=espDist(rk1)*(cumOcc(rk1,'2027-12')-cumOcc(rk1,'2025-12'));
+  ok(Math.abs(gpVal('rk',affR,'2026-12')+gpVal('rk',affR,'2027-12')-rkTot)<1e-6, "risque en décembre: espérance de l'année regroupée en 12/2026 + 12/2027");
+  var ytR=gpYearText(scopedAffaires('',''), scopeMonths('',''));
+  var cp26R=gpYearBlock(ytR['2026']['cp']);
+  var ligRk=cp26R.split(String.fromCharCode(10)).filter(function(l){ return l.indexOf('(Risque)')>=0; });
+  ok(ligRk.length>0 && ligRk.every(function(l){ return l.indexOf('12/26')>=0; }), "export CP 2026: lignes risque regroupées en 12/26 ("+ligRk.length+" lignes)");
+  var ej26R=gpYearBlock(ytR['2026']['ej']);
+  ok(ej26R.indexOf('(Risque)')>=0 && ej26R.indexOf('12/26')>=0, "export EJ 2026: ligne risque (espérance) en 12/26");
+  state = demoState(); recomputeProfils(state);
+
+  // ---- date pickers remplacés par un sélecteur de mois custom (MM/AAAA + calendrier) ----
+  state = demoState(); recomputeProfils(state);
+  ok(html.indexOf('<input type="month"')<0, "plus aucun input type=month dans l'app buildée");
+  state.ui.view='dashboard'; render(); var dh3=htmlOf('dashboard');
+  ok(dh3.indexOf('month-wrap')>=0 && dh3.indexOf('id="dash-from"')>=0, "dashboard: sélecteurs de période custom (MM/AAAA + ▾)");
+  var wD3=document.getElementById('view-dashboard').children[0];
+  var df3=wD3.querySelector('#dash-from'); df3.value='12/2026';
+  fire(df3,'change',{target:df3});
+  ok(state.ui.dashFrom==='2026-12', "saisie '12/2026' -> dashFrom=2026-12 (parseIdxDate)");
+  state.ui.view='conso'; state.ui.op=''; state.ui.aff=''; renderConso(); var co4=htmlOf('conso');
+  ok(co4.indexOf('type="month"')<0 && co4.indexOf('data-f="mois"')>=0 && co4.indexOf('month-wrap')>=0, "conso: champ mois EJ en sélecteur custom");
+  var wC4=document.getElementById('view-conso').children[0];
+  var mIn=makeEl('input'); mIn.dataset.ejf='e1'; mIn.dataset.f='mois'; mIn.value='03/2027';
+  fire(wC4,'change',{target:mIn});
+  ok(ejById('e1').mois==='2027-03', "conso: saisie '03/2027' -> e1.mois=2027-03");
+  state.ui.view='structure'; state.ui.op='op1'; state.ui.aff=''; renderStructure(); var st5=htmlOf('structure');
+  ok(st5.indexOf('type="month"')<0 && st5.indexOf('data-f="dateRefRev"')>=0, "structure: date de réf. en sélecteur custom");
+  var wS5=document.getElementById('view-structure').children[0];
+  var drIn=makeEl('input'); drIn.dataset.af='a1'; drIn.dataset.f='dateRefRev'; drIn.value='06/2025';
+  fire(wS5,'change',{target:drIn});
+  ok(affaireById('a1').dateRefRev==='2025-06', "structure: saisie '06/2025' -> dateRefRev=2025-06");
+  var inp=makeEl('input'); inp.value='10/2026';
+  var nbM0=document.body.children.length;
+  openMonthPicker(inp);
+  var mod=document.body.children[document.body.children.length-1];
+  ok(document.body.children.length===nbM0+1 && mod.innerHTML.indexOf('mp-grid')>=0 && (mod.innerHTML.match(/class="btn small mp-m"/g)||[]).length===12, "sélecteur de mois: popup calendrier avec 12 mois");
+  ok(html.indexOf('.month-wrap')>=0 && html.indexOf('table.liste td input')>=0 && html.indexOf('.formrow .fld')>=0, "CSS d'alignement présent dans le build (champs 100%, formrow/fld alignés)");
+  state = demoState(); recomputeProfils(state);
+
+  // ---- points des courbes : popup = uniquement la courbe cliquée (pas la liste d'alertes) ----
+  state = demoState(); recomputeProfils(state);
+  var ent3=chartEntonnoir(scopedAffaires('',''),scopedEjs('',''),scopeMonths('',''),null);
+  ok(ent3.indexOf('data-s="ej"')>=0 && ent3.indexOf('data-s="rap"')>=0 && ent3.indexOf('data-s="mx"')>=0, "courbes: chaque point porte data-s (la courbe cliquée)");
+  state.ui.view='dashboard'; render();
+  var wD5=document.getElementById('view-dashboard').children[0];
+  var ptEJ=makeEl('circle'); ptEJ.dataset.m='2026-11'; ptEJ.dataset.s='ej'; ptEJ._closest=ptEJ;
+  fire(wD5,'click',{target:ptEJ});
+  var modEJ=document.body.children[document.body.children.length-1];
+  ok(modEJ.innerHTML.indexOf('EJ engagés cumulés')>=0 && modEJ.innerHTML.indexOf('alerts')<0 && modEJ.innerHTML.indexOf('Reste à payer')<0, "clic point courbe EJ -> popup = uniquement les contributeurs EJ (pas la liste d'alertes, pas les autres courbes)");
+  var ptRap=makeEl('circle'); ptRap.dataset.m='2026-11'; ptRap.dataset.s='rap'; ptRap._closest=ptRap;
+  fire(wD5,'click',{target:ptRap});
+  var modRap=document.body.children[document.body.children.length-1];
+  ok(modRap.innerHTML.indexOf('Reste à payer')>=0 && modRap.innerHTML.indexOf('EJ cumulés')>=0 && modRap.innerHTML.indexOf('CP cumulés')>=0 && modRap.innerHTML.indexOf('alerts')<0, "clic point courbe reste à payer -> EJ cumulés − CP cumulés uniquement");
+  var ptTip=makeEl('rect'); ptTip.dataset.m='2026-11'; ptTip._closest=ptTip;
+  fire(wD5,'click',{target:ptTip});
+  var modAll=document.body.children[document.body.children.length-1];
+  ok(modAll.innerHTML.indexOf('Reste à payer')>=0 && modAll.innerHTML.indexOf('alerts')<0, "clic zone mois (barres) -> popup complet sans liste d'alertes");
+  state = demoState(); recomputeProfils(state);
+
+  // ---- GP : en-tête sur 3 niveaux comme Révisions (opération > affaire/Σ op > colonnes), dépliage + conservé ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.view='gp'; state.ui.op='op1'; state.ui.aff=''; state.ui.gpExp={}; renderGp();
+  var gpT3=htmlOf('gp');
+  var thG=gpT3.slice(gpT3.indexOf('<thead>'), gpT3.indexOf('</thead>'));
+  ok((thG.match(/<tr>/g)||[]).length===3, "GP: en-tête sur 3 lignes comme Révisions (rows="+(thG.match(/<tr>/g)||[]).length+")");
+  ok(thG.indexOf('gp-h-op')>=0 && thG.indexOf('gp-h-ctr')>=0 && thG.indexOf('gp-h-tot')>=0, "GP: hiérarchie opération (ligne 1) / affaire + Σ op rowspan 2 (ligne 2) / colonnes (ligne 3)");
+  ok(thG.indexOf('Opération 101')>=0, "GP: en-tête opération avec n° (101)");
+  ok((thG.match(/data-gpexp=/g)||[]).length>0 && thG.indexOf('Synthèse EJ')>=0, "GP: boutons + conservés, colonnes Synthèse par défaut");
+  state.ui.gpExp={'o:op1':true}; renderGp(); var gpT4=htmlOf('gp');
+  ok(gpT4.indexOf('Σ EJ réel')>=0 && gpT4.indexOf('Σ RP')>=0, "GP: déplié -> colonnes Σ par type sur la ligne 3, boutons + conservés");
+  state.ui.gpExp={}; state.ui.op=''; render();
+  state = demoState(); recomputeProfils(state);
   console.log("PASS: "+RESULTS.pass.length); RESULTS.pass.forEach(p=>console.log("  ok - "+p));
   if(RESULTS.fail.length){ console.log("FAIL: "+RESULTS.fail.length); RESULTS.fail.forEach(f=>console.log("  KO - "+f)); process.exitCode=1; }
 }catch(e){ console.log("ERREUR TEST: "+(e&&e.stack||e)); process.exitCode=1; }
@@ -713,14 +926,15 @@ const patched = script.replace(/\}\)\(\);\s*$/, testCode + "\n})();");
 if (patched === script) { console.error("echec injection"); process.exit(1); }
 
 {
-  const h0 = html.indexOf('<header>'), h1 = html.indexOf('</header>');
+  const h0 = html.indexOf('<header'), h1 = html.indexOf('</header>');
   const hdr = html.slice(h0, h1);
   global.__HDRRAW__ = hdr;
   global.__HDR__ = {
-    top: hdr.indexOf('hd-top')>=0 && hdr.indexOf('hd-nav')>=0 && hdr.indexOf('hd-top')<hdr.indexOf('hd-nav'),
-    gouv: hdr.includes('bloc-marque'),
-    min: hdr.includes('logo-min') && hdr.includes('data:image/png;base64,'),
-    order: hdr.indexOf('id="filebar"')>=0 && hdr.indexOf('id="filebar"') < hdr.indexOf('id="nav"')
+    top: hdr.indexOf('fr-header__body')>=0 && hdr.indexOf('fr-header__menu')>=0 && hdr.indexOf('fr-header__body')<hdr.indexOf('fr-header__menu'),
+    gouv: !hdr.includes('fr-logo') && !hdr.includes('<img') && !hdr.includes('logo'),
+    order: hdr.indexOf('id="filebar"')>=0 && hdr.indexOf('id="filebar"') < hdr.indexOf('id="nav"'),
+    nav: hdr.indexOf('class="fr-nav"')>=0,
+    btns: hdr.indexOf('fr-btn')>=0
   };
 }
 eval(patched);

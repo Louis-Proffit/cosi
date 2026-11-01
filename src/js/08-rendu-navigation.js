@@ -3,11 +3,11 @@
 var VIEWS=[['dashboard','Tableau de bord'],['structure','Opérations & affaires'],['risques','Risques & aléas'],['conso','Consommation CP'],['revisions','Révisions de prix'],['realise','Réalisé'],['gp','GP à saisir'],['indices','Indices'],['donnees','Données']];
 
 function renderNav(){
-  var nav=document.getElementById('nav'), cur=state.ui.view||'dashboard', h='';
+  var nav=document.getElementById('nav'), cur=state.ui.view||'dashboard', h='<ul class="fr-nav__list">';
   VIEWS.forEach(function(v){
-    h+='<button data-view="'+v[0]+'" class="'+(cur===v[0]?'active':'')+'">'+v[1]+'</button>';
+    h+='<li class="fr-nav__item"><button type="button" data-view="'+v[0]+'" class="fr-nav__link'+(cur===v[0]?' fr-nav__link--active':'')+'"'+(cur===v[0]?' aria-current="page"':'')+'>'+v[1]+'</button></li>';
   });
-  nav.innerHTML=h;
+  nav.innerHTML=h+'</ul>';
 }
 function setView(v){ state.ui.view=v; save(); render(); }
 /* Filtres globaux (en-tête) : opération + affaire, appliqués à toutes les vues */
