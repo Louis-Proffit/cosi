@@ -73,13 +73,22 @@ function bootError(e){
   });
 }
 
-/* Boutons "développer la période" (avant/après les mois affichés) */
+/* Boutons "développer / replier la période" (avant/après les mois affichés) */
 document.addEventListener('click', function(ev){
-  var b=ev.target&&ev.target.closest?ev.target.closest('button[data-ext]'):null;
-  if(!b) return;
-  if(b.dataset.ext==='before') state.ui.extBefore=(state.ui.extBefore||0)+12;
-  else state.ui.ext=(state.ui.ext||0)+12;
-  save(); render();
+  var t=ev.target, d=(t&&t.dataset)||{};
+  var b=t&&t.closest?t.closest('button'):null;
+  var bd=(b&&b.dataset)||{};
+  var shr=d.extshrink||bd.extshrink, ext=d.ext||bd.ext;
+  if(shr){
+    if(shr==='before') state.ui.extBefore=Math.max(0,(state.ui.extBefore||0)-12);
+    else state.ui.ext=Math.max(0,(state.ui.ext||0)-12);
+    save(); render(); return;
+  }
+  if(ext){
+    if(ext==='before') state.ui.extBefore=(state.ui.extBefore||0)+12;
+    else state.ui.ext=(state.ui.ext||0)+12;
+    save(); render(); return;
+  }
 });
 
 /* Sélecteurs de mois custom : le bouton ▾ ouvre le calendrier mensuel */

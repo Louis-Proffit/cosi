@@ -423,6 +423,35 @@ const testCode = `
 
   // ---- branche onglet-affaire-unique : vue unifiée 'affaire' (une seule affaire à la fois) ----
   state = demoState(); recomputeProfils(state);
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afX=htmlOf('affaire');
+  ok(afX.indexOf('>Aléa</th>')>=0 && afX.indexOf('>Risque</th>')>=0 && afX.indexOf('>GP EJ</th>')>=0 && afX.indexOf('>GP CP</th>')>=0, "vue affaire: colonnes Aléa, Risque (EJ=CP), GP EJ et GP CP (avec les 4 options)");
+  ok(afX.indexOf('id="gp-rpdec"')>=0 && afX.indexOf('id="gp-nocpdec"')>=0 && afX.indexOf('id="gp-nocpjan"')>=0 && afX.indexOf('id="gp-ardec"')>=0, "vue affaire: les 4 mêmes options que l'ancien onglet GP à saisir");
+  ok(afX.indexOf('data-goto="structure"')>=0 && afX.indexOf('data-goto="indices"')>=0, "vue affaire: liens vers les autres onglets pour modifier (affaire -> structure, indices)");
+  ok(!/class="scol sc0 rnum"/.test(afX) && afX.indexOf('rnum')<0, "vue affaire: plus de numéro de ligne (rnum supprimé)");
+  ok(afX.indexOf('data-rkpop=')>=0, "vue affaire: popup risque/aléa depuis le tableau des EJ (data-rkpop)");
+  // options GP appliquées aux colonnes GP EJ/CP
+  var gEjAv=gpVal('sej',affaireById('a1'),'2026-12'), gCpAv=gpVal('scp',affaireById('a1'),'2026-12');
+  var wAfX=document.getElementById('view-affaire').children[0];
+  var cbAr=wAfX.querySelector('#gp-ardec'); cbAr.checked=true; fire(cbAr,'change',{target:cbAr});
+  ok(state.ui.gpARDec===true, "vue affaire: option 'Aléa et risque en décembre' cochable (state.ui.gpARDec)");
+  ok(Math.abs(gpVal('sej',affaireById('a1'),'2026-12')-gEjAv)>0.001 || gpVal('ae',affaireById('a1'),'2026-12')>0, "vue affaire: l'option modifie bien la synthèse GP EJ de décembre");
+  state.ui.gpARDec=false; save();
+  // popup risque : modifie la distribution et montre la conséquence EJ/CP
+  openRisqueAleaPopup('r1');
+  var ovR=document.body.children[document.body.children.length-1];
+  ok(ovR.innerHTML.indexOf('id="rk-disttype"')>=0 && ovR.innerHTML.indexOf('id="ra-cons"')>=0, "popup risque: distribution modifiable + conséquence EJ/CP affichée (espérance/haut/pondéré/Σ CP)");
+  ovR.querySelector('#ra-proba').value='50';
+  var svR=ovR.querySelector('#ra-save'); fire(svR,'click',{target:svR});
+  ok(ejById('r1').probabilite===50, "popup risque: probabilité enregistrée (r1.proba=50)");
+  openRisqueAleaPopup('al1');
+  var ovA=document.body.children[document.body.children.length-1];
+  ok(ovA.innerHTML.indexOf('id="ra-pct"')>=0 && ovA.innerHTML.indexOf('ra-cons')>=0, "popup aléa: % du reste à payer modifiable + conséquence (montant, Σ CP répartis)");
+  ovA.querySelector('#ra-pct').value='8';
+  var svA=ovA.querySelector('#ra-save'); fire(svA,'click',{target:svA});
+  ok(ejById('al1').aleaPct===8, "popup aléa: % enregistré (al1.aleaPct=8)");
+  state = demoState(); recomputeProfils(state);
+
+  state = demoState(); recomputeProfils(state);
   state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var af1=htmlOf('affaire');
   ok(af1.indexOf('id="aff-solo"')>=0, "vue affaire: sélecteur d'affaire unique (aff-solo)");
   ok(af1.indexOf('GC-01')>=0 && af1.indexOf('HYD-01')<0, "vue affaire: une seule affaire lisible à la fois (a1 -> GC-01 oui, HYD-01 non)");
@@ -1030,7 +1059,14 @@ const testCode = `
   var bExt=makeEl('button'); bExt.dataset.ext='before'; bExt._closest=bExt;
   var m0b=scopeMonths('','')[0];
   fireDoc('click',{target:bExt});
-  ok(state.ui.extBefore===12 && scopeMonths('','')[0]===mAdd(m0b,-12), "bouton avant: période étendue de 12 mois vers le passé ("+m0b+" -> "+scopeMonths('','')[0]+")");
+  var minRefAll2=null; state.affaires.forEach(function(a){ if(a.dateRefRev&&(!minRefAll2||a.dateRefRev<minRefAll2)) minRefAll2=a.dateRefRev; });
+  ok(state.ui.extBefore===12 && scopeMonths('','')[0]===(mAdd(m0b,-12)<minRefAll2?minRefAll2:mAdd(m0b,-12)), "bouton avant: extension vers le passé JUSQU'À LA LIMITE (date de réf. la plus ancienne "+minRefAll2+") : "+m0b+" -> "+scopeMonths('','')[0]);
+  var bShr=makeEl('button'); bShr.dataset.extshrink='before'; bShr._closest=bShr;
+  fireDoc('click',{target:bShr});
+  ok(state.ui.extBefore===0, "bouton replier avant: on retire les 12 mois ajoutés (extBefore=0)");
+  var bShr2=makeEl('button'); bShr2.dataset.extshrink='after'; bShr2._closest=bShr2;
+  state.ui.ext=12; fireDoc('click',{target:bShr2});
+  ok(state.ui.ext===0, "bouton replier après: on retire les 12 mois ajoutés (ext=0)");
   var bExt2=makeEl('button'); bExt2.dataset.ext='after'; bExt2._closest=bExt2;
   fireDoc('click',{target:bExt2});
   ok(state.ui.ext===12, "bouton après: state.ui.ext=12");
