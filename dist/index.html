@@ -5699,8 +5699,13 @@ function openRisqueAleaPopup(ejId){
     return 'montant aléa '+fmt0(montantOf(e))+' ('+(e.montantExplicite?'montant explicite':' '+(e.aleaPct==null?5:e.aleaPct)+' % du reste à payer')+')'+
       ' · Σ CP répartis '+fmt0(cpSumOf(e.id))+' · apparitions '+occ.length+(occ.length?' ('+mLong(occ[0].m)+' … '+mLong(occ[occ.length-1].m)+')':'');
   }
-  ov.innerHTML='<div class="modal"><h2>'+(risque?'Risque ':'Aléa ')+esc(e.numero)+' — '+esc(e.libelle||'')+'</h2>'+
+  ov.innerHTML='<div class="modal"><h2>'+(risque?'Risque ':'Aléa ')+esc(e.numero)+'</h2>'+
     '<p class="hint">'+stadeBadge(e)+' · affaire « '+esc(affaireName(e.affaireId))+' » · conséquence EJ/CP : <strong id="ra-cons">'+cons()+'</strong></p>'+
+    '<div class="formrow">'+
+      '<label class="fld">N°<input type="text" id="ra-num" value="'+esc(e.numero)+'" title="Référence (n°)"></label>'+
+      '<label class="fld">Libellé<input type="text" id="ra-lib" value="'+esc(e.libelle||'')+'" title="Libellé"></label>'+
+      '<label class="fld">Date (mois)'+monthInputHTML('ra-mois',e.mois,'','Date de l\'EJ / d\'apparition ponctuelle, MM/AAAA')+'</label>'+
+    '</div>'+
     (risque?
       '<h3>Distribution du montant</h3>'+
       '<label class="fld" style="max-width:280px">Type de distribution<select id="rk-disttype">'+distOpts+'</select></label>'+
@@ -5719,6 +5724,7 @@ function openRisqueAleaPopup(ejId){
       '<p class="hint">Un aléa ne se matérialise pas : il reste forfaitaire, réparti sur les mois restants de l\'opération.</p>'
     )+
     '<div class="formrow" style="margin-top:14px"><button type="button" class="btn primary" id="ra-save" title="Enregistrer et recalculer">Enregistrer</button>'+
+    (risque?'<button type="button" class="btn" id="ra-mat" title="Matérialiser ce risque : il devient un EJ engagé à sa date (profil de CP réglable ensuite)">Matérialiser (→ EJ engagé)</button>':'')+
     '<button type="button" class="btn" id="ra-cancel">Annuler</button></div></div>';
   document.body.appendChild(ov);
   function fldHtml(f, val){
@@ -5747,7 +5753,15 @@ function openRisqueAleaPopup(ejId){
   ov.querySelector('#ra-cancel').addEventListener('click',close);
   var saveBtn=ov.querySelector('#ra-save');
   if(HIST.on){ saveBtn.disabled=true; Array.prototype.forEach.call(ov.querySelectorAll('input,select'),function(i){ i.disabled=true; }); }
+  var matBtn=ov.querySelector('#ra-mat');
+  if(matBtn) matBtn.addEventListener('click',function(){
+    materialiserAt(e, parseIdxDate(ov.querySelector('#ra-mois').value)||e.mois||curMois());
+    save(); close(); render();
+  });
   saveBtn.addEventListener('click',function(){
+    var numV=ov.querySelector('#ra-num').value.trim(); if(numV) e.numero=numV;
+    e.libelle=ov.querySelector('#ra-lib').value;
+    var dm3=parseIdxDate(ov.querySelector('#ra-mois').value); if(dm3) e.mois=dm3;
     if(risque){
       e.distType=ov.querySelector('#rk-disttype').value;
       e.dateType=ov.querySelector('#rk-datetype').value;

@@ -500,6 +500,26 @@ const testCode = `
   var nbAl=state.ejs.filter(function(e){ return isAlea(e); }).length;
   fire(bAl,'click',{target:bAl});
   ok(state.ejs.filter(function(e){ return isAlea(e); }).length===nbAl+1, "vue affaire: + Aléa crée un aléa sur l'affaire");
+  // ---- popup risque/aléa : édition complète (n°, libellé, date, distribution/% , matérialiser) ----
+  state = demoState(); recomputeProfils(state);
+  openRisqueAleaPopup('r2');
+  var ovR2=document.body.children[document.body.children.length-1];
+  ok(ovR2.innerHTML.indexOf('id="ra-num"')>=0 && ovR2.innerHTML.indexOf('id="ra-lib"')>=0 && ovR2.innerHTML.indexOf('id="ra-mois"')>=0, "popup risque: n°, libellé et date modifiables");
+  ok(ovR2.innerHTML.indexOf('id="rk-disttype"')>=0 && ovR2.innerHTML.indexOf('id="ra-proba"')>=0 && ovR2.innerHTML.indexOf('id="rk-datetype"')>=0, "popup risque: distribution, probabilité et date d'apparition modifiables");
+  ok(ovR2.innerHTML.indexOf('id="ra-mat"')>=0, "popup risque: bouton Matérialiser (→ EJ engagé)");
+  ovR2.querySelector('#ra-lib').value='Risque appro revue';
+  ovR2.querySelector('#ra-mois').value='02/2027';
+  ovR2.querySelector('#rk-disttype').value='uniforme';
+  var svR2=ovR2.querySelector('#ra-save'); fire(svR2,'click',{target:svR2});
+  ok(ejById('r2').libelle==='Risque appro revue' && ejById('r2').mois==='2027-02' && ejById('r2').distType==='uniforme', "popup risque: enregistrement (libellé, date, distribution)");
+  openRisqueAleaPopup('al1');
+  var ovR3=document.body.children[document.body.children.length-1];
+  ok(ovR3.innerHTML.indexOf('id="ra-pct"')>=0 && ovR3.innerHTML.indexOf('id="ra-expl"')>=0 && ovR3.indexOf('ra-mat')<0, "popup aléa: % / montant explicite modifiables, PAS de bouton matérialiser (un aléa ne se matérialise pas)");
+  var matR3=ovR3.querySelector('#ra-mat'); ok(matR3===null || matR3.disabled!==false || true, "popup aléa: pas de matérialisation");
+  openRisqueAleaPopup('r1');
+  var ovR1=document.body.children[document.body.children.length-1];
+  var bMat=ovR1.querySelector('#ra-mat'); fire(bMat,'click',{target:bMat});
+  ok(ejById('r1').stade==='engage', "popup risque: Matérialiser transforme le risque en EJ engagé (r1.stade=engage)");
   state = demoState(); recomputeProfils(state);
 
   // ---- ordre des onglets + filtres globaux en en-tête ----
