@@ -457,6 +457,11 @@ const testCode = `
   ok(af1.indexOf('GC-01')>=0 && af1.indexOf('HYD-01')<0, "vue affaire: une seule affaire lisible à la fois (a1 -> GC-01 oui, HYD-01 non)");
   ok(af1.indexOf('>EJ engagé</th>')>=0 && af1.indexOf('>CP prévu</th>')>=0 && af1.indexOf('>RP</th>')>=0 && af1.indexOf('>EJ réel</th>')>=0 && af1.indexOf('>CP réel</th>')>=0, "vue affaire: colonnes de synthèse (EJ engagé, CP prévu, RP, EJ réel, CP réel, écarts, statut)");
   ok((af1.match(/data-ejcol=/g)||[]).length>0 && (af1.match(/data-rkpop=/g)||[]).length>0, "vue affaire: une colonne par EJ/risque/aléa dans le tableau (data-ejcol en ligne + data-rkpop en en-tête)");
+  var ordA=[...af1.slice(0,af1.indexOf('</thead>')).matchAll(/data-(ejpop|rkpop)=\"([^\"]+)\"/g)].map(function(m){ return m[2]; });
+  var grpA=ordA.map(function(id){ var e=ejById(id); return e?(stadeOrder2(e.stade)):'?'; });
+  function stadeOrder2(st){ return st==='prog'||st==='engage'?0:(st==='alea'?1:2); }
+  var sortedOk=grpA.every(function(v,i){ return i===0||grpA[i-1]<=v; });
+  ok(sortedOk && ordA.length===5, "vue affaire: colonnes groupées par type — EJ d'abord, puis aléas, puis risques (ordre: "+ordA.join(",")+")");
   ok(af1.indexOf('>Indice I</th>')>=0 && af1.indexOf('>I/I₀</th>')>=0, 'vue affaire: colonnes indice I et I/I0 de l affaire');
   var cssAf=require('fs').readFileSync(require('path').join(__dirname,'..','src','css','app.css'),'utf8');
   ok(cssAf.indexOf('table.affgrid th.dcol,table.affgrid td.dcol{min-width:170px')>=0, 'vue affaire: colonnes EJ/risque/aléa élargies (170px) pour bien voir chacune');

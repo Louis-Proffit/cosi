@@ -5828,7 +5828,13 @@ function renderAffaire(){
     return;
   }
 
-  var ejs=ejsOfAffaire(aff.id).slice().sort(function(x,y){ return x.mois<y.mois?-1:(x.mois>y.mois?1:0); });
+  /* colonnes groupées par type : EJ (programmés/engagés) d'abord, puis aléas, puis risques */
+  var stadeOrder={prog:0,engage:1,alea:2,risque:3};
+  var ejs=ejsOfAffaire(aff.id).slice().sort(function(x,y){
+    var sx=stadeOrder[x.stade]||0, sy=stadeOrder[y.stade]||0;
+    if(sx!==sy) return sx-sy;
+    return x.mois<y.mois?-1:(x.mois>y.mois?1:0);
+  });
   var months=scopeMonths(aff.opId, aff.id);
   var foc=state.ui.focusCol||'';
 
