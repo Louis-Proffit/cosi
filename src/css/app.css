@@ -337,3 +337,9 @@ td.rev-rp.gp-real,td.rev-tot.gp-real{background:#ececec;border:1px dashed #b5b5b
 
 /* vue affaire unifiée : un seul tableau, 1 colonne par EJ/risque/aléa + synthèse */
 table.affgrid .scol.sc1{left:0}
+
+/* vue affaire : colonnes larges pour bien voir chaque EJ/risque/aléa et chaque synthèse */
+table.affgrid th.dcol,table.affgrid td.dcol{min-width:170px;width:170px}
+table.affgrid th.tot-h,table.affgrid td.ccell.tot{min-width:110px}
+table.affgrid th,table.affgrid td{white-space:normal;vertical-align:middle}
+table.affgrid .ej-btn{white-space:normal;overflow:visible;text-overflow:clip;max-width:none}

@@ -457,6 +457,9 @@ const testCode = `
   ok(af1.indexOf('GC-01')>=0 && af1.indexOf('HYD-01')<0, "vue affaire: une seule affaire lisible à la fois (a1 -> GC-01 oui, HYD-01 non)");
   ok(af1.indexOf('>EJ engagé</th>')>=0 && af1.indexOf('>CP prévu</th>')>=0 && af1.indexOf('>RP</th>')>=0 && af1.indexOf('>EJ réel</th>')>=0 && af1.indexOf('>CP réel</th>')>=0, "vue affaire: colonnes de synthèse (EJ engagé, CP prévu, RP, EJ réel, CP réel, écarts, statut)");
   ok((af1.match(/data-ejcol=/g)||[]).length>0 && (af1.match(/data-rkpop=/g)||[]).length>0, "vue affaire: une colonne par EJ/risque/aléa dans le tableau (data-ejcol en ligne + data-rkpop en en-tête)");
+  ok(af1.indexOf('>Indice I</th>')>=0 && af1.indexOf('>I/I₀</th>')>=0, 'vue affaire: colonnes indice I et I/I0 de l affaire');
+  var cssAf=require('fs').readFileSync(require('path').join(__dirname,'..','src','css','app.css'),'utf8');
+  ok(cssAf.indexOf('table.affgrid th.dcol,table.affgrid td.dcol{min-width:170px')>=0, 'vue affaire: colonnes EJ/risque/aléa élargies (170px) pour bien voir chacune');
   ok(af1.indexOf('id="af-addej"')>=0 && af1.indexOf('id="af-addrk"')>=0 && af1.indexOf('id="af-addal"')>=0, "vue affaire: boutons + EJ / + Risque / + Aléa (création depuis le tableau)");
   ok(af1.indexOf('data-real="a1|')>=0, "vue affaire: saisie du réalisé dans le tableau mensuel");
   var wAf=document.getElementById('view-affaire').children[0];
