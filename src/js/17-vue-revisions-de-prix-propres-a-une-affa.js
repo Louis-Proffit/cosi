@@ -74,7 +74,9 @@ function renderRevisions(){
     if(tot) h2+='<th class="rev-h-tot" rowspan="2" colspan="2" title="Total de l\'opération (plusieurs affaires)">Σ '+esc(og.o.nom)+'<br>CP · RP</th>';
   });
 
+  var revCols=2+opCols.reduce(function(s,og){ return s+og.cs.length*3+((og.cs.length>1)?2:0); },0);
   var body='';
+  body+=extRow('avant', revCols);
   months.forEach(function(m,ri){
     body+='<tr'+(m===cur?' class="gp-cur"':'')+'><td class="scol sc0 rnum">'+(ri+1)+'</td><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLabel(m)+'</td>';
     opCols.forEach(function(og){
@@ -96,6 +98,7 @@ function renderRevisions(){
     });
     body+='</tr>';
   });
+  body+=extRow('après', revCols);
 
   h+='<div class="grid-wrap"><table class="liste gp-table rev-table"><thead><tr>'+h1+'</tr><tr>'+h2+'</tr><tr>'+h3+'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
 

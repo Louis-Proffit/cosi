@@ -54,6 +54,7 @@ function renderConso(){
   });
 
   var body='';
+  body+=extRow('avant', ejs.length+3);
   for(var r=1;r<=months.length;r++){
     var m=months[r-1];
     var tot=0;
@@ -74,6 +75,7 @@ function renderConso(){
     });
     body+='</tr>';
   }
+  body+=extRow('après', ejs.length+3);
   var foot='<tr><td class="scol sc0"></td><td class="scol sc1">Total</td>';
   var gt=0;
   ejs.forEach(function(e){ var s=cpSumOf(e.id); gt+=s; foot+='<td class="dcol ccell tot">'+fmt0(s)+'</td>'; });
@@ -107,7 +109,7 @@ function renderConso(){
       var ab=ev.target.closest('button[data-affbtn]');
       if(ab){ openAffairePopup(ab.dataset.affbtn); return; }
     });
-    w.addEventListener('change', function(ev){
+    var consoChange=function(ev){
       var t=ev.target;
       if(t.dataset&&t.dataset.ejf){
         var e2=ejById(t.dataset.ejf); if(!e2) return;
@@ -125,7 +127,9 @@ function renderConso(){
         if(v2==null||v2<=0) delete state.cps[k]; else state.cps[k]=v2;
         save(); renderConso(); return;
       }
-    });
+    };
+    w.addEventListener('change', consoChange);
+    w.addEventListener('input', consoChange); /* mise à jour en direct (cases grisées suivent la date de l'EJ) */
   });
 }
 

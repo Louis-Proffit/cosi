@@ -67,7 +67,7 @@ table.liste input:focus{border-color:var(--blue);background:#fff}
 .badge.risk{background:var(--amber-bg);color:var(--amber)}
 .bar{background:var(--line2);border-radius:4px;height:9px;position:relative;min-width:80px}
 .bar>span{position:absolute;inset:0 auto 0 0;background:var(--green);border-radius:4px}
-.grid-wrap{overflow:auto;max-height:72vh;border:1px solid var(--line);border-radius:8px;background:#fff}
+.grid-wrap{overflow-x:auto;overflow-y:visible;max-height:none;border:1px solid var(--line);border-radius:8px;background:#fff}
 table.grid{border-collapse:separate;border-spacing:0;font-size:12px;white-space:nowrap}
 table.grid th,table.grid td{border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:0}
 table.grid th{background:var(--head);font-weight:600;position:sticky;z-index:3;text-align:center}
@@ -161,7 +161,7 @@ table.rev-table th.rev-h-col{background:#eef1f8;font-size:11px;white-space:norma
 table.rev-table th.rev-h-tot{background:#e3e3fd;font-weight:700;white-space:normal}
 table.rev-table th.rev-h-fix{background:var(--head)}
 table.rev-table td.rev-tot{background:#f2f5f9;font-weight:600}
-.copyblk{background:#f6f8fa;border:1px solid var(--line2);border-radius:6px;padding:8px 10px;margin:0 0 6px;font:12px/1.5 Consolas,"Courier New",monospace;white-space:pre;max-height:240px;overflow:auto}
+.copyblk{background:#f6f8fa;border:1px solid var(--line2);border-radius:6px;padding:8px 10px;margin:0 0 6px;font:12px/1.5 Consolas,"Courier New",monospace;white-space:pre}
 /* tableau de saisie des indices : dates en lignes, séries en colonnes, collage Excel */
 table.idx-grid{border-collapse:collapse;font-size:12px}
 table.idx-grid th,table.idx-grid td{border:1px solid var(--line2);padding:2px 4px;text-align:right}
@@ -253,3 +253,4 @@ table.grid th.dcol,table.grid td.dcol{vertical-align:middle}
 .mp-pop .mp-rows .mp-row,.mp-pop .mp-contrib .mp-row{padding:3px 2px;border-bottom:1px dotted var(--line2);font-size:13px}
 .mp-pop .mp-contrib .mp-row:last-child{border-bottom:none}
 table.liste th.gp-h-tot{background:#e3e3fd;font-weight:700;white-space:normal;text-align:left}
+tr.extrow td{background:var(--blue-bg);text-align:center;padding:4px}

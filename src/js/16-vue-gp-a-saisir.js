@@ -297,7 +297,9 @@ function renderGp(){
 
   /* synthèse avec substitution : mois passé + réalisé -> réalisé ; sinon saisi */
   function synthVals(v, m){ var past=m&&m<cur; return {sej:(past&&v.rej>0?v.rej:v.ej)+v.ae+v.rk+v.rp, scp:(past&&v.rcp>0?v.rcp:v.cp)+v.ac+v.rc+v.rp}; }
+  var totalCols0=opCols.reduce(function(s,og){ return s+og.cs.reduce(function(s2,a){ return s2+gCols('a:'+a.id); },0)+gCols('o:'+og.o.id); },0)+1;
   var body='';
+  body+=extRow('avant', totalCols0);
   months.forEach(function(m){
     body+='<tr'+(m===cur?' class="gp-cur"':'')+'><td'+(m===cur?' style="background:var(--amber-bg);font-weight:600"':'')+'>'+mLong(m)+'</td>';
     opCols.forEach(function(og){
@@ -314,6 +316,7 @@ function renderGp(){
     });
     body+='</tr>';
   });
+  body+=extRow('après', totalCols0);
 
   var foot='<tr class="gp-tot"><td>Total</td>';
   opCols.forEach(function(og){

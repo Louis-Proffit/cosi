@@ -46,7 +46,7 @@ function openProfilPopup(ejId){
       '<td data-cell="coh" title="Un écart en retard comme en avance est une incohérence">'+v.coh+'</td></tr>';
   });
   var persoPane='<p class="hint">Saisissez les CP de cet EJ <strong>mois par mois</strong> (ils s\'ajoutent à ceux saisis dans la grille « Consommation CP »). Le <strong>CP réalisé de l\'affaire</strong> est rappelé à côté pour les mois passés, avec l\'indicateur de cohérence.</p>'+
-    '<div class="grid-wrap" style="max-height:320px"><table class="liste"><thead><tr>'+
+    '<div class="grid-wrap"><table class="liste"><thead><tr>'+
     '<th>Mois</th><th class="num" title="CP consommés ce mois pour cet EJ (saisie)">CP cet EJ (saisi)</th>'+
     '<th class="num" title="CP prévus ce mois pour toute l\'affaire">CP prévus affaire</th>'+
     '<th class="num" title="CP réalisés ce mois (onglet « Réalisé »)">CP réalisés affaire</th>'+

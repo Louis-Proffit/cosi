@@ -32,7 +32,7 @@ function renderIndices(){
   }else{
     h+='<p class="hint">Le tableau couvre <strong>tous les mois de la période</strong> : du premier mois de l\'affaire la plus récente (date de réf. de révision) jusqu\'au dernier mois du dernier CP. Cellules éditables. <strong>Coller depuis Excel</strong> : copiez un bloc (1ʳᵉ colonne = mois, puis une colonne par série dans l\'ordre), cliquez une cellule du tableau (colonne « Mois » de préférence), puis <strong>Ctrl+V</strong>. Dates acceptées : AAAA-MM, MM/AAAA, MM/AA, n° de série Excel. La 1ʳᵉ colonne collée crée les nouveaux mois.</p>'+
        '<p class="hint" id="idx-paste-info"></p>';
-    h+='<div class="grid-wrap" style="max-height:60vh"><table class="liste idx-grid" id="idx-grid"><thead><tr><th data-c="0" title="Colonne des mois — collez ici pour créer des lignes">Mois</th>';
+    h+='<div class="grid-wrap"><table class="liste idx-grid" id="idx-grid"><thead><tr><th data-c="0" title="Colonne des mois — collez ici pour créer des lignes">Mois</th>';
     series.forEach(function(sr,si){
       h+='<th data-c="'+(si+1)+'" title="Colonne de la série '+esc(sr.nom)+'">'+esc(sr.nom)+'<br><span class="muted mono" style="font-weight:400">{'+esc(sr.nom)+'}</span></th>';
     });

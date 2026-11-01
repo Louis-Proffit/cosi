@@ -21,7 +21,7 @@ function openAffairePopup(affId){
     ' · EJ initial : '+fmt(a.montantInitial||0)+' · reste à payer à date : '+fmt(resteAPayer(a))+
     ' · date réf. rév. : '+(a.dateRefRev?mLong(a.dateRefRev):'—')+' · formule (indice) : '+esc(a.formule||'(1ʳᵉ série)')+
     ' · EJ engagés : '+fmt(sommeMontant(em))+'</p>'+
-    (ejs.length?'<div class="grid-wrap" style="max-height:52vh"><table class="liste"><thead><tr><th></th><th>N°</th><th>Libellé</th><th>Date</th><th class="num">Montant</th><th>Profil CP</th><th class="num">CP</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    (ejs.length?'<div class="grid-wrap"><table class="liste"><thead><tr><th></th><th>N°</th><th>Libellé</th><th>Date</th><th class="num">Montant</th><th>Profil CP</th><th class="num">CP</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
                :'<p class="hint">Aucun EJ sur cette affaire.</p>')+
     '<div class="formrow" style="margin-top:12px"><button type="button" class="btn" id="ap-cancel" title="Fermer">Fermer</button></div></div>';
   document.body.appendChild(ov);
@@ -49,7 +49,7 @@ function openOpPopup(opId){
   }).join('');
   ov.innerHTML='<div class="modal"><h2>Opération « '+esc(o.nom)+' » — '+as.length+' affaire(s)</h2>'+
     (o.description?'<p class="hint">'+esc(o.description)+'</p>':'')+
-    (as.length?'<div class="grid-wrap" style="max-height:52vh"><table class="liste"><thead><tr><th>Affaire</th><th>Entreprise</th><th>Réf. contrat</th><th class="num">EJ initial</th><th class="num">Reste à payer</th><th class="num">EJ engagés</th><th class="num">Aléas+Rk</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    (as.length?'<div class="grid-wrap"><table class="liste"><thead><tr><th>Affaire</th><th>Entreprise</th><th>Réf. contrat</th><th class="num">EJ initial</th><th class="num">Reste à payer</th><th class="num">EJ engagés</th><th class="num">Aléas+Rk</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
              :'<p class="hint">Aucune affaire sur cette opération.</p>')+
     '<div class="formrow" style="margin-top:12px"><button type="button" class="btn" id="op-cancel" title="Fermer">Fermer</button></div></div>';
   document.body.appendChild(ov);

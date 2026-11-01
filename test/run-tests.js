@@ -27,10 +27,11 @@ function makeEl(tag) {
 }
 function fire(el, type, ev){ (el._listeners[type] || []).forEach(f => f(ev)); }
 const byId = {};
+global.__docL = {};
 global.document = {
   getElementById(id){ if (!byId[id]) byId[id] = makeEl('div#' + id); return byId[id]; },
   createElement(tag){ return makeEl(tag); },
-  addEventListener(){}, removeEventListener(){},
+  addEventListener(t,f){ (global.__docL[t]=global.__docL[t]||[]).push(f); }, removeEventListener(){},
   body: makeEl('body'),
 };
 global.window = { addEventListener(){}, removeEventListener(){}, showDirectoryPicker(){ return Promise.resolve(makeFakeDir({})); }, showSaveFilePicker(){ return Promise.resolve(null); }, showOpenFilePicker(){ return Promise.resolve([]); } };
@@ -70,6 +71,7 @@ const testCode = `
   function hdr0hasSvgLogo(){ return global.__HDRRAW__ ? global.__HDRRAW__.indexOf("logo-gouv")>=0 : false; }
   function ok(cond, name){ (cond?RESULTS.pass:RESULTS.fail).push(name); }
   function htmlOf(view){ var el=document.getElementById("view-"+view); return el?el.innerHTML:""; }
+  function fireDoc(type,ev){ (global.__docL[type]||[]).forEach(function(f){ f(ev); }); }
   function lastModal(){ var ch=document.body.children; return ch.length?ch[ch.length-1]:null; }
 
   state = demoState();
@@ -736,7 +738,7 @@ const testCode = `
   ok(co3.indexOf('data-totcp=')>=0, "conso: total CP du mois cliquable (détail)");
   // handler data-goto global
   var bG=makeEl('button'); bG.dataset.goto='conso'; bG.dataset.col='e1'; bG._closest=bG;
-  fire(document.body,'click',{target:bG});
+  fireDoc('click',{target:bG});
   ok(state.ui.view==='conso' && state.ui.focusCol==='e1', "lien Traiter: ramène sur l'onglet conso avec la colonne e1 focalisée");
   // ---- révisions : cellules sommes cliquables + 2e tableau transposé ----
   state = demoState(); recomputeProfils(state); state.ui.view='revisions'; state.ui.op='op1'; state.ui.aff=''; renderRevisions();
@@ -916,6 +918,50 @@ const testCode = `
   state.ui.gpExp={'o:op1':true}; renderGp(); var gpT4=htmlOf('gp');
   ok(gpT4.indexOf('Σ EJ réel')>=0 && gpT4.indexOf('Σ RP')>=0, "GP: déplié -> colonnes Σ par type sur la ligne 3, boutons + conservés");
   state.ui.gpExp={}; state.ui.op=''; render();
+  state = demoState(); recomputeProfils(state);
+
+  // ---- plus de scroll vertical imbriqué ----
+  ok(html.indexOf('overflow-y:visible')>=0 && html.indexOf('max-height:240px')<0, "CSS: grid-wrap/copyblk sans scroll vertical (overflow-y:visible, plus de max-height)");
+  ok(html.indexOf('max-height:52vh')<0 && html.indexOf('max-height:60vh')<0 && html.indexOf('max-height:320px')<0, "plus de max-height inline sur les tableaux en popup/indices");
+  // ---- les tableaux de saisie commencent au moins à la date de réf. de l'affaire la plus ancienne ----
+  state = demoState(); recomputeProfils(state);
+  var oldestRef=state.affaires.map(function(a){ return a.dateRefRev; }).filter(Boolean).sort()[0];
+  ok(scopeMonths('','')[0] <= oldestRef, "scopeMonths démarre au moins à la date de réf. de l'affaire la plus ancienne ("+oldestRef+") ; début="+scopeMonths('','')[0]);
+  ok(idxGridMonths()[0] <= oldestRef, "grille indices idem ("+idxGridMonths()[0]+" <= "+oldestRef+")");
+  var firstM0=scopeMonths('','')[0];
+  ['conso','realise','gp','revisions'].forEach(function(v){
+    state.ui.view=v; state.ui.op=''; state.ui.aff=''; render();
+    ok(htmlOf(v).indexOf(mLong(firstM0))>=0 || htmlOf(v).indexOf(mLabel(firstM0))>=0, "tableau "+v+": commence au mois "+mLabel(firstM0)+" (<= date de réf. affaire la plus ancienne "+oldestRef+")");
+  });
+  state = demoState(); recomputeProfils(state);
+
+  // ---- dateRefRev 2021 visible même avec filtre + boutons développer avant/après + cases grisées en direct ----
+  state = demoState(); recomputeProfils(state);
+  state.affaires[5].dateRefRev='2021-03';
+  state.ui.op='op2'; state.ui.aff='a4'; // filtre actif : l'affaire 2021 (a6, op2) est dans op2; test avec filtre sur op1 aussi
+  ok(scopeMonths('op1','')[0] <= '2021-03', "scopeMonths filtré op1: début <= dateRefRev affaire la plus ancienne (2021-03), début="+scopeMonths('op1','')[0]);
+  state.ui.op=''; state.ui.aff='';
+  ok(scopeMonths('','')[0]==='2021-03', "scopeMonths sans filtre: début = 2021-03");
+  state.ui.view='conso'; renderConso(); var co5=htmlOf('conso');
+  ok(co5.indexOf('03/21')>=0, "conso: mois 03/2021 affiché (affaire avec dateRefRev 2021)");
+  ok((co5.match(/class="extrow"/g)||[]).length===2 && co5.indexOf('data-ext="before"')>=0 && co5.indexOf('data-ext="after"')>=0, "conso: boutons −12 mois avant / +12 mois après (1ère et dernière ligne)");
+  var bExt=makeEl('button'); bExt.dataset.ext='before'; bExt._closest=bExt;
+  var m0b=scopeMonths('','')[0];
+  fireDoc('click',{target:bExt});
+  ok(state.ui.extBefore===12 && scopeMonths('','')[0]===mAdd(m0b,-12), "bouton avant: période étendue de 12 mois vers le passé ("+m0b+" -> "+scopeMonths('','')[0]+")");
+  var bExt2=makeEl('button'); bExt2.dataset.ext='after'; bExt2._closest=bExt2;
+  fireDoc('click',{target:bExt2});
+  ok(state.ui.ext===12, "bouton après: state.ui.ext=12");
+  state.ui.extBefore=0; state.ui.ext=0; renderConso();
+  // cases grisées suivent la date de l'EJ en direct (input)
+  var avant0=(htmlOf('conso').match(/cp-avant/g)||[]).length;
+  var wC5=document.getElementById('view-conso').children[0];
+  var mIn2=makeEl('input'); mIn2.dataset.ejf='e1'; mIn2.dataset.f='mois'; mIn2.value='06/2027'; mIn2._closest=mIn2;
+  state.ui.view='conso';
+  fire(wC5,'input',{target:mIn2});
+  var avant1=(htmlOf('conso').match(/cp-avant/g)||[]).length;
+  ok(ejById('e1').mois==='2027-06' && avant1>avant0, "cases grisées suivent la date de l'EJ en direct (input): "+avant0+" -> "+avant1+" cases grisées, e1.mois=2027-06");
+  ok(Object.keys(state.cps).filter(function(k){ return k.indexOf('e1|')===0; }).every(function(k){ return k.slice(3)>='2027-06'; }), "CP de e1 purgés avant la nouvelle date d'EJ (cohérent)");
   state = demoState(); recomputeProfils(state);
   console.log("PASS: "+RESULTS.pass.length); RESULTS.pass.forEach(p=>console.log("  ok - "+p));
   if(RESULTS.fail.length){ console.log("FAIL: "+RESULTS.fail.length); RESULTS.fail.forEach(f=>console.log("  KO - "+f)); process.exitCode=1; }

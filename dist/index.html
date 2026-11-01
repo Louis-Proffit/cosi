@@ -631,7 +631,7 @@ table.liste input:focus{border-color:var(--blue);background:#fff}
 .badge.risk{background:var(--amber-bg);color:var(--amber)}
 .bar{background:var(--line2);border-radius:4px;height:9px;position:relative;min-width:80px}
 .bar>span{position:absolute;inset:0 auto 0 0;background:var(--green);border-radius:4px}
-.grid-wrap{overflow:auto;max-height:72vh;border:1px solid var(--line);border-radius:8px;background:#fff}
+.grid-wrap{overflow-x:auto;overflow-y:visible;max-height:none;border:1px solid var(--line);border-radius:8px;background:#fff}
 table.grid{border-collapse:separate;border-spacing:0;font-size:12px;white-space:nowrap}
 table.grid th,table.grid td{border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:0}
 table.grid th{background:var(--head);font-weight:600;position:sticky;z-index:3;text-align:center}
@@ -725,7 +725,7 @@ table.rev-table th.rev-h-col{background:#eef1f8;font-size:11px;white-space:norma
 table.rev-table th.rev-h-tot{background:#e3e3fd;font-weight:700;white-space:normal}
 table.rev-table th.rev-h-fix{background:var(--head)}
 table.rev-table td.rev-tot{background:#f2f5f9;font-weight:600}
-.copyblk{background:#f6f8fa;border:1px solid var(--line2);border-radius:6px;padding:8px 10px;margin:0 0 6px;font:12px/1.5 Consolas,"Courier New",monospace;white-space:pre;max-height:240px;overflow:auto}
+.copyblk{background:#f6f8fa;border:1px solid var(--line2);border-radius:6px;padding:8px 10px;margin:0 0 6px;font:12px/1.5 Consolas,"Courier New",monospace;white-space:pre}
 /* tableau de saisie des indices : dates en lignes, séries en colonnes, collage Excel */
 table.idx-grid{border-collapse:collapse;font-size:12px}
 table.idx-grid th,table.idx-grid td{border:1px solid var(--line2);padding:2px 4px;text-align:right}
@@ -817,6 +817,7 @@ table.grid th.dcol,table.grid td.dcol{vertical-align:middle}
 .mp-pop .mp-rows .mp-row,.mp-pop .mp-contrib .mp-row{padding:3px 2px;border-bottom:1px dotted var(--line2);font-size:13px}
 .mp-pop .mp-contrib .mp-row:last-child{border-bottom:none}
 table.liste th.gp-h-tot{background:#e3e3fd;font-weight:700;white-space:normal;text-align:left}
+tr.extrow td{background:var(--blue-bg);text-align:center;padding:4px}
 
 </style>
 </head>
@@ -997,7 +998,7 @@ function defaultState(){
     revisions:{},
     indices:[],
     versions:[],
-    ui:{ view:'dashboard', op:'', aff:'', ext:0, idxSerie:'', gpRpDec:false, gpNoCpDec:false, gpNoCpJan:false, gpARDec:false, dashFrom:'', dashTo:'', gpExp:{} }
+    ui:{ view:'dashboard', op:'', aff:'', ext:0, extBefore:0, idxSerie:'', gpRpDec:false, gpNoCpDec:false, gpNoCpJan:false, gpARDec:false, dashFrom:'', dashTo:'', gpExp:{} }
   };
 }
 
@@ -1969,14 +1970,22 @@ function scopeMonths(opId, affId){
   ejs.forEach(function(e){ ids[e.id]=1; add(e.mois); occOf(e).forEach(function(o){ add(o.m); }); });
   for(var k in state.cps){ var p=k.split('|'); if(ids[p[0]]) add(p[1]); }
   scopedAffaires(opId,affId).forEach(function(a){ aids[a.id]=1; });
+  state.affaires.forEach(function(a){ add(a.dateRefRev); }); /* début au moins à la date de réf. de l'affaire la plus ancienne (TOUTES les affaires, même filtrées) */
   for(var k2 in state.revisions){ var p2=k2.split('|'); if(aids[p2[0]]) add(p2[1]); }
   for(var k3 in state.realise){ var p3=k3.split('|'); if(aids[p3[0]]) add(p3[1]); }
   if(!min) min=mAdd(cur,-6);
   if(!max) max=cur;
   if(min>mAdd(cur,-6)) min=mAdd(cur,-6);
   if(max<mAdd(cur,12)) max=mAdd(cur,12);
-  max=mAdd(max, state.ui.ext||0);
+  min=mAdd(min, -(state.ui.extBefore||0)); /* bouton "développer avant" */
+  max=mAdd(max, state.ui.ext||0);          /* bouton "développer après" */
   return mRange(min,max);
+}
+
+/* Lignes de boutons "développer" : avant la première ligne de mois / après la dernière */
+function extRow(side, colspan){
+  var avant=side==='avant';
+  return '<tr class="extrow"><td colspan="'+colspan+'"><button type="button" class="btn small" data-ext="'+(avant?'before':'after')+'" title="'+(avant?'Afficher 12 mois de plus AVANT la première période affichée':'Afficher 12 mois de plus APRÈS la dernière période affichée')+'">'+(avant?'− 12 mois avant':'＋ 12 mois après')+'</button></td></tr>';
 }
 
 function dashPeriod(opId, affId){
@@ -3281,7 +3290,7 @@ function openAffairePopup(affId){
     ' · EJ initial : '+fmt(a.montantInitial||0)+' · reste à payer à date : '+fmt(resteAPayer(a))+
     ' · date réf. rév. : '+(a.dateRefRev?mLong(a.dateRefRev):'—')+' · formule (indice) : '+esc(a.formule||'(1ʳᵉ série)')+
     ' · EJ engagés : '+fmt(sommeMontant(em))+'</p>'+
-    (ejs.length?'<div class="grid-wrap" style="max-height:52vh"><table class="liste"><thead><tr><th></th><th>N°</th><th>Libellé</th><th>Date</th><th class="num">Montant</th><th>Profil CP</th><th class="num">CP</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    (ejs.length?'<div class="grid-wrap"><table class="liste"><thead><tr><th></th><th>N°</th><th>Libellé</th><th>Date</th><th class="num">Montant</th><th>Profil CP</th><th class="num">CP</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
                :'<p class="hint">Aucun EJ sur cette affaire.</p>')+
     '<div class="formrow" style="margin-top:12px"><button type="button" class="btn" id="ap-cancel" title="Fermer">Fermer</button></div></div>';
   document.body.appendChild(ov);
@@ -3309,7 +3318,7 @@ function openOpPopup(opId){
   }).join('');
   ov.innerHTML='<div class="modal"><h2>Opération « '+esc(o.nom)+' » — '+as.length+' affaire(s)</h2>'+
     (o.description?'<p class="hint">'+esc(o.description)+'</p>':'')+
-    (as.length?'<div class="grid-wrap" style="max-height:52vh"><table class="liste"><thead><tr><th>Affaire</th><th>Entreprise</th><th>Réf. contrat</th><th class="num">EJ initial</th><th class="num">Reste à payer</th><th class="num">EJ engagés</th><th class="num">Aléas+Rk</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    (as.length?'<div class="grid-wrap"><table class="liste"><thead><tr><th>Affaire</th><th>Entreprise</th><th>Réf. contrat</th><th class="num">EJ initial</th><th class="num">Reste à payer</th><th class="num">EJ engagés</th><th class="num">Aléas+Rk</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
              :'<p class="hint">Aucune affaire sur cette opération.</p>')+
     '<div class="formrow" style="margin-top:12px"><button type="button" class="btn" id="op-cancel" title="Fermer">Fermer</button></div></div>';
   document.body.appendChild(ov);
@@ -3534,7 +3543,7 @@ function openProfilPopup(ejId){
       '<td data-cell="coh" title="Un écart en retard comme en avance est une incohérence">'+v.coh+'</td></tr>';
   });
   var persoPane='<p class="hint">Saisissez les CP de cet EJ <strong>mois par mois</strong> (ils s\'ajoutent à ceux saisis dans la grille « Consommation CP »). Le <strong>CP réalisé de l\'affaire</strong> est rappelé à côté pour les mois passés, avec l\'indicateur de cohérence.</p>'+
-    '<div class="grid-wrap" style="max-height:320px"><table class="liste"><thead><tr>'+
+    '<div class="grid-wrap"><table class="liste"><thead><tr>'+
     '<th>Mois</th><th class="num" title="CP consommés ce mois pour cet EJ (saisie)">CP cet EJ (saisi)</th>'+
     '<th class="num" title="CP prévus ce mois pour toute l\'affaire">CP prévus affaire</th>'+
     '<th class="num" title="CP réalisés ce mois (onglet « Réalisé »)">CP réalisés affaire</th>'+
@@ -3683,6 +3692,7 @@ function renderConso(){
   });
 
   var body='';
+  body+=extRow('avant', ejs.length+3);
   for(var r=1;r<=months.length;r++){
     var m=months[r-1];
     var tot=0;
@@ -3703,6 +3713,7 @@ function renderConso(){
     });
     body+='</tr>';
   }
+  body+=extRow('après', ejs.length+3);
   var foot='<tr><td class="scol sc0"></td><td class="scol sc1">Total</td>';
   var gt=0;
   ejs.forEach(function(e){ var s=cpSumOf(e.id); gt+=s; foot+='<td class="dcol ccell tot">'+fmt0(s)+'</td>'; });
@@ -3736,7 +3747,7 @@ function renderConso(){
       var ab=ev.target.closest('button[data-affbtn]');
       if(ab){ openAffairePopup(ab.dataset.affbtn); return; }
     });
-    w.addEventListener('change', function(ev){
+    var consoChange=function(ev){
       var t=ev.target;
       if(t.dataset&&t.dataset.ejf){
         var e2=ejById(t.dataset.ejf); if(!e2) return;
@@ -3754,7 +3765,9 @@ function renderConso(){
         if(v2==null||v2<=0) delete state.cps[k]; else state.cps[k]=v2;
         save(); renderConso(); return;
       }
-    });
+    };
+    w.addEventListener('change', consoChange);
+    w.addEventListener('input', consoChange); /* mise à jour en direct (cases grisées suivent la date de l'EJ) */
   });
 }
 
@@ -4101,7 +4114,9 @@ function renderGp(){
 
   /* synthèse avec substitution : mois passé + réalisé -> réalisé ; sinon saisi */
   function synthVals(v, m){ var past=m&&m<cur; return {sej:(past&&v.rej>0?v.rej:v.ej)+v.ae+v.rk+v.rp, scp:(past&&v.rcp>0?v.rcp:v.cp)+v.ac+v.rc+v.rp}; }
+  var totalCols0=opCols.reduce(function(s,og){ return s+og.cs.reduce(function(s2,a){ return s2+gCols('a:'+a.id); },0)+gCols('o:'+og.o.id); },0)+1;
   var body='';
+  body+=extRow('avant', totalCols0);
   months.forEach(function(m){
     body+='<tr'+(m===cur?' class="gp-cur"':'')+'><td'+(m===cur?' style="background:var(--amber-bg);font-weight:600"':'')+'>'+mLong(m)+'</td>';
     opCols.forEach(function(og){
@@ -4118,6 +4133,7 @@ function renderGp(){
     });
     body+='</tr>';
   });
+  body+=extRow('après', totalCols0);
 
   var foot='<tr class="gp-tot"><td>Total</td>';
   opCols.forEach(function(og){
@@ -4295,7 +4311,9 @@ function renderRevisions(){
     if(tot) h2+='<th class="rev-h-tot" rowspan="2" colspan="2" title="Total de l\'opération (plusieurs affaires)">Σ '+esc(og.o.nom)+'<br>CP · RP</th>';
   });
 
+  var revCols=2+opCols.reduce(function(s,og){ return s+og.cs.length*3+((og.cs.length>1)?2:0); },0);
   var body='';
+  body+=extRow('avant', revCols);
   months.forEach(function(m,ri){
     body+='<tr'+(m===cur?' class="gp-cur"':'')+'><td class="scol sc0 rnum">'+(ri+1)+'</td><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLabel(m)+'</td>';
     opCols.forEach(function(og){
@@ -4317,6 +4335,7 @@ function renderRevisions(){
     });
     body+='</tr>';
   });
+  body+=extRow('après', revCols);
 
   h+='<div class="grid-wrap"><table class="liste gp-table rev-table"><thead><tr>'+h1+'</tr><tr>'+h2+'</tr><tr>'+h3+'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
 
@@ -4473,7 +4492,7 @@ function renderRealise(){
        '<th class="num" title="CP effectivement payés ce mois (saisie, mois passés uniquement)">CP réalisé</th>'+
        '<th class="num" title="Écart EJ = réalisé − engagé (mois)">Écart EJ</th>'+
        '<th class="num" title="Écart CP = réalisé − prévu (mois)">Écart CP</th>'+
-       '<th title="Un écart en retard comme en avance est une incohérence">Statut</th><th>Actions</th></tr></thead><tbody>';
+       '<th title="Un écart en retard comme en avance est une incohérence">Statut</th><th>Actions</th></tr></thead><tbody>'+extRow('avant',9);
     months.forEach(function(m){
       var ejM=0, cpM=0;
       ejs.forEach(function(e){ if(e.mois===m) ejM+=montantOf(e); cpM+=cpPrevu(e,m); });
@@ -4518,7 +4537,7 @@ function renderRealise(){
          '<td>'+statut+'</td>'+
          '<td style="white-space:nowrap">'+actions+'</td></tr>';
     });
-    h+='</tbody></table></div></div>';
+    h+='</tbody>'.replace('</tbody>','')+extRow('après',9)+'</tbody></table></div></div>';
   });
 
   mount('view-realise', h, function(w){
@@ -4649,7 +4668,7 @@ function renderIndices(){
   }else{
     h+='<p class="hint">Le tableau couvre <strong>tous les mois de la période</strong> : du premier mois de l\'affaire la plus récente (date de réf. de révision) jusqu\'au dernier mois du dernier CP. Cellules éditables. <strong>Coller depuis Excel</strong> : copiez un bloc (1ʳᵉ colonne = mois, puis une colonne par série dans l\'ordre), cliquez une cellule du tableau (colonne « Mois » de préférence), puis <strong>Ctrl+V</strong>. Dates acceptées : AAAA-MM, MM/AAAA, MM/AA, n° de série Excel. La 1ʳᵉ colonne collée crée les nouveaux mois.</p>'+
        '<p class="hint" id="idx-paste-info"></p>';
-    h+='<div class="grid-wrap" style="max-height:60vh"><table class="liste idx-grid" id="idx-grid"><thead><tr><th data-c="0" title="Colonne des mois — collez ici pour créer des lignes">Mois</th>';
+    h+='<div class="grid-wrap"><table class="liste idx-grid" id="idx-grid"><thead><tr><th data-c="0" title="Colonne des mois — collez ici pour créer des lignes">Mois</th>';
     series.forEach(function(sr,si){
       h+='<th data-c="'+(si+1)+'" title="Colonne de la série '+esc(sr.nom)+'">'+esc(sr.nom)+'<br><span class="muted mono" style="font-weight:400">{'+esc(sr.nom)+'}</span></th>';
     });
@@ -4924,6 +4943,15 @@ function bootError(e){
     location.reload();
   });
 }
+
+/* Boutons "développer la période" (avant/après les mois affichés) */
+document.addEventListener('click', function(ev){
+  var b=ev.target&&ev.target.closest?ev.target.closest('button[data-ext]'):null;
+  if(!b) return;
+  if(b.dataset.ext==='before') state.ui.extBefore=(state.ui.extBefore||0)+12;
+  else state.ui.ext=(state.ui.ext||0)+12;
+  save(); render();
+});
 
 /* Sélecteurs de mois custom : le bouton ▾ ouvre le calendrier mensuel */
 document.addEventListener('click', function(ev){

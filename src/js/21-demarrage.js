@@ -70,6 +70,15 @@ function bootError(e){
   });
 }
 
+/* Boutons "développer la période" (avant/après les mois affichés) */
+document.addEventListener('click', function(ev){
+  var b=ev.target&&ev.target.closest?ev.target.closest('button[data-ext]'):null;
+  if(!b) return;
+  if(b.dataset.ext==='before') state.ui.extBefore=(state.ui.extBefore||0)+12;
+  else state.ui.ext=(state.ui.ext||0)+12;
+  save(); render();
+});
+
 /* Sélecteurs de mois custom : le bouton ▾ ouvre le calendrier mensuel */
 document.addEventListener('click', function(ev){
   var mb=ev.target&&ev.target.closest?ev.target.closest('.month-btn'):null;

@@ -62,7 +62,7 @@ function renderRealise(){
        '<th class="num" title="CP effectivement payés ce mois (saisie, mois passés uniquement)">CP réalisé</th>'+
        '<th class="num" title="Écart EJ = réalisé − engagé (mois)">Écart EJ</th>'+
        '<th class="num" title="Écart CP = réalisé − prévu (mois)">Écart CP</th>'+
-       '<th title="Un écart en retard comme en avance est une incohérence">Statut</th><th>Actions</th></tr></thead><tbody>';
+       '<th title="Un écart en retard comme en avance est une incohérence">Statut</th><th>Actions</th></tr></thead><tbody>'+extRow('avant',9);
     months.forEach(function(m){
       var ejM=0, cpM=0;
       ejs.forEach(function(e){ if(e.mois===m) ejM+=montantOf(e); cpM+=cpPrevu(e,m); });
@@ -107,7 +107,7 @@ function renderRealise(){
          '<td>'+statut+'</td>'+
          '<td style="white-space:nowrap">'+actions+'</td></tr>';
     });
-    h+='</tbody></table></div></div>';
+    h+='</tbody>'.replace('</tbody>','')+extRow('après',9)+'</tbody></table></div></div>';
   });
 
   mount('view-realise', h, function(w){
