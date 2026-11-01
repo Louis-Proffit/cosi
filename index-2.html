@@ -704,7 +704,16 @@ function mergeVersionsFromFiles(files){
 function loadFromDir(){
   if(!DATAFILE.handle) return Promise.reject(new Error('Aucun dossier connecté'));
   return listDirFiles().then(function(files){
-    if(!files.length) throw new Error('aucun fichier JSON compatible (format cosi2-donnees) dans ce dossier');
+    if(!files.length){
+      /* Dossier vide ou sans JSON compatible (ex. NOUVEAU dossier choisi) : on garde
+         l'état courant et on marque le dossier comme connecté — la 1ʳᵉ sauvegarde
+         y créera le premier fichier cosi2-donnees-*.json. */
+      DATAFILE.name=DATAFILE.handle.name||DATAFILE.name||'dossier';
+      DATAFILE.loaded=true; DATAFILE.status='ok';
+      save(); dataDirty=false;
+      updateFileBar(); render();
+      return;
+    }
     var last=files[files.length-1];
     state=repairState(applyDataPayload(last.payload));
     state.versions=mergeVersionsFromFiles(files);

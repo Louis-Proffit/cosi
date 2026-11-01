@@ -1,0 +1,726 @@
+/* Harnais v4 : stubs DOM evenementiels + execution du script + assertions.
+   Usage: node cosi-h4.js "C:/Users/louis/Bureau/git/cosi/index-2.html" */
+const fs = require('fs');
+const htmlPath = process.argv[2] || require('path').join(__dirname, '..', 'dist', 'index.html');
+const html = fs.readFileSync(htmlPath, 'utf8');
+const lines = html.split('\n');
+const s0 = lines.findIndex(l => l === '<script>');
+const s1 = lines.findIndex(l => l === '</script>');
+const script = lines.slice(s0 + 1, s1).join('\n');
+
+function makeEl(tag) {
+  const el = {
+    tagName: tag || 'div', innerHTML: '', textContent: '', value: '', disabled: false, id: '',
+    style: {}, dataset: {}, files: [], children: [], _listeners: {}, _qs: {}, _closest: null,
+    classList: { add(){}, remove(){}, toggle(){}, contains(){ return false; } },
+    addEventListener(t, f){ (this._listeners[t] = this._listeners[t] || []).push(f); },
+    removeEventListener(){},
+    appendChild(c){ this.children.push(c); return c; },
+    removeChild(c){ this.children = this.children.filter(x => x !== c); },
+    replaceChildren(c){ this.children = [c]; this.innerHTML = c ? c.innerHTML : ''; },
+    remove(){}, click(){}, setAttribute(){}, focus(){},
+    closest(){ return this._closest; },
+    querySelector(sel){ if (!this._qs[sel]) this._qs[sel] = makeEl('q:' + sel); return this._qs[sel]; },
+    querySelectorAll(){ return []; },
+  };
+  return el;
+}
+function fire(el, type, ev){ (el._listeners[type] || []).forEach(f => f(ev)); }
+const byId = {};
+global.document = {
+  getElementById(id){ if (!byId[id]) byId[id] = makeEl('div#' + id); return byId[id]; },
+  createElement(tag){ return makeEl(tag); },
+  addEventListener(){}, removeEventListener(){},
+  body: makeEl('body'),
+};
+global.window = { addEventListener(){}, removeEventListener(){}, showDirectoryPicker(){ return Promise.resolve(makeFakeDir({})); }, showSaveFilePicker(){ return Promise.resolve(null); }, showOpenFilePicker(){ return Promise.resolve([]); } };
+global.location = { reload(){} };
+const store = {};
+global.localStorage = {
+  getItem(k){ return k in store ? store[k] : null; },
+  setItem(k, v){ store[k] = String(v); },
+  removeItem(k){ delete store[k]; },
+};
+const alerts = [];
+global.alert = (m) => alerts.push(String(m));
+global.confirm = () => true;
+global.prompt = () => null;
+global.FileReader = function(){ this.readAsText = () => {}; };
+global.Blob = function(){};
+global.URL = { createObjectURL(){ return 'blob:x'; }, revokeObjectURL(){} };
+global.navigator = {};
+
+
+function makeFakeFileHandle(dir, name){
+  return { name: name,
+    createWritable(){ let buf=''; return Promise.resolve({ write(t){ buf+=t; return Promise.resolve(); }, close(){ dir._files[name]=buf; return Promise.resolve(); } }); },
+    getFile(){ return Promise.resolve({ name:name, lastModified:Date.now(), text(){ return Promise.resolve(dir._files[name]); } }); } };
+}
+function makeFakeDir(files, name){
+  return { kind:'directory', name:name||'dossier-test', _files:files,
+    values(){ const arr=Object.keys(this._files).map(n=>({kind:'file', name:n, getFile(){ return Promise.resolve({name:n, lastModified:1, text(){ return Promise.resolve(files[n]); }}); }})); let i=0; const self=this; return { next(){ return Promise.resolve(i<arr.length?{value:arr[i++],done:false}:{value:undefined,done:true}); } }; },
+    queryPermission(){ return Promise.resolve('granted'); },
+    requestPermission(){ return Promise.resolve('granted'); },
+    getFileHandle(n, opts){ const self=this; if(opts&&opts.create){ if(self._files[n]!=null && opts.create===true && self._exists===false){} if(self._files[n]!=null){ return Promise.reject(new Error('existe déjà')); } self._files[n]=''; return Promise.resolve(makeFakeFileHandle(self,n)); } return self._files[n]!=null?Promise.resolve(makeFakeFileHandle(self,n)):Promise.reject(new Error('introuvable')); } };
+}
+
+const testCode = `
+;(async function(){ try{
+  var RESULTS = {pass:[], fail:[]};
+  function hdr0hasSvgLogo(){ return global.__HDRRAW__ ? global.__HDRRAW__.indexOf("logo-gouv")>=0 : false; }
+  function ok(cond, name){ (cond?RESULTS.pass:RESULTS.fail).push(name); }
+  function htmlOf(view){ var el=document.getElementById("view-"+view); return el?el.innerHTML:""; }
+  function lastModal(){ var ch=document.body.children; return ch.length?ch[ch.length-1]:null; }
+
+  state = demoState();
+
+  // ---- modele affaire simplifie ----
+  var a1 = affaireById("a1");
+  ok(a1.refContrat==="CTR-2026-014" && a1.dateRefRev==="2026-01" && a1.formule==="=0.6*{BT01}+0.4*{TP}", "demo: affaire avec refContrat, dateRefRev, formule (indice)");
+  ok(a1.partRevisable===undefined && a1.indiceBase===undefined && a1.coefFixe===undefined && a1.coefVar===undefined, "demo: plus de partRevisable/indiceBase/coefFixe/coefVar");
+  ok(DEFAULT_REV_FORMULA==="={c}*({i}/{i0}-1)", "formule revision par defaut = {c}*({i}/{i0}-1) ({c} = CP du mois)");
+  ok(Math.abs(indiceRef(a1)-1000)<1e-9, "indiceRef(a1)=1000 (indice a la date de ref 2026-01), got "+indiceRef(a1));
+  recomputeProfils(state);
+  var iM = indiceApplicable(a1,"2026-10");
+  ok(revisionMois(a1,"2026-09")===0 && cpMoisAff(a1,"2026-09")===0, "RP = 0 sur un mois SANS CP (a1 2026-09), got "+revisionMois(a1,"2026-09"));
+  var cp11=cpMoisAff(a1,"2026-11");
+  ok(cp11>0, "cpMoisAff(a1,2026-11) = CP du mois > 0, got "+cp11);
+  ok(Math.abs(revisionMois(a1,"2026-11") - cp11*(indiceApplicable(a1,"2026-11")/1000-1)) < 0.01, "revisionMois(a1,2026-11) = CP du mois x (I/I0 - 1)");
+  ok(Math.abs(revisionMois(a1,"2026-11")-cp11*(1031.2/1000-1))<0.01, "RP a1 2026-11 = CP du mois x (I/I0 - 1) = "+Math.round(cp11*0.0312)+", got "+revisionMois(a1,"2026-11"));
+  var rc=revisionCumul(a1,"2026-11"), rs=0; scopeMonths("op1","a1").forEach(function(m){ if(m<="2026-11") rs+=revisionMois(a1,m); });
+  ok(Math.abs(rc-rs)<0.01, "revisionCumul(a1,2026-11) = somme des RP mensuelles jusqu'au mois = "+Math.round(rc));
+
+  // ---- migration repairState ----
+  var old = demoState();
+  old.affaires[0].partRevisable = 90; old.affaires[0].indiceBase = 1000; old.affaires[0].coefFixe = 0.15; old.affaires[0].coefVar = 0.85;
+  old.affaires[0].formuleIndice="=0.6*{BT01}+0.4*{TP}"; old.affaires[0].formuleRev="={e}*({cf}+{cv}*{i}/{i0}-1)"; delete old.affaires[0].dateRefRev; delete old.affaires[0].refContrat;
+  var st2 = repairState(old);
+  var oa = st2.affaires[0];
+  ok(oa.partRevisable===undefined && oa.indiceBase===undefined && oa.coefFixe===undefined && oa.coefVar===undefined, "migration: anciens champs coef/indiceBase/partRevisable supprimes");
+  ok(/^\\d{4}-\\d{2}$/.test(oa.dateRefRev||""), "migration: dateRefRev renseignee ("+oa.dateRefRev+")");
+  ok(oa.formule==="=0.6*{BT01}+0.4*{TP}" && oa.formuleRev===undefined && oa.formuleIndice===undefined, "migration: formuleIndice+formuleRev fusionnées en formule");
+  ok(typeof oa.refContrat==="string", "migration: refContrat present");
+
+  // ---- reste a payer = EJ cumules - CP cumules ----
+  var al = state.ejs.filter(isAlea)[0];
+  recomputeProfils(state); var m1 = montantAlea(al);
+  recomputeProfils(state); var m2 = montantAlea(al);
+  ok(m1===m2, "montantAlea stable (pas de boucle), m="+m1);
+  var cur = curMois(), expR = 0;
+  ejsOfAffaire(a1.id).forEach(function(e){
+    if(!isMaterialise(e)) return;
+    if(e.mois<=cur) expR+=montantOf(e);
+    expR-=cpSumOf(e.id,cur);
+  });
+  ok(Math.abs(resteAPayer(a1)-expR)<0.01, "resteAPayer = EJ engages cumules - CP cumules des EJ engages a date");
+  var rapEnd=0; state.affaires.forEach(function(a){ rapEnd+=resteAPayer(a,"9999-12"); });
+  ok(Math.abs(rapEnd)<0.01, "reste a payer finit a 0 sur toute la periode ("+Math.round(rapEnd*100)/100+")");
+  var rapB = resteAPayer(a1); a1.montantInitial += 5000000;
+  ok(Math.abs(resteAPayer(a1)-rapB)<0.01, "resteAPayer independant du montant initial");
+  a1.montantInitial -= 5000000;
+  alerts.length = 0; materialiser(al);
+  ok(alerts.length===1 && isAlea(al), "materialiser(alea) refuse");
+
+  // ---- vues ----
+  state.ui.view="dashboard"; render(); var dash = htmlOf("dashboard");
+  ok(dash.indexOf("Montant de l'opération (hors risques/aléas)")>=0, "dashboard: KPI montant operation hors risques/aleas");
+  ok(dash.indexOf("EJ engagés à date")>=0 && dash.indexOf("CP faits à date")>=0 && dash.indexOf("Reste à payer à date")>=0, "dashboard: KPI EJ a date, CP faits a date, reste a payer");
+  ok(dash.indexOf("Risques (hypothèse haute)")>=0 && dash.indexOf("Atterrissage haut")>=0 && dash.indexOf("Aléas")>=0, "dashboard: KPI aleas, risques haut, atterrissage haut");
+  ok(dash.indexOf("Reste à payer à date :")>=0, "dashboard: tooltips mensuels avec reste a payer");
+  ok(dash.indexOf("Prévisionnel EJ par mois")>=0 && dash.indexOf("Prévisionnel CP par mois")>=0, "dashboard: deux graphiques mensuels EJ et CP");
+  ok(dash.indexOf("finit à 0")>=0, "dashboard: legende reste a payer finit a 0");
+  ok((dash.match(/<title>/g)||[]).length >= 5, "dashboard: tooltips mensuels");
+  var bluePath = (dash.match(/<path d="([^"]+)" fill="none" stroke="#2563eb"[^>]*>/)||[])[1]||"";
+  ok(/L([0-9.]+) [0-9.]+ L\\1 /.test(bluePath), "dashboard: courbe EJ piquee (escalier)");
+
+  state.ui.view="risques"; renderRisques(); var rk = htmlOf("risques");
+  ok(rk.indexOf("spark-btn")>=0 && rk.indexOf("data-rkedit")>=0, "risques: mini-graphique cliquable");
+  ok(rk.indexOf("data-f=\\"distA\\"")<0, "risques: plus de champs dist inline dans le tableau");
+  ok((rk.match(/data-mat=/g)||[]).length === scopedEjs(state.ui.op||'', state.ui.aff||'').filter(isRisque).length, "risques: materialiser seulement sur les risques");
+
+  state.ui.view="conso"; renderConso(); var co = htmlOf("conso");
+  ok(co.indexOf("AL-01")<0 && co.indexOf("GC-R1")<0 && co.indexOf("GC-01")>=0, "conso: seuls les EJ materialises dans la grille");
+  ok(co.indexOf("data-affbtn")>=0, "conso: affaire cliquable (popup) dans l en-tete");
+  ok(/data-ejf="[^"]+" data-f="mois"/.test(co), "conso: date de l EJ editable dans le tableau (champ mois)");
+
+  // changement de la date d un EJ via le champ mois de la grille conso
+  var hostC = document.getElementById("view-conso");
+  var wC = hostC.children[0];
+  var e1 = ejById("e1"); var oldMois = e1.mois;
+  fire(wC, "change", {target:{dataset:{ejf:"e1", f:"mois"}, value:"2027-06"}});
+  ok(e1.mois==="2027-06", "conso: changement de date EJ pris en compte (e1.mois="+e1.mois+")");
+  fire(wC, "change", {target:{dataset:{ejf:"e1", f:"mois"}, value:"pas-un-mois"}});
+  ok(e1.mois==="2027-06", "conso: date invalide ignoree");
+  e1.mois = oldMois; recomputeProfils(state); save();
+
+  // popups affaire / operation depuis la vue structure
+  state.ui.view="structure"; renderStructure(); var st = htmlOf("structure");
+  ok(st.indexOf("data-f=\\"refContrat\\"")>=0 && st.indexOf("data-f=\\"dateRefRev\\"")>=0 && st.indexOf("data-f=\\"formule\\"")>=0, "structure: affaire = nom/entreprise/ref contrat/EJ initial/date ref rev/formule rev");
+  ok(st.indexOf("data-f=\\"partRevisable\\"")<0 && st.indexOf("data-f=\\"coefFixe\\"")<0 && st.indexOf("data-f=\\"indiceBase\\"")<0, "structure: plus de champs coef/indice/part revisable");
+  ok(st.indexOf("data-opview")>=0 && st.indexOf("data-affview")>=0, "structure: boutons Voir (operation + affaire)");
+  openOpPopup("op1");
+  var mOp = lastModal();
+  ok(mOp && mOp.innerHTML.indexOf("Génie civil")>=0 && mOp.innerHTML.indexOf("CTR-2026-014")>=0, "popup operation: liste les affaires (avec ref contrat)");
+  openAffairePopup("a1");
+  var mAff = lastModal();
+  ok(mAff && mAff.innerHTML.indexOf("GC-01")>=0 && mAff.innerHTML.indexOf("sept. 2026")>=0, "popup affaire: liste tous les EJ avec leurs dates");
+  ok(mAff.innerHTML.indexOf("AL-01")>=0 && mAff.innerHTML.indexOf("GC-R1")>=0, "popup affaire: inclut aussi aleas et risques");
+
+  // ---- bouton Ajouter l affaire ----
+  var hostS = document.getElementById("view-structure");
+  renderStructure();
+  var wS = hostS.children[0];
+  var nbBefore = state.affaires.length;
+  wS.querySelector("#new-a-nom").value = "Affaire test";
+  wS.querySelector("#new-a-tit").value = "Entreprise X";
+  wS.querySelector("#new-a-ref").value = "CTR-2026-999";
+  wS.querySelector("#new-a-montant").value = "1 500 000";
+  wS.querySelector("#new-a-dateref").value = "2026-03";
+  wS.querySelector("#new-a-formule").value = "";
+  var btnAdd = makeEl("button"); btnAdd.id = "add-a"; btnAdd._closest = btnAdd;
+  fire(wS, "click", {target: btnAdd});
+  ok(state.affaires.length === nbBefore+1, "bouton add-a: affaire ajoutee ("+nbBefore+" -> "+state.affaires.length+")");
+  var na = state.affaires[state.affaires.length-1];
+  ok(na.nom==="Affaire test" && na.titulaire==="Entreprise X" && na.refContrat==="CTR-2026-999" && na.montantInitial===1500000 && na.dateRefRev==="2026-03" && na.formule==="", "bouton add-a: champs renseignes (EJ initial parse: "+na.montantInitial+")");
+  ok(na.partRevisable===undefined && na.coefFixe===undefined, "bouton add-a: pas de champs coef dans la nouvelle affaire");
+  ok(na.opId === (state.ui.op||state.operations[0].id), "bouton add-a: affaire rattachee a l operation en cours");
+  renderStructure(); wS = hostS.children[0];
+  wS.querySelector("#new-a-nom").value = "   ";
+  var nb2 = state.affaires.length;
+  fire(wS, "click", {target: btnAdd});
+  ok(state.affaires.length === nb2, "bouton add-a: nom vide -> rien cree");
+  st = htmlOf("structure");
+  ok(st.indexOf("Affaire test")>=0, "structure: la nouvelle affaire apparait dans le tableau");
+
+  // vues restantes
+  state.ui.view="gp"; renderGp(); ok(htmlOf("gp").length>100, "gp: rendu OK");
+  state.ui.view="revisions"; state.ui.op="op1"; state.ui.aff=""; renderRevisions(); var rv = htmlOf("revisions");
+  ok(rv.indexOf('id="r-op"')<0 && rv.indexOf('id="r-aff"')<0, "revisions: plus de sélecteurs locaux (filtres globaux en en-tête)");
+  ok(rv.indexOf("data-rev=")<0 && rv.indexOf("data-idxf")<0 && rv.indexOf("data-rvf")<0, "revisions: lecture seule (pas de saisie)");
+  ok((rv.match(/class="rev-h-col"/g)||[]).length===(3*scopedAffaires("op1","").length), "revisions: 3 colonnes par affaire ("+(rv.match(/class="+"rev-h-col"+"/g)||[]).length+" th)");
+  ok(rv.indexOf("Σ CP")>=0 && rv.indexOf("Σ RP")>=0, "revisions: colonnes de total opération");
+  ok(rv.indexOf("I/I₀=1,031")>=0, "revisions: indice recalé I/I₀ à 1 à la date de réf (a1 10/2026 = 1,031)");
+  ok(rv.indexOf(fmt0(revisionMois(a1,"2026-10")))>=0 && revisionMois(a1,"2026-10")>0, "revisions: RP du mois affichée = CP du mois x (I/I0-1) (a1 10/2026 = "+fmt0(revisionMois(a1,"2026-10"))+")");
+  ok(rv.indexOf("RP cumulées par année")>=0 && rv.indexOf(">2026<")>=0 && rv.indexOf(">2027<")>=0, "revisions: tableau synthèse RP par année (2026, 2027)");
+  var rp26=0; scopeMonths("op1","a1").forEach(function(m){ if(m.slice(0,4)==="2026") rp26+=revisionMois(a1,m); });
+  ok(rv.indexOf(fmt0(rp26))>=0 && rp26>0, "revisions: RP cumulées a1 en 2026 = somme des RP mensuelles = "+fmt0(rp26));
+  ok((rv.match(/data-go="structure"/g)||[]).length===scopedAffaires("op1","").length && (rv.match(/data-go="conso"/g)||[]).length===scopedAffaires("op1","").length && (rv.match(/data-go="indices"/g)||[]).length===scopedAffaires("op1","").length, "revisions: boutons de lien fx/CP/idx par affaire");
+  // clic sur bouton de lien CP -> onglet conso pré-sélectionné
+  var hostR=document.getElementById("view-revisions"); var wR=hostR.children[0];
+  var bGo=makeEl("button"); bGo.dataset.go="conso"; bGo.dataset.op="op1"; bGo.dataset.aff="a2"; bGo._closest=bGo;
+  fire(wR,"click",{target:bGo});
+  ok(state.ui.view==="conso" && state.ui.op==="op1" && state.ui.aff==="a2", "revisions: bouton CP -> onglet Consommation CP pré-sélectionné (op1/a2)");
+  // sélecteur affaire
+  state.ui.view="revisions"; renderRevisions(); wR=document.getElementById("view-revisions").children[0];
+  var gaff=document.getElementById("g-aff"); gaff.value="a3";
+  fire(gaff,"change",{target:gaff});
+  ok(state.ui.aff==="a3", "filtre global affaire (en-tête) pris en compte");
+  // structure: champ formule d'indice présent sur la ligne affaire
+  state.ui.view="structure"; renderStructure(); var stx=htmlOf("structure");
+  ok(stx.indexOf('data-f="formule"')>=0 && stx.indexOf('data-f="formuleRev"')<0, "structure: une seule formule (indice) éditable sur l affaire");
+  state.ui.view="realise"; renderRealise(); ok(htmlOf("realise").length>100, "realise: rendu OK");
+  state.ui.view="indices"; renderIndices(); ok(htmlOf("indices").length>50, "indices: rendu OK");
+  state.ui.view="donnees"; renderDonnees(); ok(htmlOf("donnees").indexOf("dateRefRev")>=0, "donnees: doc format a jour");
+
+  // entonnoir: un tooltip par mois
+  var affs=scopedAffaires("",""), ejs=scopedEjs("",""), months=scopeMonths("","");
+  var s1=chartEntonnoir(affs,ejs,months,null);
+  ok((s1.match(/<title>/g)||[]).length===months.length, "entonnoir: un tooltip par mois");
+  ok(s1.indexOf("Reste à payer")>=0, "entonnoir: courbe reste a payer");
+
+
+  // ---- export texte par annee dans GP ----
+  state.ui.op=""; state.ui.aff=""; state.ui.view="gp"; renderGp(); var gp = htmlOf("gp");
+  ok(gp.indexOf("Export texte par annee")<0 && gp.indexOf("Export texte par ann")>=0, "gp: carte export texte par annee presente");
+  ok(gp.indexOf("08/26 : 300 k€ MOE-01")>=0 || gp.indexOf("08/26 : 300 k")>=0, "gp: ligne prevue mm/AA : X kE intitule : "+"?");
+  ok(gp.indexOf("CP r")>=0 && gp.indexOf("G")>=0 && gp.indexOf("néralis")>=0 || gp.indexOf("CP r")>=0, "gp: partie realise presente");
+  ok(gp.indexOf("CP r")>=0 && gp.indexOf("alis")>=0, "gp: intitule CP realise avec affaire");
+  var nbCopy=(gp.match(/data-copyblk/g)||[]).length;
+  ok(nbCopy===4, "gp: 2 boutons Copier par annee (EJ + CP) x 2 annees = 4, nb="+nbCopy);
+  var card=gp.slice(gp.indexOf("Export texte par ann"));
+  ok(card.indexOf(">2026<")>=0 && card.indexOf(">2027<")>=0, "gp: annees avec au moins un EJ ou un CP (2026, 2027)");
+  function blkOf(card, id){ var q=String.fromCharCode(34); var a=card.indexOf("id="+q+id+q); if(a<0) return ""; var b=card.indexOf(">", a); var c=card.indexOf("</pre>", b); return c<0?"":card.slice(b+1, c); }
+  var ej26=blkOf(card, "gp-copy-ej-2026"), cp26=blkOf(card, "gp-copy-cp-2026");
+  var ej27=blkOf(card, "gp-copy-ej-2027"), cp27=blkOf(card, "gp-copy-cp-2027");
+  ok(ej26.indexOf("REALISE:")>=0 && ej26.indexOf("PREVU:")>=0 && ej26.indexOf("EJ réalisé")>=0 && ej26.indexOf("09/26 : "+kEur(2400000))>=0, "gp: version EJ 2026 = REALISE (EJ réalisés) + PREVU (EJ engagés)");
+  ok(cp26.indexOf("REALISE:")>=0 && cp26.indexOf("PREVU:")>=0 && cp26.indexOf("CP réalisé")>=0, "gp: version CP 2026 = REALISE (CP payés) + PREVU (CP prévus)");
+  ok(ej27.length>0 && ej27.indexOf("REALISE:")<0 && cp27.length>0 && cp27.indexOf("PREVU:")<0, "gp: 2027 (que du prevu) = blocs seuls EJ et CP, sans diviser");
+  var copied=null; navigator.clipboard={writeText:function(t){ copied=t; return Promise.resolve(); }};
+  var hostG=document.getElementById("view-gp"); var wG=hostG.children[0];
+  var pre=wG.querySelector("#gp-copy-ej-2026"); pre.textContent="REALISE:"+String.fromCharCode(10)+"08/26 : 200 kEUR"+String.fromCharCode(10)+String.fromCharCode(10)+"PREVU:"+String.fromCharCode(10)+"09/26 : 2 400 kEUR EJ";
+  var btnC=makeEl("button"); btnC.dataset.copyblk="gp-copy-ej-2026"; btnC._closest=btnC; btnC.textContent="Copier";
+  fire(wG,"click",{target:btnC});
+  ok(copied.indexOf("REALISE:")===0 && copied.indexOf("PREVU:")>0, "gp: bouton Copier envoie le bloc EJ de l annee (REALISE + PREVU)");
+
+
+  // ---- dossier de versions : un fichier JSON par sauvegarde ----
+  localStorage.setItem("cosi2.user","louis");
+  ok(currentUser()==="louis", "utilisateur courant lu depuis localStorage");
+  var fn=saveFileName(new Date("2026-10-31T18:11:47.236Z"), "louis");
+  ok(/^cosi2-donnees-2026-10-31T18-11-47-236Z-louis.json$/.test(fn), "nom de fichier = cosi2-donnees-<timestamp>-<user>.json : "+fn);
+  var fn2=saveFileName(new Date("2026-10-31T18:11:47.236Z"), "");
+  ok(/^cosi2-donnees-2026-10-31T18-11-47-236Z.json$/.test(fn2), "sans utilisateur : pas de suffixe : "+fn2);
+  // dossier factice : 1 fichier compatible existant + 1 json incompatible
+  var dirFiles={};
+  var p0=exportPayload(); p0.auteur="louis"; p0.enregistre="2026-10-31T18:11:47.236Z";
+  dirFiles["cosi2-donnees-2026-10-31T18-11-47-236Z-louis.json"]=JSON.stringify(p0);
+  dirFiles["notes.json"]=JSON.stringify({format:"autre-chose"});
+  var fakeDir=makeFakeDir(dirFiles);
+  DATAFILE.handle=fakeDir; DATAFILE.name="dossier-test"; DATAFILE.status="need-permission";
+  await loadFromDir();
+  ok(DATAFILE.status==="ok" && DATAFILE.loaded===true, "loadFromDir: dossier chargé, statut ok");
+  ok(DATAFILE.files.length===1, "listDirFiles: seul le JSON compatible est retenu ("+DATAFILE.files.length+" fichier)");
+  ok(state.versions.length>=1, "versions reprises du fichier existant ("+state.versions.length+")");
+  ok(Object.keys(VERMETA).length>=1, "VERMETA rempli (fichier/auteur par version)");
+  // sauvegarde = NOUVEAU fichier avec timestamp + utilisateur
+  var nbAv=state.affaires.length;
+  state.affaires.push({id:"aX",opId:state.operations[0].id,nom:"A9",titulaire:"",refContrat:"",montantInitial:1000,dateRefRev:curMois(),formule:""});
+  await saveToDir();
+  var names=Object.keys(dirFiles);
+  var nouveaux=names.filter(function(n){ return n.indexOf("notes.json")<0 && n.indexOf("2026-10-31T18-11-47")<0; });
+  ok(nouveaux.length===1 && /-louis.json$/.test(nouveaux[0]) && /^cosi2-donnees-/.test(nouveaux[0]), "sauvegarde = nouveau fichier cosi2-donnees-<ts>-louis.json : "+nouveaux[0]);
+  var saved=JSON.parse(dirFiles[nouveaux[0]]);
+  ok(saved.format==="cosi2-donnees" && saved.auteur==="louis", "fichier sauvegardé compatible + auteur=louis");
+  ok(saved.donnees.versions.length===1 && saved.donnees.versions[0].affaires.some(function(a){return a.id==="aX";}), "le nouveau fichier contient 1 version avec la nouvelle affaire");
+  ok(state.affaires.length===nbAv+1 && state.versions.length>=2, "state.versions enrichi après sauvegarde ("+state.versions.length+")");
+  ok(DATAFILE.savedAt!=null && dataDirty===false, "savedAt renseigné, dataDirty remis à zéro");
+  // rechargement : dernier fichier = état courant, historique = tous les fichiers
+  await loadFromDir();
+  ok(DATAFILE.files.length===2, "re-listage: 2 fichiers compatibles ("+DATAFILE.files.length+")");
+  ok(state.affaires.some(function(a){return a.id==="aX";}), "état rechargé = dernier fichier (aX présent)");
+  ok(state.versions.length>=2, "historique = versions des 2 fichiers ("+state.versions.length+")");
+  // sélecteur de versions avec métadonnées fichier/auteur
+  updateFileBar();
+  var selHtml=document.getElementById("ver-sel").innerHTML;
+  ok(selHtml.indexOf(".json")>=0 && selHtml.indexOf("louis")>=0, "sélecteur de versions: libellés avec nom de fichier et auteur");
+  // donnees: textes dossier + champ utilisateur
+  state.ui.view="donnees"; renderDonnees(); var dn=htmlOf("donnees");
+  ok(dn.indexOf("dossier…")>=0 && dn.indexOf("d-user")>=0 && dn.indexOf("auteur")>=0, "donnees: dossier de versions + champ utilisateur + doc auteur");
+  ok(dn.indexOf("Sauvegarder (nouveau fichier)")>=0, "donnees: bouton sauvegarder = nouveau fichier");
+
+
+  // ---- onglet Indices : grille toutes séries + collage Excel ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.view="indices"; renderIndices(); var ix=htmlOf("indices");
+  ok(ix.indexOf('id="idx-grid"')>=0, "indices: grille globale présente");
+  ok((ix.match(/<th data-c=/g)||[]).length===3, "indices: 1 colonne Mois + 1 par série ("+(ix.match(/<th data-c=/g)||[]).length+" th)");
+  ok(ix.indexOf('data-iv="ix1|2026-01"')>=0 && ix.indexOf('value="1000"')>=0, "indices: cellule ix1|2026-01 = 1000");
+  ok((ix.match(/data-c="0" data-r=/g)||[]).length===24, "indices: toutes les lignes de la periode (2026-01..2027-12 = 24) ("+(ix.match(/data-c="0" data-r=/g)||[]).length+")");
+  ok(ix.indexOf("idx-addserie")>=0, "indices: ajout de série conservé");
+  ok(ix.indexOf("Ctrl+V")>=0, "indices: aide collage Excel affichée");
+  ok(parseIdxDate("2026-01")==="2026-01" && parseIdxDate("01/2026")==="2026-01" && parseIdxDate("1/26")==="2026-01" && parseIdxDate("46023")==="2026-01" && parseIdxDate("abc")===null, "parseIdxDate: AAAA-MM, MM/AAAA, MM/AA, n° série Excel");
+  ok(idxMonths().length===8 && idxGridMonths().length===24 && idxGridMonths()[0]==="2026-01" && idxGridMonths()[23]==="2027-12", "idxGridMonths: periode complete 2026-01..2027-12 ("+idxGridMonths().length+" lignes, idxMonths="+idxMonths().length+")");
+  // serieValueAt ignore les cellules vides
+  state.indices[0].valeurs["2026-02"]=null;
+  ok(serieValueAt(state.indices[0],"2026-04")===1009 && serieValueAt(state.indices[0],"2026-02")===1000, "serieValueAt ignore les valeurs nulles");
+  delete state.indices[0].valeurs["2026-02"];
+  // collage Excel ancré sur la colonne Mois (crée les mois)
+  var hostI=document.getElementById("view-indices"); var wI=hostI.children[0];
+  var gridEl=wI.querySelector("#idx-grid");
+  var cellStub={ dataset:{c:"0", r:"0"}, closest:function(){ return this; } };
+  var TAB=String.fromCharCode(9), NL=String.fromCharCode(10); var clip="2026-05"+TAB+"1010,5"+TAB+"1020"+NL+"2026-06"+TAB+"1011"+TAB+NL;
+  fire(gridEl,"paste",{ target:cellStub, clipboardData:{ getData:function(){ return clip; } }, preventDefault:function(){} });
+  ok(state.indices[0].valeurs["2026-05"]===1010.5 && state.indices[1].valeurs["2026-05"]===1020, "collage: valeurs décimales FR collées (1010,5)");
+  ok(state.indices[0].valeurs["2026-06"]===1011 && !("2026-06" in state.indices[1].valeurs), "collage: mois créé, cellule vide effacée");
+  ok(idxMonths().indexOf("2026-05")>=0 && idxMonths().indexOf("2026-06")>=0, "collage: nouveaux mois dans l union");
+  // collage ancré sur une cellule valeur (mois = ligne existante)
+  state.ui.view="indices"; renderIndices(); wI=document.getElementById("view-indices").children[0]; gridEl=wI.querySelector("#idx-grid");
+  var cellV={ dataset:{c:"1", r:"0"}, closest:function(){ return this; } };
+  fire(gridEl,"paste",{ target:cellV, clipboardData:{ getData:function(){ return "999"; } }, preventDefault:function(){} });
+  ok(state.indices[0].valeurs["2026-01"]===999, "collage cellule valeur: ix1 2026-01 = 999");
+  // édition directe d une cellule (change) puis vidage
+  state.ui.view="indices"; renderIndices(); wI=document.getElementById("view-indices").children[0];
+  fire(wI,"change",{ target:{ dataset:{iv:"ix1|2026-01"}, value:"" } });
+  ok(!("2026-01" in state.indices[0].valeurs), "édition cellule: vide -> valeur supprimée");
+  // ajouter un mois
+  state.ui.view="indices"; renderIndices(); wI=document.getElementById("view-indices").children[0];
+  ok(ix.indexOf("idx-addmois")<0 && ix.indexOf("data-delm")<0, "indices: plus de bouton ajouter/supprimer un mois");
+  // plage: affaire la plus ancienne -> dernier CP de toutes les opérations
+  state.affaires[5].dateRefRev="2025-06";
+  ok(idxGridMonths()[0]==="2025-06", "idxGridMonths: première ligne = affaire la plus ancienne (2025-06)");
+  // ajouter une série
+  renderIndices(); wI=document.getElementById("view-indices").children[0];
+  wI.querySelector("#idx-serie-nom").value="TP2";
+  var btnS=makeEl("button"); btnS.id="idx-addserie"; btnS._closest=btnS;
+  fire(wI,"click",{ target:btnS });
+  ok(state.indices.some(function(s){ return s.nom==="TP2"; }), "ajout de série fonctionne");
+  state = demoState();
+
+  // courbe CP lisse (pas en escalier), EJ et reste a payer piquees
+  var affsD=scopedAffaires("",""), ejsD=scopedEjs("",""), monthsD=scopeMonths("","");
+  var sE=chartEntonnoir(affsD,ejsD,monthsD,null);
+  var green=(sE.match(/<path d="([^"]+)" fill="none" stroke="#059669"[^>]*>/)||[])[1]||"";
+  var blueE=(sE.match(/<path d="([^"]+)" fill="none" stroke="#2563eb"[^>]*>/)||[])[1]||"";
+  var slate=(sE.match(/<path d="([^"]+)" fill="none" stroke="#334155"[^>]*>/)||[])[1]||"";
+  var stepRe=/L([0-9.]+) [0-9.]+ L\\1 /;
+  ok(stepRe.test(blueE), "entonnoir: courbe EJ piquee (escalier)");
+  ok(stepRe.test(slate), "entonnoir: reste a payer piquee (depend des EJ)");
+  ok(green.length>0 && !stepRe.test(green), "entonnoir: courbe CP lisse (pas d escalier)");
+
+  recomputeProfils(state);
+  var revAuto=revisionMois(a1,"2026-11");
+  ok(Math.abs(revAuto-cpMoisAff(a1,"2026-11")*(1031.2/1000-1))<0.01 && revAuto>0, "RP automatique = CP du mois x (I/I0 - 1) (a1 2026-11 = "+Math.round(revAuto)+")");
+  ok(revisionMois(a1,"2026-09")===0 && cpMoisAff(a1,"2026-09")===0, "pas de RP sur un mois sans CP de l'affaire (a1 2026-09)");
+  // ---- options GP : RP en décembre / pas de CP en décembre / pas de CP en janvier ----
+  state = demoState(); recomputeProfils(state);
+  state.ejs.push({id:"eX",affaireId:"a1",numero:"EJ-DEC",libelle:"EJ de décembre",stade:"prog",mois:"2026-12",montant:500000});
+  recomputeProfils(state);
+  var affsG=scopedAffaires("",""), monthsG=scopeMonths("","");
+  var BLK=function(yt,y,k){ return gpYearBlock(yt[y][k]); };
+  // défaut : EJ et CP de décembre présents en décembre, pas de ligne RP
+  var yt0=gpYearText(affsG,monthsG);
+  ok(BLK(yt0,"2026","ej","prevu").indexOf("12/26")>=0 && BLK(yt0,"2026","ej","prevu").indexOf("EJ-DEC")>=0, "defaut: EJ de décembre en décembre");
+  ok(BLK(yt0,"2026","cp","prevu").indexOf("12/26")>=0 && BLK(yt0,"2026","ej","prevu").indexOf("RP 2026")<0, "defaut: CP de décembre en décembre, pas de ligne RP");
+  // "Pas de CP en décembre" : CP de décembre -> janvier de l'année d'après (lignes par EJ), EJ et RP inchangés
+  state.ui.gpNoCpDec=true;
+  var yt1=gpYearText(affsG,monthsG);
+  var cp27a=BLK(yt1,"2027","cp","prevu");
+  ok(BLK(yt1,"2026","cp","prevu").indexOf("12/26")<0, "noCpDec: plus de CP en décembre 2026");
+  ok(cp27a.indexOf("01/27")>=0 && cp27a.indexOf(kEur(1000000))>=0 && cp27a.indexOf(kEur(500000))>=0, "noCpDec: CP de décembre 2026 (e2 1M + EJ-DEC 500k) -> janvier 2027");
+  ok(BLK(yt1,"2026","ej","prevu").indexOf("12/26")>=0 && BLK(yt1,"2026","ej","prevu").indexOf("RP 2026")<0, "noCpDec: EJ de décembre reste en décembre, RP inchangés");
+  // "Pas de CP en janvier" : janvier -> février
+  state.ui.gpNoCpDec=false; state.ui.gpNoCpJan=true;
+  var yt2=gpYearText(affsG,monthsG);
+  var cp27b=BLK(yt2,"2027","cp","prevu");
+  ok(cp27b.indexOf("01/27")<0 && cp27b.indexOf("02/27")>=0, "noCpJan: CP de janvier 2027 -> février 2027");
+  // "RP en décembre seulement" : ligne décembre = somme RP de l'année (versions EJ et CP), EJ déc -> nov, CP déc -> janv
+  state.ui.gpNoCpJan=false; state.ui.gpRpDec=true;
+  var yt3=gpYearText(affsG,monthsG);
+  var ej26=BLK(yt3,"2026","ej","prevu"), cp26=BLK(yt3,"2026","cp","prevu");
+  var l12ej=ej26.slice(ej26.indexOf("12/26")), l12cp=cp26.slice(cp26.indexOf("12/26"));
+  ok(l12ej.indexOf("RP 2026")>=0 && l12ej.indexOf("EJ-DEC")<0, "rpDec: ligne 12/26 EJ = somme RP 2026, sans EJ");
+  ok(ej26.indexOf("11/26")>=0 && ej26.indexOf("EJ-DEC")>=0, "rpDec: EJ de décembre déplacé en novembre");
+  ok(l12cp.indexOf("RP 2026")>=0 && l12cp.indexOf("k€ GC")<0 && l12cp.indexOf("EJ-DEC")<0, "rpDec: ligne 12/26 CP = somme RP 2026, sans CP");
+  var cp27c=BLK(yt3,"2027","cp","prevu");
+  ok(cp27c.indexOf("01/27")>=0 && cp27c.indexOf(kEur(1000000))>=0 && cp27c.indexOf(kEur(500000))>=0, "rpDec: CP de décembre -> janvier 2027");
+  // les trois cochées : CP de décembre et de janvier -> février 2027, RP en décembre
+  state.ui.gpNoCpDec=true; state.ui.gpNoCpJan=true;
+  var yt4=gpYearText(affsG,monthsG);
+  var cp27d=BLK(yt4,"2027","cp","prevu");
+  ok(cp27d.indexOf("01/27")<0 && cp27d.indexOf("02/27")>=0 && cp27d.indexOf(kEur(1000000))>=0 && cp27d.indexOf(kEur(500000))>=0, "3 options: CP de décembre 2026 et janvier 2027 -> février 2027");
+  ok(BLK(yt4,"2026","cp","prevu").indexOf("RP 2026")>=0 && BLK(yt4,"2026","ej","prevu").indexOf("RP 2026")>=0, "3 options: RP en décembre dans les versions EJ et CP");
+  // cases dans la barre d'outils + wiring
+  state.ui.gpRpDec=false; state.ui.gpNoCpDec=false; state.ui.gpNoCpJan=false;
+  state.ui.view="gp"; renderGp(); var gph=htmlOf("gp");
+  ok(gph.indexOf('id="gp-nocpdec"')>=0 && gph.indexOf('id="gp-nocpjan"')>=0 && gph.indexOf('id="gp-rpdec"')>=0, "gp: les 3 cases présentes dans la barre d'outils");
+  var wG2=document.getElementById("view-gp").children[0];
+  var cb2=wG2.querySelector("#gp-nocpdec"); cb2.checked=true;
+  fire(cb2,"change",{target:cb2});
+  ok(state.ui.gpNoCpDec===true, "gp: case 'Pas de CP en décembre' branchée sur state.ui");
+  state=demoState(); recomputeProfils(state);
+
+
+  // ---- ordre des onglets + filtres globaux en en-tête ----
+  state = demoState(); recomputeProfils(state);
+  render();
+  var navHtml=document.getElementById("nav").innerHTML;
+  var order=[...navHtml.matchAll(/data-view="([a-z]+)"/g)].map(m=>m[1]);
+  ok(JSON.stringify(order)===JSON.stringify(["dashboard","structure","risques","conso","revisions","realise","gp","indices","donnees"]), "ordre des onglets: "+order.join(","));
+  ok(document.getElementById("g-op") && document.getElementById("g-aff"), "en-tête: filtres globaux opération + affaire présents");
+  ok(document.getElementById("g-op").innerHTML.indexOf("Extension tramway")>=0 && document.getElementById("g-aff").innerHTML.indexOf("Génie civil")>=0, "en-tête: filtres remplis (opérations + affaires de l'opération)");
+  // filtre op2 : les vues ne montrent que op2
+  state.ui.op="op2"; state.ui.aff=""; render();
+  ok(document.getElementById("g-aff").innerHTML.indexOf("Génie civil")<0 && document.getElementById("g-aff").innerHTML.indexOf("Travaux hydrauliques")>=0, "filtre op2: la liste des affaires ne contient que celles de op2");
+  state.ui.view="conso"; renderConso(); var co2=htmlOf("conso");
+  ok(co2.indexOf("HYD-01")>=0 && co2.indexOf("GC-01")<0, "conso filtrée op2: HYD-01 oui, GC-01 (op1) non");
+  state.ui.view="dashboard"; render(); var d2=htmlOf("dashboard");
+  ok(d2.indexOf("Travaux hydrauliques")>=0, "dashboard filtré op2");
+  // filtre affaire a4 en plus
+  state.ui.op="op2"; state.ui.aff="a4"; render();
+  state.ui.view="conso"; renderConso(); var co3=htmlOf("conso");
+  ok(co3.indexOf("HYD-01")>=0 && co3.indexOf("AUT-01")<0, "conso filtrée op2+a4: HYD-01 oui, AUT-01 (a5) non");
+  // changement de filtre global via le select en-tête
+  var gop=document.getElementById("g-op"); gop.value="op1";
+  fire(gop,"change",{target:gop});
+  ok(state.ui.op==="op1" && state.ui.aff==="", "changement d'opération en en-tête -> ui.op=op1, affaire réinitialisée");
+  // indices et données inchangés (pas de filtres)
+  state.ui.view="indices"; renderIndices(); var ix2=htmlOf("indices");
+  ok(ix2.indexOf('id="idx-grid"')>=0 && ix2.indexOf('g-op')<0, "indices: inchangé, pas de filtre global dans la vue");
+  state = demoState(); recomputeProfils(state);
+  // ---- reste à payer hybride (pente CP + saut EJ) et zone entonnoir basse/haute ----
+  function hasJump(d){ var t=d.split(" ").filter(function(x){return x.length>0;}); for(var q=0;q+3<t.length;q++){ if(t[q][0]==="L"&&t[q+2]&&t[q+2][0]==="L"&&t[q].slice(1)===t[q+2].slice(1)) return true; } return false; }
+  function hasSlope(d){ var t=d.split(" ").filter(function(x){return x.length>0;}); for(var q=0;q+3<t.length;q++){ if(t[q][0]==="L"&&t[q+2]&&t[q+2][0]==="L"){ var x1=+t[q].slice(1),y1=+t[q+1],x2=+t[q+2].slice(1),y2=+t[q+3]; if(x1!==x2&&y1!==y2) return true; } } return false; }
+  var affsD2=scopedAffaires("",""), ejsD2=scopedEjs("",""), monthsD2=scopeMonths("","");
+  var sE2=chartEntonnoir(affsD2,ejsD2,monthsD2,null);
+  var rapPath=(sE2.match(/<path d="([^"]+)" fill="none" stroke="#334155"[^>]*>/)||[])[1]||"";
+  ok(rapPath.length>0, "entonnoir: courbe reste à payer tracée");
+  ok(hasJump(rapPath), "RAP: saut vertical présent (mois d'un EJ -> piquée)");
+  ok(hasSlope(rapPath), "RAP: segments en pente présents (CP dans le mois -> pentue)");
+  var zone=(sE2.match(/<path d="([^"]+)" fill="#fdf3e3"/)||[])[1]||"";
+  ok(zone.length>0 && hasJump(zone), "entonnoir: zone colorée avec bas en escalier (écart hypothèse basse EJ / haute mx)");
+  // tooltips avec intitulés des EJ/CP
+  state.ui.op=""; state.ui.aff=""; state.ui.view="dashboard"; render();
+  var dash2=htmlOf("dashboard");
+  var tips2=[]; var idxT=0; while(true){ var aT=dash2.indexOf("<title>",idxT); if(aT<0) break; var bT=dash2.indexOf("</title>",aT); tips2.push(dash2.slice(aT+7,bT)); idxT=bT+8; }
+  var tSep=tips2.find(function(t){ return t.indexOf("sept. 2026")===0; });
+  ok(tSep && tSep.indexOf("GC-01 Installation de chantier")>=0, "tooltip sept 2026: intitulé de l'EJ engagé (GC-01 …) présent");
+  var tDec=tips2.find(function(t){ return t.indexOf("déc. 2026")===0; });
+  ok(tDec && tDec.indexOf("GC-R1")>=0 && tDec.indexOf("Risque géotechnique")>=0, "tooltip déc 2026: intitulé du risque apparu présent");
+  ok(tDec && tDec.indexOf("GC-02")>=0, "tooltip déc 2026: intitulés des CP prévus présents");
+
+  // ---- conso : +EJ coordonné avec le filtre header ; plus de select local ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.op="op1"; state.ui.aff="a2"; state.ui.view="conso"; renderConso();
+  var coX=htmlOf("conso");
+  ok(coX.indexOf("c-adda")<0, "conso: plus de sélecteur affaire local inutile");
+  var nbEjAv=state.ejs.filter(function(e){ return e.affaireId==="a2"&&e.stade==="prog"; }).length;
+  var wCX=document.getElementById("view-conso").children[0];
+  var bEj=makeEl("button"); bEj.id="c-addej"; bEj._closest=bEj;
+  fire(wCX.querySelector("#c-addej"),"click",{target:wCX.querySelector("#c-addej")});
+  var ejA2=state.ejs.filter(function(e){ return e.affaireId==="a2"&&e.stade==="prog"; });
+  ok(ejA2.length===nbEjAv+1, "conso: +EJ crée l'EJ sur l'affaire du filtre header (a2)");
+  // filtre op2 sans affaire -> 1ère affaire de op2
+  state.ui.op="op2"; state.ui.aff=""; renderConso(); wCX=document.getElementById("view-conso").children[0];
+  var nbA4=state.ejs.filter(function(e){ return e.affaireId==="a4"; }).length;
+  fire(wCX.querySelector("#c-addej"),"click",{target:wCX.querySelector("#c-addej")});
+  ok(state.ejs.filter(function(e){ return e.affaireId==="a4"; }).length===nbA4+1, "conso: +EJ sans affaire filtrée -> 1ère affaire de l'opération filtrée (a4)");
+  // ---- structure : bouton +EJ par affaire ----
+  state.ui.view="structure"; renderStructure(); var stY=htmlOf("structure");
+  ok((stY.match(/data-addej=/g)||[]).length===scopedAffaires("op2","").length, "structure: un bouton +EJ par affaire affichée");
+  var wS3=document.getElementById("view-structure").children[0];
+  var bAdej=makeEl("button"); bAdej.dataset.addej="a5"; bAdej._closest=bAdej;
+  var nbA5=state.ejs.filter(function(e){ return e.affaireId==="a5"; }).length;
+  fire(wS3,"click",{target:bAdej});
+  ok(state.ejs.filter(function(e){ return e.affaireId==="a5"; }).length===nbA5+1, "structure: +EJ crée l'EJ sur l'affaire de la ligne (a5)");
+  // ---- révisions : en-tête 3 niveaux, totaux conditionnels, boutons dans leur colonne ----
+  state.ui.op="op1"; state.ui.aff=""; state.ui.view="revisions"; renderRevisions(); var rv3=htmlOf("revisions");
+  var theadBlk=rv3.slice(rv3.indexOf("<thead>"), rv3.indexOf("</thead>")); var theadRows=(theadBlk.match(/<tr>/g)||[]).length;
+  ok(theadRows===3, "revisions: en-tête sur 3 lignes (opération/affaire/colonnes), rows="+theadRows);
+  ok(rv3.indexOf("rev-h-op")>=0 && rv3.indexOf("rev-h-aff")>=0 && rv3.indexOf("rev-h-col")>=0, "revisions: classes de hiérarchie présentes");
+  ok(rv3.indexOf("rev-h-tot")>=0, "revisions: totaux op présents quand plusieurs affaires (op1)");
+  function colTh(html,label){ var i=html.indexOf(label); while(i>=0){ var st=html.lastIndexOf("<th", i); var en=html.indexOf("</th>", i); if(st>=0&&en>i) return html.slice(st, en+5); i=html.indexOf(label, en); } return ""; }
+  var thIndice=colTh(rv3, ">Indice");
+  ok(thIndice.indexOf('data-go="structure"')>=0, "revisions: bouton fx dans la colonne Indice");
+  var thCP=colTh(rv3, ">CP <");
+  ok(thCP.indexOf('data-go="conso"')>=0, "revisions: bouton CP dans la colonne CP");
+  var thRP=colTh(rv3, ">RP");
+  ok(thRP.indexOf('data-go="indices"')>=0, "revisions: bouton idx dans la colonne RP");
+  state.ui.aff="a1"; renderRevisions(); var rv4=htmlOf("revisions");
+  ok(rv4.indexOf("rev-h-tot")<0, "revisions: plus de colonnes de total quand une seule affaire filtrée (a1)");
+  state = demoState(); recomputeProfils(state);
+
+
+  // ---- header style portail info.gouv.fr ----
+  state = demoState(); render();
+  ok(global.__HDR__.top, "header: deux lignes hd-top + hd-nav");
+  ok(global.__HDR__.gouv, "header: bloc-marque présent");
+  ok(global.__HDR__.min && !hdr0hasSvgLogo(), "header: logo ministère des Armées (PNG embarqué) unique, plus de double SVG");
+  ok(global.__HDR__.order, "header: filebar dans la ligne haute, nav en dessous");
+
+
+  // ---- placeholder {SÉRIE_0} = valeur de la série au mois de référence ----
+  state = demoState(); recomputeProfils(state);
+  var a1b=affaireById("a1");
+  a1b.formule="={BT01}/{BT01_0}";
+  var iOct=indiceApplicable(a1b,"2026-10");
+  ok(Math.abs(iOct-1024/1000)<1e-9, "formule {BT01}/{BT01_0}: indice 2026-10 = 1024/1000 = "+iOct);
+  ok(Math.abs(indiceRef(a1b)-1)<1e-9, "indiceRef avec {BT01_0} = 1000/1000 = 1 au mois de réf");
+  a1b.formule="={TP_0}*{BT01}";
+  ok(Math.abs(indiceApplicable(a1b,"2026-10")-(1000*1024))<1e-6, "{TP_0} au mois de réf = 1000, {BT01} au mois = 1024");
+  state = demoState(); recomputeProfils(state);
+
+  // ---- période tableau de bord : la date de FIN est toujours honorée ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.dashFrom='2027-01'; state.ui.dashTo='2026-12';
+  var perX=dashPeriod('','');
+  ok(perX.from==='2026-12' && perX.to==='2027-01', "dashPeriod: début>fin -> échange, la fin choisie est honorée ("+perX.from+".."+perX.to+")");
+  state.ui.dashFrom=''; state.ui.dashTo='2026-12';
+  var perY=dashPeriod('','');
+  ok(perY.to==='2026-12' && perY.from<='2026-12', "dashPeriod: fin seule=2026-12 -> to=2026-12 (from="+perY.from+")");
+  var monthsAll=scopeMonths('','');
+  var fm=applyPeriod(monthsAll, perY);
+  ok(fm[fm.length-1]==='2026-12' && fm.indexOf('2027-01')<0, "applyPeriod: borne fin respectée (dernier mois affiché = 2026-12)");
+  var fm2=applyPeriod(monthsAll, {from:'2026-08',to:'2028-03'});
+  ok(fm2[0]==='2026-08' && fm2[fm2.length-1]==='2028-03', "applyPeriod: axe étendu jusqu'à la période choisie même au-delà des données (2028-03)");
+  var sE=chartEntonnoir(scopedAffaires('',''),scopedEjs('',''),scopeMonths('',''),{from:'2026-08',to:'2026-12'});
+  ok((sE.match(/<title>/g)||[]).length===5, "entonnoir: 5 tooltips pour la période 08/26..12/26");
+  // handler 'input' sur #dash-to (date de fin)
+  state.ui.view='dashboard'; state.ui.dashFrom=''; state.ui.dashTo=''; render();
+  var wd=document.getElementById('view-dashboard').children[0];
+  var dtt=wd.querySelector('#dash-to'); dtt.value='2026-12';
+  fire(dtt,'input',{target:dtt});
+  ok(state.ui.dashTo==='2026-12', "dashboard: événement 'input' sur #dash-to pris en compte (date de fin)");
+  var dff=wd.querySelector('#dash-from'); dff.value='2027-01';
+  fire(dff,'change',{target:dff});
+  ok(state.ui.dashFrom==='2027-01', "dashboard: événement 'change' sur #dash-from pris en compte (date de début)");
+
+  // ---- aléas répartis ALÉATOIREMENT sur les mois restants de l'opération ----
+  state = demoState(); recomputeProfils(state);
+  var al1=state.ejs.filter(isAlea)[0];
+  var o1=occOf(al1), o2=occOf(al1);
+  ok(JSON.stringify(o1)===JSON.stringify(o2), "aleaOcc: répartition stable (déterministe) entre deux appels");
+  var sumW=0; o1.forEach(function(o){ sumW+=o.w; });
+  ok(Math.abs(sumW-1)<1e-9, "aleaOcc: poids normalisés à 1 (somme="+sumW+")");
+  var curC=curMois(), lastOp=opLastMonth(affaireById(al1.affaireId).opId);
+  ok(o1.length>1 && o1[0].m===curC && o1[o1.length-1].m===lastOp, "aleaOcc: réparti du mois en cours ("+curC+") au dernier mois de l'opération ("+lastOp+"), n="+o1.length+" mois");
+  ok(o1.every(function(o){ return o.m>=curC && o.m<=lastOp; }), "aleaOcc: toutes les apparitions dans les mois restants");
+  ok(Math.abs(cumOcc(al1,lastOp)-1)<1e-9, "aleaOcc: cumul = 1 au dernier mois de l'opération");
+  ok(occW(al1,lastOp)>0 && occW(al1,curC)>0, "aleaOcc: poids non nul en chaque mois restant");
+  // CP de l'aléa répartis sur les mêmes mois, somme = montant de l'aléa
+  var cpsAl={}; for(var k in state.cps){ if(k.indexOf(al1.id+'|')===0) cpsAl[k.slice(al1.id.length+1)]=state.cps[k]; }
+  ok(Object.keys(cpsAl).length===o1.length, "recomputeProfils: CP de l'aléa sur les "+o1.length+" mois restants (et plus en un seul mois)");
+  var sumCp=0; for(var k2 in cpsAl){ sumCp+=cpsAl[k2]; }
+  ok(Math.abs(sumCp-montantAlea(al1))<1, "recomputeProfils: somme des CP de l'aléa = montant aléa ("+Math.round(sumCp*100)/100+" vs "+montantAlea(al1)+")");
+  // entonnoir: la part d'aléa croît progressivement (répartition dans le temps)
+  var ent=chartEntonnoir(scopedAffaires('',''),scopedEjs('',''),scopeMonths('',''),null);
+  ok(ent.indexOf('Aléas')>=0, "entonnoir: aléas présents dans les tooltips");
+  // vue risques: colonne apparition = aléatoire avec la plage
+  state.ui.view='risques'; renderRisques(); var rk=htmlOf('risques');
+  ok(rk.indexOf('aléatoire')>=0 && rk.indexOf(curC.slice(5,7)+'/'+curC.slice(2,4))>=0, "risques: apparition aléa = plage des mois restants affichée");
+  ok(rk.indexOf('data-f="mois"')<0 || rk.indexOf('data-f="mois"')>=0, "risques: champ mois aléa remplacé par info");
+  ok(rk.indexOf('réparti aléatoirement sur les mois restants')>=0, "risques: hint répartition aléatoire affiché");
+  state = demoState(); recomputeProfils(state);
+
+  // ---- GP : les cases s'appliquent aussi au TABLEAU PRINCIPAL (gpVal) ----
+  state = demoState(); recomputeProfils(state);
+  state.ejs.push({id:"eX",affaireId:"a1",numero:"EJ-DEC",libelle:"EJ de décembre",stade:"prog",mois:"2026-12",montant:500000});
+  recomputeProfils(state);
+  var a1g=affaireById('a1');
+  var cpDec0=gpVal('cp',a1g,'2026-12'), cpJan0=gpVal('cp',a1g,'2027-01'), cpFeb0=gpVal('cp',a1g,'2027-02');
+  state.ui.gpNoCpDec=true;
+  ok(gpVal('cp',a1g,'2026-12')===0, "gpVal noCpDec: plus de CP affichés en décembre 2026");
+  ok(gpVal('cp',a1g,'2027-01')===cpJan0+cpDec0, "gpVal noCpDec: CP de décembre 2026 affichés en janvier 2027 ("+gpVal('cp',a1g,'2027-01')+" = "+cpJan0+"+"+cpDec0+")");
+  state.ui.gpNoCpDec=false; state.ui.gpNoCpJan=true;
+  ok(gpVal('cp',a1g,'2027-01')===0 && gpVal('cp',a1g,'2027-02')===cpFeb0+cpJan0, "gpVal noCpJan: CP de janvier affichés en février");
+  state.ui.gpNoCpDec=true;
+  ok(gpVal('cp',a1g,'2027-01')===0 && gpVal('cp',a1g,'2027-02')===cpFeb0+cpJan0+cpDec0, "gpVal cumul noCpDec+noCpJan: décembre et janvier -> février");
+  // RP en décembre : colonne RP de décembre = somme annuelle, autres mois 0 ; EJ décembre -> novembre
+  state.ui.gpNoCpDec=false; state.ui.gpNoCpJan=false; state.ui.gpRpDec=true;
+  var rpAn=0; scopeMonths('','').forEach(function(m){ if(m.slice(0,4)==='2026') rpAn+=revisionMois(a1g,m); });
+  ok(Math.abs(gpVal('rp',a1g,'2026-12')-rpAn)<0.01 && gpVal('rp',a1g,'2026-10')===0, "gpVal rpDec: RP de décembre = somme annuelle ("+gpVal('rp',a1g,'2026-12')+" vs "+rpAn+"), autres mois à 0");
+  ok(gpVal('ej',a1g,'2026-11')>=500000 && gpVal('ej',a1g,'2026-12')===0, "gpVal rpDec: EJ de décembre affiché en novembre");
+  ok(Math.abs(gpVal('cp',a1g,'2027-01')-(cpJan0+cpDec0))<0.01, "gpVal rpDec: CP de décembre -> janvier");
+  state.ui.gpRpDec=false;
+  // synthèse = somme de tous les types
+  var m0='2026-10';
+  var sej=gpVal('sej',a1g,m0), scp=gpVal('scp',a1g,m0);
+  ok(Math.abs(sej-(gpVal('ej',a1g,m0)+gpVal('ae',a1g,m0)+gpVal('rk',a1g,m0)+gpVal('rp',a1g,m0)+gpVal('rej',a1g,m0)))<1e-6, "gpVal sej = somme EJ pur + aléa + risque + RP + réalisé");
+  ok(Math.abs(scp-(gpVal('cp',a1g,m0)+gpVal('ac',a1g,m0)+gpVal('rc',a1g,m0)+gpVal('rcp',a1g,m0)+gpVal('rp',a1g,m0)))<1e-6, "gpVal scp = somme CP + aléa CP + risque CP + réel CP + RP");
+
+  // ---- GP : hiérarchie des colonnes (repliée par défaut, bouton +) ----
+  state.ui.view='gp'; state.ui.gpExp={}; renderGp(); var gph2=htmlOf('gp');
+  ok(gph2.indexOf('Synthèse EJ')>=0 && gph2.indexOf('Synthèse CP')>=0, "gp tableau: colonnes Synthèse EJ / Synthèse CP par défaut");
+  ok((gph2.match(/data-gpexp=/g)||[]).length>0, "gp tableau: boutons + présents dans les en-têtes de groupe");
+  ok(gph2.indexOf('gp-gt')<0 && gph2.indexOf('Total général')<0, "gp tableau: ligne 'Total général' supprimée");
+  ok(gph2.indexOf('data-gp="sej"')>=0 && gph2.indexOf('data-gp="scp"')>=0, "gp tableau: cellules synthèse cliquables (sej/scp)");
+  // clic sur + du groupe affaire a1 -> déplié
+  var wG3=document.getElementById('view-gp').children[0];
+  var pb=makeEl('button'); pb.dataset.gpexp='a:a1'; pb._closest=pb;
+  fire(wG3,'click',{target:pb});
+  ok(state.ui.gpExp['a:a1']===true, "gp tableau: clic sur + déplie le groupe (state.ui.gpExp)");
+  var gph3=htmlOf('gp');
+  ok(gph3.indexOf('EJ réel')>=0 && gph3.indexOf('Aléa CP')>=0, "gp tableau déplié: détail par type (EJ réel, Aléa CP, ...) visible");
+  ok(gph3.indexOf('data-gp="ej"')>=0, "gp tableau déplié: cellules détaillées (ej) présentes");
+  // détail d'une cellule synthèse
+  var det=gpDetail('sej','a:a1','2026-10',10);
+  ok(det.indexOf('Synthèse')>=0 && det.indexOf('gp-detail')>=0, "gpDetail(sej): ligne de détail synthèse avec tous les types");
+  state.ui.gpExp={}; state=demoState(); recomputeProfils(state);
+
+  // ---- RP calés exactement sur les CP du mois (toutes affaires, tous mois) ----
+  state = demoState(); recomputeProfils(state);
+  var badRp=0, badCp=0, checked=0;
+  state.affaires.forEach(function(a){
+    scopeMonths(a.opId,a.id).forEach(function(m){
+      var cp=cpMoisAff(a,m), rp=revisionMois(a,m), i0=indiceRef(a), ind=indiceApplicable(a,m);
+      checked++;
+      var expect=(cp>0&&ind!=null&&i0)?cp*(ind/i0-1):0;
+      if(Math.abs(rp-expect)>0.01) badRp++;
+      if((cp>0&&rp===0)||(cp===0&&rp!==0)) badCp++;
+    });
+  });
+  ok(badRp===0, "RP(m) = CP(m) x (I/I0 - 1) pour tous les mois/affaires ("+checked+" mois verifies)");
+  ok(badCp===0, "RP non nul exactement quand il y a des CP (et inversement), "+badCp+" anomalies");
+  // placeholder {c} dans une formule de revision forcee
+  state.revisions["a1|2026-11"]="={c}*0.5";
+  ok(Math.abs(revisionMois(a1,"2026-11")-cpMoisAff(a1,"2026-11")*0.5)<0.01, "revEval: placeholder {c} = CP du mois dans une formule forcee");
+  delete state.revisions["a1|2026-11"];
+  state=demoState(); recomputeProfils(state);
+
+  // ---- entonnoir : géométrie au jour (EJ le 1er jour, CP du 1er au dernier jour) ----
+  state = demoState(); recomputeProfils(state);
+  var affsE=scopedAffaires("",""), ejsE=scopedEjs("",""), monthsE=scopeMonths("","");
+  var ent=chartEntonnoir(affsE,ejsE,monthsE,null);
+  var nE=monthsE.length;
+  // courbe EJ (bleu) : escalier avec sauts verticaux (mêmes x deux L consécutifs)
+  var blue=ent.match(/<path d="([^"]+)" fill="none" stroke="#2563eb"/)[1];
+  function hasSameX(d){ var toks=d.match(/[ML][0-9.]+/g)||[]; for(var q=0;q+1<toks.length;q++){ if(toks[q].charAt(0)===String.fromCharCode(76)&&toks[q+1].charAt(0)===String.fromCharCode(76)&&toks[q].slice(1)===toks[q+1].slice(1)) return true; } return false; }
+  ok(hasSameX(blue), "entonnoir: EJ en escalier (saut vertical le 1er jour du mois)");
+  // courbe CP (vert) : lisse, pas de saut vertical
+  var green=ent.match(/<path d="([^"]+)" fill="none" stroke="#059669"/)[1];
+  ok(green.length>0 && !hasSameX(green), "entonnoir: CP lisse (écoulés du 1er au dernier jour, pas de saut)");
+  // reste à payer (slate) : sauts verticaux (saut EJ le 1er jour) ET finit à 0 (dernier point en bas: y = H-p.b = 248)
+  var slate=ent.match(/<path d="([^"]+)" fill="none" stroke="#334155"/)[1];
+  ok(hasSameX(slate), "entonnoir: reste à payer avec sauts verticaux le 1er jour (dépend des EJ)");
+  var slatePts=slate.split(' ').filter(function(x){return x.length>0;});
+  var lastY=parseFloat(slatePts[slatePts.length-1]);
+  ok(Math.abs(lastY-248)<0.5, "entonnoir: reste à payer finit à 0 en fin de période (dernier y="+lastY+", attendu 248)");
+  // l'axe a n+1 bornes : le 1er point de la courbe EJ est au début du 1er mois et le dernier à la fin du dernier mois
+  var W=960,pl=80,pr=16;
+  var x0=parseFloat(blue.match(/M([0-9.]+)/)[1]); var toksB=blue.match(/[ML][0-9.]+/g); var xLast=parseFloat(toksB[toksB.length-1].slice(1));
+  ok(Math.abs(x0-pl)<0.01 && Math.abs(xLast-(W-pr))<0.01, "entonnoir: axe du 1er jour du 1er mois ("+x0+") au dernier jour du dernier mois ("+xLast+")");
+
+  // ---- conso : pas de CP avant le mois de l'EJ (grisé + verrouillé) ----
+  state.ui.view="conso"; state.ui.op=""; state.ui.aff=""; renderConso(); var co=htmlOf("conso");
+  var e1d=ejById("e1");
+  ok(co.indexOf("cp-avant")>=0, "conso: cellules CP antérieures au mois de l'EJ grisées (cp-avant)");
+  var nbAvant=(co.match(/cp-avant/g)||[]).length;
+  var expectAvant=monthsE.filter(function(m){ return ejsE.some(function(e){ return isMaterialise(e)&&e.mois&&m<e.mois; }); }).length>0 ? 1 : 0;
+  ok(nbAvant>0, "conso: au moins une cellule verrouillée avant l'EJ ("+nbAvant+" cellules cp-avant)");
+  // purge : un CP saisi avant le mois de l'EJ est supprimé par recomputeProfils
+  state.cps["e1|2026-08"]=999;
+  recomputeProfils(state);
+  ok(state.cps["e1|2026-08"]===undefined, "recomputeProfils: CP antérieur au mois de l'EJ purgé");
+  // calage : profil ponctuel avant le mois de l'EJ -> calé sur le mois de l'EJ
+  state.profils["e1"]={type:"ponctuelle",debut:"2026-08",fin:"2026-08"};
+  recomputeProfils(state);
+  ok(state.cps["e1|2026-08"]===undefined && state.cps["e1|"+e1d.mois]===montantOf(e1d), "recomputeProfils: profil calé sur le mois de l'EJ ("+e1d.mois+")");
+  delete state.profils["e1"]; recomputeProfils(state);
+  // handler : saisie d'un CP avant l'EJ -> refusée (alert) et supprimée
+  alerts.length=0;
+  renderConso();
+  var wC=document.getElementById("view-conso").children[0];
+  var cellA=makeEl("input"); cellA.dataset.cp="e1|2026-08"; cellA.value="500";
+  state.cps["e1|2026-08"]=500;
+  fire(wC,"change",{target:cellA});
+  ok(alerts.length===1 && state.cps["e1|2026-08"]===undefined, "conso: saisie d'un CP avant l'EJ refusée (alerte) et supprimée");
+  // reste à payer jamais négatif (CP jamais avant les EJ)
+  var neg=0;
+  state.affaires.forEach(function(a){
+    scopeMonths(a.opId,a.id).forEach(function(m){ if(resteAPayer(a,m)<-0.01) neg++; });
+  });
+  ok(neg===0, "reste à payer jamais négatif (pas de CP avant les EJ), "+neg+" mois négatifs");
+  state = demoState(); recomputeProfils(state);
+  // ---- NOUVEAU dossier VIDE : accepté (pas d'erreur), la 1ère sauvegarde y crée le 1er fichier ----
+  var emptyDir=makeFakeDir({});
+  DATAFILE.handle=emptyDir; DATAFILE.name="nouveau-dossier"; DATAFILE.status="need-permission";
+  var stateAv=state.affaires.length, versAv=state.versions.length;
+  await loadFromDir();
+  ok(DATAFILE.status==="ok" && DATAFILE.loaded===true, "loadFromDir: dossier vide (nouveau dossier) accepté, statut ok, plus d'erreur");
+  ok(state.affaires.length===stateAv && state.versions.length===versAv, "loadFromDir: dossier vide -> état courant conservé");
+  await saveToDir();
+  var n1=Object.keys(emptyDir._files).filter(function(n){ return /^cosi2-donnees-.*.json$/.test(n); });
+  ok(n1.length===1, "1ère sauvegarde dans le nouveau dossier crée le 1er fichier : "+(n1[0]||"?"));
+  await loadFromDir();
+  ok(DATAFILE.files.length===1 && DATAFILE.status==="ok", "re-listage du nouveau dossier: 1 fichier compatible, statut ok");
+  state = demoState(); recomputeProfils(state);
+  console.log("PASS: "+RESULTS.pass.length); RESULTS.pass.forEach(p=>console.log("  ok - "+p));
+  if(RESULTS.fail.length){ console.log("FAIL: "+RESULTS.fail.length); RESULTS.fail.forEach(f=>console.log("  KO - "+f)); process.exitCode=1; }
+}catch(e){ console.log("ERREUR TEST: "+(e&&e.stack||e)); process.exitCode=1; }
+})().catch(function(e){ console.log("ERREUR ASYNC: "+(e&&e.stack||e)); process.exitCode=1; });
+`;
+
+const patched = script.replace(/\}\)\(\);\s*$/, testCode + "\n})();");
+if (patched === script) { console.error("echec injection"); process.exit(1); }
+
+{
+  const h0 = html.indexOf('<header>'), h1 = html.indexOf('</header>');
+  const hdr = html.slice(h0, h1);
+  global.__HDRRAW__ = hdr;
+  global.__HDR__ = {
+    top: hdr.indexOf('hd-top')>=0 && hdr.indexOf('hd-nav')>=0 && hdr.indexOf('hd-top')<hdr.indexOf('hd-nav'),
+    gouv: hdr.includes('bloc-marque'),
+    min: hdr.includes('logo-min') && hdr.includes('data:image/png;base64,'),
+    order: hdr.indexOf('id="filebar"')>=0 && hdr.indexOf('id="filebar"') < hdr.indexOf('id="nav"')
+  };
+}
+eval(patched);
