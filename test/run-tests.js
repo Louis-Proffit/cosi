@@ -1494,6 +1494,23 @@ co7.indexOf(\x27rowspan="6"\x27)>=0 && !/rowspan="6">Mois</.test(co7)
   ok(ovC.innerHTML.indexOf('ra-curves')>=0 && ovC.innerHTML.indexOf('ra-montant')>=0 && ovC.innerHTML.indexOf('ra-dates')>=0 && (ovC.innerHTML.match(/<svg/g)||[]).length>=2, "popup risque: 2 courbes (distribution du montant + répartition des apparitions)");
   ok(ovC.innerHTML.indexOf('espérance')>=0 && ovC.innerHTML.indexOf('haut')>=0 && ovC.innerHTML.indexOf('proba')>=0, "popup risque: courbes annotées (espérance, haut, probabilité)");
   state = demoState(); recomputeProfils(state);
+  // ---- mode comparaison : toutes les valeurs de la version comparée + écart (+x/−x) dans le tableau ----
+  state = demoState(); recomputeProfils(state);
+  state.versions.push(gpSnapshotOf(state)); var vid=state.versions[state.versions.length-1].id;
+  state.cps['e2|2026-12']=2000000; recomputeProfils(state); // modif après la version
+  enterCmp(vid);
+  ok(CMP.on===true && cmpVer()!=null, "mode comparaison actif (enterCmp)");
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afCmp=htmlOf('affaire');
+  ok((afCmp.match(/cmp-note/g)||[]).length>20, "comparaison: chaque valeur du tableau est annotée (cmp-note) avec la valeur de la version comparée");
+  ok(/cmp-note[^>]*>[^<]*V1[^<]*[+−]/.test(afCmp), "comparaison: écart affiché en +x / −x (ex. V1 : 1 000 000 + 1 000 000)");
+  var iCp=afCmp.indexOf('data-cp="e2|2026-12"');
+  ok(afCmp.slice(iCp, iCp+700).indexOf('cmp-note')>=0, "comparaison: cellule CP saisie annotée (valeur comparée + écart)");
+  var iFoot=afCmp.indexOf('<tfoot>');
+  ok(afCmp.slice(iFoot).indexOf('cmp-note')>=0, "comparaison: pied de colonne annoté aussi");
+  quitCmp();
+  state.ui.view='affaire'; render(); var afNoCmp=htmlOf('affaire');
+  ok(afNoCmp.indexOf('cmp-note')<0, "hors comparaison: plus aucune annotation");
+  state = demoState(); recomputeProfils(state);
   console.log("PASS: "+RESULTS.pass.length); RESULTS.pass.forEach(p=>console.log("  ok - "+p));
   if(RESULTS.fail.length){ console.log("FAIL: "+RESULTS.fail.length); RESULTS.fail.forEach(f=>console.log("  KO - "+f)); process.exitCode=1; }
 }catch(e){ console.log("ERREUR TEST: "+(e&&e.stack||e)); process.exitCode=1; }
