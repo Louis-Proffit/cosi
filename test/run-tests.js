@@ -436,6 +436,18 @@ const testCode = `
   ok(state.ui.gpARDec===true, "vue affaire: option 'Aléa et risque en décembre' cochable (state.ui.gpARDec)");
   ok(Math.abs(gpVal('sej',affaireById('a1'),'2026-12')-gEjAv)>0.001 || gpVal('ae',affaireById('a1'),'2026-12')>0, "vue affaire: l'option modifie bien la synthèse GP EJ de décembre");
   state.ui.gpARDec=false; save();
+  // popup profil CP (personnalisé) : règles du réalisé + forme de tableau cohérente
+  state = demoState(); recomputeProfils(state);
+  delete state.realise['a1|2026-08']; state.realise['a1|2026-10']={ej:0,cp:0}; // 08/2026 non saisi, 10/2026 saisi à 0
+  openProfilPopup('e2');
+  var ovP2=document.body.children[document.body.children.length-1];
+  var tbP=ovP2.innerHTML.slice(ovP2.innerHTML.indexOf('affpop'));
+  ok(ovP2.innerHTML.indexOf('table class="liste affpop"')>=0, 'popup CP: tableau avec la même forme que le tableau principal (classe affpop)');
+  var rowA=tbP.slice(tbP.indexOf('août 2026'));
+  ok(rowA.indexOf('non saisi')>=0 && rowA.indexOf('>—<')>=0, 'popup CP: mois écoulé NON saisi -> « — » + alerte non saisi (pas de comparaison à 0)');
+  var rowO=tbP.slice(tbP.indexOf('oct. 2026')); rowO=rowO.slice(0, rowO.indexOf('</tr>'));
+  ok(rowO.indexOf('gp-real')>=0 && rowO.indexOf('>0<')>=0 && rowO.indexOf('>non saisi<')<0, 'popup CP: réalisé saisi à 0 -> affiché 0, cellule grisée gp-real (vérité), PAS non saisi');
+  state = demoState(); recomputeProfils(state);
   // popup risque : modifie la distribution et montre la conséquence EJ/CP
   openRisqueAleaPopup('r1');
   var ovR=document.body.children[document.body.children.length-1];

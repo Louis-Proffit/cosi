@@ -923,6 +923,13 @@ table.affgrid th.dcol,table.affgrid td.dcol{min-width:92px;width:92px}
 table.affgrid th.dcol{cursor:pointer}
 table.affgrid th.dcol:hover{background:var(--blue-bg)}
 
+/* popup profil CP (onglet personnalisée) : forme cohérente avec le tableau principal */
+table.affpop{border-collapse:separate;border-spacing:0}
+table.affpop th,table.affpop td{border-right:1px solid #b9c4d4;border-bottom:1px solid #d4dce6;padding:4px 6px}
+table.affpop thead th{border-bottom:2px solid #8fa0b8;background:var(--head);font-size:11px}
+table.affpop tfoot td{border-top:2px solid #8fa0b8;font-weight:700}
+table.affpop td.gp-real{background:#ececec;border:1px dashed #b5b5b5}
+
 </style>
 </head>
 <body>
@@ -3770,41 +3777,46 @@ function openProfilPopup(ejId){
   var cur=curMois();
   var months=scopeMonths(aff?aff.opId:'', aff?aff.id:'');
   var affEjs=ejsOfAffaire(e.affaireId).filter(isMaterialise);
-  /* par mois : CP prévus de l'affaire, CP réalisés (onglet Réalisé), écart et cohérence */
+  /* par mois : CP prévus de l'affaire, CP réalisés (onglet Réalisé), écart et cohérence.
+     Règles du réalisé : saisi à 0 = constatation « rien » (affiché 0, PAS « — ») ;
+     non saisi sur un mois écoulé = « — » + alerte « non saisi » ; si saisi, le réalisé
+     est la vérité (cellule grisée gp-real) et l'écart n'est calculé que s'il est saisi. */
   function rowVals(m){
     var cpM=0;
     affEjs.forEach(function(e2){ cpM+=cpPrevu(e2,m); });
     var past=m<=cur, r=realOf(e.affaireId,m);
-    var rcp=past?(r?r.cp||0:0):null;
-    var ec=past?(rcp-cpM):null;
+    var hasR=!!(r&&Object.prototype.hasOwnProperty.call(r,'cp'));
+    var rcp=(past&&hasR)?(r.cp||0):null; /* null = non saisi */
+    var ec=(past&&hasR)?((r.cp||0)-cpM):null;
     var tol=Math.max(1,cpM*0.02), coh='';
     if(past){
-      if(Math.abs(ec)<=tol) coh='<span class="badge ok">cohérent</span>';
+      if(!hasR) coh='<span class="badge warn" title="Mois écoulé sans réalisé saisi (saisi à 0 = constatation « rien »)">non saisi</span>';
+      else if(Math.abs(ec)<=tol) coh='<span class="badge ok">cohérent</span>';
       else if(ec<0) coh='<span class="badge over">retard '+fmt(-ec)+'</span>';
       else coh='<span class="badge warn">avance '+fmt(ec)+'</span>';
     }
-    return {cpM:cpM, rcp:rcp, ec:ec, coh:coh};
+    return {cpM:cpM, rcp:rcp, hasR:hasR, ec:ec, coh:coh};
   }
   /* onglet « personnalisée » : saisie mensuelle des CP de l'EJ, avec le réalisé
-     de l'affaire rappelé à côté et l'indicateur de cohérence */
+     de l'affaire rappelé à côté (grisé quand saisi = vérité) et l'indicateur de cohérence */
   var persoRows='';
   months.forEach(function(m){
     var v=rowVals(m);
     var cv=state.cps[e.id+'|'+m]||0;
     var past=m<=cur;
     persoRows+='<tr'+(m===cur?' class="gp-cur"':'')+'><td'+(m===cur?' style="background:var(--amber-bg);font-weight:600"':'')+'>'+mLong(m)+(past?'':' (à venir)')+'</td>'+
-      '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-ppcp="'+e.id+'|'+m+'" value="'+(cv?fmt0(cv):'')+'" title="CP consommés pour « '+esc(e.numero)+' » en '+mLong(m)+' (profil personnalisé — saisie libre)"></td>'+
+      '<td class="num dcol"><input type="text" inputmode="decimal" class="real-in" data-ppcp="'+e.id+'|'+m+'" value="'+(cv?fmt0(cv):'')+'" title="CP consommés pour « '+esc(e.numero)+' » en '+mLong(m)+' (profil personnalisé — saisie libre)"></td>'+
       '<td class="num mono" data-cell="prevu" title="CP prévus ce mois pour toute l\'affaire (tous EJ engagés, selon leurs profils)">'+fmt0(v.cpM)+'</td>'+
-      '<td class="num mono" data-cell="real" title="CP réalisés ce mois, saisis dans l\'onglet « Réalisé »">'+(v.rcp==null?'—':fmt0(v.rcp))+'</td>'+
-      '<td class="num mono" data-cell="ecart" title="Écart CP = réalisé − prévu (affaire, ce mois)">'+(v.ec==null?'':((v.ec>0?'+':'')+fmt0(v.ec)))+'</td>'+
-      '<td data-cell="coh" title="Un écart en retard comme en avance est une incohérence">'+v.coh+'</td></tr>';
+      '<td class="num mono'+(v.hasR?' gp-real':'')+'" data-cell="real" title="CP réalisés ce mois (saisi = vérité, même à 0 ; « — » = non saisi)">'+(v.rcp==null?'—':fmt0(v.rcp))+'</td>'+
+      '<td class="num mono" data-cell="ecart" title="Écart CP = réalisé − prévu (affaire, ce mois ; seulement si réalisé saisi)">'+(v.ec==null?'':((v.ec>0?'+':'')+fmt0(v.ec)))+'</td>'+
+      '<td data-cell="coh" title="Non saisi sur un mois écoulé = alerte ; retard comme avance = incohérence">'+v.coh+'</td></tr>';
   });
-  var persoPane='<p class="hint">Saisissez les CP de cet EJ <strong>mois par mois</strong> (ils s\'ajoutent à ceux saisis dans la grille « Consommation CP »). Le <strong>CP réalisé de l\'affaire</strong> est rappelé à côté pour les mois passés, avec l\'indicateur de cohérence.</p>'+
-    '<div class="grid-wrap"><table class="liste"><thead><tr>'+
+  var persoPane='<p class="hint">Saisissez les CP de cet EJ <strong>mois par mois</strong>. Le <strong>CP réalisé de l\'affaire</strong> est rappelé à côté pour les mois passés : grisé quand saisi (c\'est la vérité, même à 0), « — » + alerte « non saisi » sinon.</p>'+
+    '<div class="grid-wrap"><table class="liste affpop"><thead><tr>'+
     '<th>Mois</th><th class="num" title="CP consommés ce mois pour cet EJ (saisie)">CP cet EJ (saisi)</th>'+
     '<th class="num" title="CP prévus ce mois pour toute l\'affaire">CP prévus affaire</th>'+
-    '<th class="num" title="CP réalisés ce mois (onglet « Réalisé »)">CP réalisés affaire</th>'+
-    '<th class="num" title="Écart CP = réalisé − prévu (affaire, ce mois)">Écart CP</th><th title="Cohérence avec le réalisé">Cohérence</th></tr></thead>'+
+    '<th class="num" title="CP réalisés ce mois (saisi = vérité, même à 0 ; — = non saisi)">CP réalisés affaire</th>'+
+    '<th class="num" title="Écart CP = réalisé − prévu (si réalisé saisi)">Écart CP</th><th title="Cohérence avec le réalisé">Cohérence</th></tr></thead>'+
     '<tbody>'+persoRows+'</tbody>'+
     '<tfoot><tr><td>Total</td><td class="num mono" id="pp-total" title="Total des CP saisis pour cet EJ">'+fmt0(cpSumOf(e.id))+'</td><td colspan="4"></td></tr></tfoot></table></div>';
   var ov=document.createElement('div');
@@ -3868,7 +3880,7 @@ function openProfilPopup(ejId){
       var cEcart=tr.querySelector('[data-cell="ecart"]');
       var cCoh=tr.querySelector('[data-cell="coh"]');
       if(cPrevu) cPrevu.textContent=fmt0(vals.cpM);
-      if(cReal) cReal.textContent=(vals.rcp==null?'—':fmt0(vals.rcp));
+      if(cReal){ cReal.textContent=(vals.rcp==null?'—':fmt0(vals.rcp)); cReal.className='num mono'+(vals.hasR?' gp-real':''); }
       if(cEcart) cEcart.textContent=(vals.ec==null?'':((vals.ec>0?'+':'')+fmt0(vals.ec)));
       if(cCoh) cCoh.innerHTML=vals.coh;
     }
