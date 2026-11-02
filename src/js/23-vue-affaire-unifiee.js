@@ -162,9 +162,10 @@ function renderAffaire(){
     if(val<0) return '<span class="badge over">'+kind+' retard '+fmtM(-val)+'</span>';
     return '<span class="badge warn">'+kind+' avance '+fmtM(val)+'</span>';
   }
-  /* en-tête : colonne Mois, puis par EJ/risque/aléa : n° (fiche/popup), date · montant, check Σ CP */
+  /* en-tête : Mois, puis par EJ (groupe), puis Σ EJ (EJ seuls), puis aléas, puis risques
+     (1 colonne par EJ/aléa/risque : n° fiche/popup, date · montant, check Σ CP) */
   var head='<tr><th class="scol sc1">Mois</th>';
-  ejs.forEach(function(e){
+  function itemTh(e){
     var somCp=cpSumOf(e.id), mtE=montantOf(e);
     /* check tri-état : pas de montant -> « montant ? » ; montant mais aucun CP -> « CP à saisir » ;
        Σ CP == montant -> « ok » ; sinon « écart » (jamais « ok » si rien n'a été saisi) */
@@ -176,27 +177,29 @@ function renderAffaire(){
     else check='<span class="badge over" title="Écart Σ CP − montant">écart '+fmt0(mtE-somCp)+'</span>';
     var mtTxt=isRisque(e)?('esp. '+fmt0(espDist(e))+' · haut '+fmt0(montantHaut(e))+' · pond. '+fmt0(risquePondere(e))):fmt0(mtE);
     var popAttr=(isRisque(e)||isAlea(e))?('data-rkpop="'+e.id+'" title="Popup '+(isRisque(e)?'risque':'aléa')+' : modifier la distribution / le % et lire la conséquence EJ/CP"'):('data-ejpop="'+e.id+'" title="Fiche de l\'EJ '+esc(e.numero)+' (n°, libellé, montant, date, profil CP modifiables)"');
-    head+='<th class="dcol'+(foc===e.id?' col-focus':'')+'" style="min-width:170px">'+stadeBadge(e)+
+    return '<th class="dcol'+(foc===e.id?' col-focus':'')+'" style="min-width:170px">'+stadeBadge(e)+
       '<button type="button" class="ej-btn" '+popAttr+'>'+esc(e.numero)+'</button>'+
       '<div class="hdr-sub">'+(e.mois?mLabel(e.mois):'—')+' · '+mtTxt+'</div>'+
       '<div class="hdr-sub" title="Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+'">Σ CP '+fmt0(somCp)+' '+check+'</div></th>';
-  });
-  /* colonnes de synthèse de l'affaire */
-  head+='<th class="num tot-h" title="EJ engagés à ce mois (somme des colonnes EJ)">EJ engagé</th>'+
-    '<th class="num tot-h" title="Aléas répartis ce mois (colonnes aléa)">Aléa</th>'+
-    '<th class="num tot-h" title="Risques à ce mois, espérance × probabilité (colonnes risque ; EJ=CP)">Risque</th>'+
-    '<th class="num tot-h" title="CP prévus ce mois (somme des colonnes)">CP prévu</th>'+
+  }
+  var ejList=ejs.filter(isMaterialise), alList=ejs.filter(isAlea), rkList=ejs.filter(isRisque);
+  ejList.forEach(function(e){ head+=itemTh(e); });
+  head+='<th class="num tot-h" title="Synthèse EJ : somme des seules colonnes EJ (pas les aléas/risques/RP)">Σ EJ</th>';
+  alList.forEach(function(e){ head+=itemTh(e); });
+  rkList.forEach(function(e){ head+=itemTh(e); });
+  head+=
+    '<th class="num tot-h" title="Indice du marché applicable à ce mois (formule de l\'affaire), I/I₀ recalé à 1 à la date de réf.">Indice I/I₀</th>'+
     '<th class="num tot-h" title="Révision de prix du mois = base CP (réalisée si saisie, sinon prévue) × (I/I₀−1)">RP</th>'+
-    '<th class="num tot-h" title="Indice applicable à ce mois (formule de l\'affaire, séries de l\'onglet Indices)">Indice I</th>'+
-    '<th class="num tot-h" title="I/I₀ recalé à 1 à la date de référence de l\'affaire">I/I₀</th>'+
-    '<th class="num tot-h" title="GP à saisir, synthèse EJ (4 options cochées + réalisé si saisi)">GP EJ</th>'+
-    '<th class="num tot-h" title="GP à saisir, synthèse CP (4 options cochées + réalisé si saisi)">GP CP</th>'+
+    '<th class="num tot-h" title="Synthèse EJ du mois : EJ + aléas + risques">Synthèse EJ</th>'+
+    '<th class="num tot-h" title="Synthèse CP du mois : somme de toutes les colonnes (écoulement des CP)">Synthèse CP</th>'+
     '<th class="num tot-h" title="EJ réalisé saisi (vérité quand saisi, même à 0)">EJ réel</th>'+
     '<th class="num tot-h" title="CP réalisé saisi (vérité quand saisi, même à 0)">CP réel</th>'+
+    '<th class="num tot-h" title="GP à saisir, synthèse EJ (4 options cochées + réalisé si saisi)">GP EJ</th>'+
+    '<th class="num tot-h" title="GP à saisir, synthèse CP (4 options cochées + réalisé si saisi)">GP CP</th>'+
     '<th class="num tot-h" title="Écart EJ = réalisé − engagé (mois écoulés)">Éc EJ</th>'+
     '<th class="num tot-h" title="Écart CP = réalisé − prévu (mois écoulés)">Éc CP</th>'+
     '<th class="tot-h">Statut</th><th class="tot-h">Actions</th></tr>';
-  var NB=1+ejs.length+15;
+  var NB=1+ejs.length+1+12;
 
   var body=extRow('avant', NB);
   months.forEach(function(m){
@@ -233,27 +236,29 @@ function renderAffaire(){
     var rEjV=(hasR&&Object.prototype.hasOwnProperty.call(r,'ej'))?fmt0(r.ej||0):'';
     var rCpV=(hasR&&Object.prototype.hasOwnProperty.call(r,'cp'))?fmt0(r.cp||0):'';
     body+='<tr data-m="'+m+'"'+(m===cur?' class="gp-cur"':'')+'><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLong(m)+(past?'':' (à venir)')+'</td>';
-    ejs.forEach(function(e){
-      var p=profilOf(e), v=cpPrevu(e,m);
+    function itemTd(e){
+      var p=profilOf(e), v=cpPrevu(e,m), td;
       if(isMaterialise(e)&&e.mois&&m<e.mois){
-        body+='<td class="dcol cp-avant" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
+        td='<td class="dcol cp-avant" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
       }else if(isMaterialise(e)&&p.type==='perso'){
-        body+='<td class="dcol" data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés en '+mLabel(m)+' pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
+        td='<td class="dcol" data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés en '+mLabel(m)+' pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
       }else{
-        body+='<td class="dcol cp-lock" data-ejcol="'+e.id+'" title="'+(isMaterialise(e)?'Calculé selon le profil '+p.type:'CP du '+stadeLabel(e).toLowerCase()+' selon son profil')+'">'+(v?fmt0(v):'')+'</td>';
+        td='<td class="dcol cp-lock" data-ejcol="'+e.id+'" title="'+(isMaterialise(e)?'Calculé selon le profil '+p.type:'CP du '+stadeLabel(e).toLowerCase()+' selon son profil')+'">'+(v?fmt0(v):'')+'</td>';
       }
-    });
-    body+='<td class="num mono ccell tot">'+fmt0(ejM)+'</td>'+
-      '<td class="num mono ccell tot">'+fmt0(aeM)+'</td>'+
-      '<td class="num mono ccell tot">'+fmt0(rkM)+'</td>'+
-      '<td class="num mono ccell tot">'+fmt0(cpM)+'</td>'+
+      return td;
+    }
+    ejList.forEach(function(e){ body+=itemTd(e); });
+    body+='<td class="num mono ccell tot" title="Synthèse EJ : somme des seules colonnes EJ (pas aléas/risques/RP)">'+fmt0(ejM)+'</td>';
+    alList.forEach(function(e){ body+=itemTd(e); });
+    rkList.forEach(function(e){ body+=itemTd(e); });
+    body+='<td class="num mono ccell tot" title="Indice du marché ce mois (formule de l\'affaire) ; I/I₀ recalé à 1 à la date de réf. '+(aff.dateRefRev||'—')+'">'+(ind==null?'—':fmtIdx(ind)+' <span class="muted">I/I₀='+(i0?(ind/i0).toLocaleString('fr-FR',{maximumFractionDigits:3}):'?')+'</span>')+'</td>'+
       '<td class="num mono ccell tot'+(r?' gp-real':'')+'" title="'+(r?'RP basée sur le CP RÉALISÉ saisi':'RP = CP prévu × (I/I₀−1)')+'">'+fmt0(rp)+'</td>'+
-      '<td class="num mono ccell tot" title="Indice applicable ce mois (formule de l\'affaire)">'+(ind==null?'—':fmtIdx(ind))+'</td>'+
-      '<td class="num mono ccell tot" title="I/I₀ (recalé à 1 à la date de réf. '+(aff.dateRefRev||'—')+')">'+(ind!=null&&i0?(ind/i0).toLocaleString('fr-FR',{maximumFractionDigits:3}):'—')+'</td>'+
-      '<td class="num mono ccell tot'+(r?' gp-real':'')+'" title="GP synthèse EJ (options + réalisé si saisi)">'+fmt0(gEj)+'</td>'+
-      '<td class="num mono ccell tot'+(r?' gp-real':'')+'" title="GP synthèse CP (options + réalisé si saisi)">'+fmt0(gCp)+'</td>'+
+      '<td class="num mono ccell tot" title="Synthèse EJ du mois : EJ + aléas + risques">'+fmt0(ejM+aeM+rkM)+'</td>'+
+      '<td class="num mono ccell tot" title="Synthèse CP du mois : somme de toutes les colonnes">'+fmt0(cpM)+'</td>'+
       '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+aff.id+'|'+m+'" data-f="ej" value="'+rEjV+'"'+(m<=cur?'':' disabled')+' title="EJ réalisé en '+mLong(m)+' (« 0 » = constaté à zéro, distinct de non saisi)"></td>'+
       '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+aff.id+'|'+m+'" data-f="cp" value="'+rCpV+'"'+(m<=cur?'':' disabled')+' title="CP réalisé en '+mLong(m)+' (« 0 » = constaté à zéro)"></td>'+
+      '<td class="num mono ccell tot'+(r?' gp-real':'')+'" title="GP à saisir, synthèse EJ (4 options cochées + réalisé si saisi)">'+fmt0(gEj)+'</td>'+
+      '<td class="num mono ccell tot'+(r?' gp-real':'')+'" title="GP à saisir, synthèse CP (4 options cochées + réalisé si saisi)">'+fmt0(gCp)+'</td>'+
       '<td class="num mono">'+(past?fmtS(eEj):'')+'</td>'+
       '<td class="num mono">'+(past?fmtS(eCp):'')+'</td>'+
       '<td>'+statut+'</td><td style="white-space:nowrap">'+actions+'</td></tr>';
@@ -261,7 +266,7 @@ function renderAffaire(){
   body+=extRow('après', NB);
   var foot='<tr class="gp-tot"><td class="scol sc1">Total</td>'+
     ejs.map(function(e){ return '<td class="dcol ccell tot">'+fmt0(cpSumOf(e.id))+'</td>'; }).join('')+
-    '<td colspan="15"></td></tr>';
+    '<td colspan="14"></td></tr>';
 
   h+='<div class="card"><h2>Affaire « '+esc(aff.nom)+' » — détail par mois</h2>'+
      '<p class="hint">UN seul tableau : <strong>une colonne par EJ / risque / aléa</strong> de l\'affaire (saisie de la consommation CP dans la cellule du mois ; grisée avant le mois de l\'EJ ; clic sur le n° = fiche EJ ou popup risque/aléa), puis les colonnes de synthèse (EJ engagé, aléa, risque, CP prévu, RP, <strong>GP EJ/CP</strong> avec les 4 options, EJ/CP réels saisis, écarts, statut, actions). Boutons + EJ / + Risque / + Aléa pour en créer. Cellules grisées = appuyées sur le réalisé saisi.</p>'+

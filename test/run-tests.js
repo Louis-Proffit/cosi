@@ -424,7 +424,7 @@ const testCode = `
   // ---- branche onglet-affaire-unique : vue unifiée 'affaire' (une seule affaire à la fois) ----
   state = demoState(); recomputeProfils(state);
   state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afX=htmlOf('affaire');
-  ok(afX.indexOf('>Aléa</th>')>=0 && afX.indexOf('>Risque</th>')>=0 && afX.indexOf('>GP EJ</th>')>=0 && afX.indexOf('>GP CP</th>')>=0, "vue affaire: colonnes Aléa, Risque (EJ=CP), GP EJ et GP CP (avec les 4 options)");
+  ok(afX.indexOf('>GP EJ</th>')>=0 && afX.indexOf('>GP CP</th>')>=0 && afX.indexOf('>Σ EJ</th>')>=0, "vue affaire: colonnes Σ EJ (synthèse EJ seule), GP EJ et GP CP (avec les 4 options)");
   ok(afX.indexOf('id="gp-rpdec"')>=0 && afX.indexOf('id="gp-nocpdec"')>=0 && afX.indexOf('id="gp-nocpjan"')>=0 && afX.indexOf('id="gp-ardec"')>=0, "vue affaire: les 4 mêmes options que l'ancien onglet GP à saisir");
   ok(afX.indexOf('data-goto="structure"')>=0 && afX.indexOf('data-goto="indices"')>=0, "vue affaire: liens vers les autres onglets pour modifier (affaire -> structure, indices)");
   ok(!/class="scol sc0 rnum"/.test(afX) && afX.indexOf('rnum')<0, "vue affaire: plus de numéro de ligne (rnum supprimé)");
@@ -455,14 +455,18 @@ const testCode = `
   state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var af1=htmlOf('affaire');
   ok(af1.indexOf('id="aff-solo"')>=0, "vue affaire: sélecteur d'affaire unique (aff-solo)");
   ok(af1.indexOf('GC-01')>=0 && af1.indexOf('HYD-01')<0, "vue affaire: une seule affaire lisible à la fois (a1 -> GC-01 oui, HYD-01 non)");
-  ok(af1.indexOf('>EJ engagé</th>')>=0 && af1.indexOf('>CP prévu</th>')>=0 && af1.indexOf('>RP</th>')>=0 && af1.indexOf('>EJ réel</th>')>=0 && af1.indexOf('>CP réel</th>')>=0, "vue affaire: colonnes de synthèse (EJ engagé, CP prévu, RP, EJ réel, CP réel, écarts, statut)");
+  ok(af1.indexOf('>Indice I/I₀</th>')>=0 && af1.indexOf('>RP</th>')>=0 && af1.indexOf('>Synthèse EJ</th>')>=0 && af1.indexOf('>Synthèse CP</th>')>=0 && af1.indexOf('>EJ réel</th>')>=0 && af1.indexOf('>CP réel</th>')>=0 && af1.indexOf('>Statut</th>')>=0 && af1.indexOf('>Actions</th>')>=0, "vue affaire: indice du marché, RP, synthèses EJ/CP, réalisé EJ/CP, GP EJ/CP, statut, actions");
   ok((af1.match(/data-ejcol=/g)||[]).length>0 && (af1.match(/data-rkpop=/g)||[]).length>0, "vue affaire: une colonne par EJ/risque/aléa dans le tableau (data-ejcol en ligne + data-rkpop en en-tête)");
   var ordA=[...af1.slice(0,af1.indexOf('</thead>')).matchAll(/data-(ejpop|rkpop)=\"([^\"]+)\"/g)].map(function(m){ return m[2]; });
   var grpA=ordA.map(function(id){ var e=ejById(id); return e?(stadeOrder2(e.stade)):'?'; });
   function stadeOrder2(st){ return st==='prog'||st==='engage'?0:(st==='alea'?1:2); }
   var sortedOk=grpA.every(function(v,i){ return i===0||grpA[i-1]<=v; });
   ok(sortedOk && ordA.length===5, "vue affaire: colonnes groupées par type — EJ d'abord, puis aléas, puis risques (ordre: "+ordA.join(",")+")");
-  ok(af1.indexOf('>Indice I</th>')>=0 && af1.indexOf('>I/I₀</th>')>=0, 'vue affaire: colonnes indice I et I/I0 de l affaire');
+  var thA=af1.slice(af1.indexOf('<thead>'), af1.indexOf('</thead>'));
+  var seqA=[...thA.matchAll(/data-(?:ejpop|rkpop)=\"([^\"]+)\"|>(Σ EJ|Indice I\\/I₀|Synthèse EJ)</g)].map(function(m){ return m[1]||m[2]; });
+  var idsA=[...thA.matchAll(/data-ejpop=\"([^\"]+)\"/g)].map(function(m){ return m[1]; });
+  ok(seqA.indexOf('Σ EJ')>seqA.indexOf(idsA[idsA.length-1]) && seqA.indexOf('Σ EJ')<seqA.indexOf('al1') && seqA.indexOf('al1')<seqA.indexOf('r1'), 'vue affaire: Σ EJ placée après tous les EJ et avant aléas/risques (séquence: '+seqA.join(',')+')');
+  ok(af1.indexOf('>Indice I/I₀</th>')>=0, 'vue affaire: colonne indice du marché (I avec I/I0)');
   var cssAf=require('fs').readFileSync(require('path').join(__dirname,'..','src','css','app.css'),'utf8');
   ok(cssAf.indexOf('table.affgrid th.dcol,table.affgrid td.dcol{min-width:170px')>=0, 'vue affaire: colonnes EJ/risque/aléa élargies (170px) pour bien voir chacune');
   ok(af1.indexOf('id="af-addej"')>=0 && af1.indexOf('id="af-addrk"')>=0 && af1.indexOf('id="af-addal"')>=0, "vue affaire: boutons + EJ / + Risque / + Aléa (création depuis le tableau)");
