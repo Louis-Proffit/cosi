@@ -166,6 +166,98 @@ function affDetailHTML(kind, aff, m, span){
   return '<td colspan="'+(span||4)+'" class="gp-detail"><strong>'+h+' = '+fmt0(tot)+' :</strong>'+(items.join('')||'<div>—</div>')+'</td>';
 }
 
+function fmtSgn(n){ return (n>0?'+': '')+fmt0(n); }
+
+/* Popup d'écart EJ/CP sur le réalisé : explication du calcul + chip d'alerte +
+   propositions d'actions (avec explications) ; un clic sur l'action l'exécute. */
+function openEcartPopup(affId, m, kind){
+  var aff=affaireById(affId); if(!aff) return;
+  var cur=curMois();
+  var ejs=ejsOfAffaire(aff.id);
+  var ejM=0, cpM=0;
+  ejs.forEach(function(e){ if(isMaterialise(e)){ if(e.mois===m) ejM+=montantOf(e); cpM+=cpPrevu(e,m); } });
+  var r=realOf(affId,m);
+  var hasR=r&&(Object.prototype.hasOwnProperty.call(r,'ej')||Object.prototype.hasOwnProperty.call(r,'cp'));
+  var vEj=(hasR?r.ej||0:0)-ejM, vCp=(hasR?r.cp||0:0)-cpM;
+  var isEj=kind==='ej';
+  var base=isEj?ejM:cpM, val=isEj?vEj:vCp, rv=isEj?(hasR?r.ej||0:null):(hasR?r.cp||0:null);
+  var tol=Math.max(1,base*(isEj?0.01:0.02));
+  var inco=Math.abs(val)>tol;
+  var chip=!inco?'<span class="badge ok">'+(isEj?'EJ':'CP')+' ok</span>'
+    :(val<0?'<span class="badge over">'+(isEj?'EJ':'CP')+' retard '+fmtM(-val)+'</span>':'<span class="badge warn">'+(isEj?'EJ':'CP')+' avance '+fmtM(val)+'</span>');
+  var actions='';
+  if(inco){
+    if(isEj){
+      if(Math.abs(vEj)>tol){
+        actions+='<div class="mp-row"><button class="btn small" data-act="const-ej" data-k="'+affId+'|'+m+'" title="Le réalisé constaté = le prévu de ce mois ('+fmt0(ejM)+')">EJ = prévu ('+fmt0(ejM)+')</button> <span class="hint">Constate le montant engagé prévu comme réalisé.</span></div>';
+        actions+='<div class="mp-row"><button class="btn small" data-act="ajej" data-k="'+affId+'|'+m+'" data-v="'+Math.round(vEj)+'" title="Ajuste le montant de l\'EJ engagé à ce mois de l\'écart constaté">Ajuster l\'EJ au réalisé ('+fmtSgn(vEj)+')</button> <span class="hint">Modifie le montant de l\'EJ pour coller au réalisé.</span></div>';
+        if(vEj>0) actions+='<div class="mp-row"><button class="btn small" data-act="addej" data-k="'+affId+'|'+m+'" data-v="'+Math.round(vEj)+'" title="Crée un EJ engagé supplémentaire de l\'écart (réalisé > engagé)">+ EJ engagé '+fmt(vEj)+'</button> <span class="hint">Réalisé supérieur à l\'engagé : crée l\'EJ manquant.</span></div>';
+        else actions+='<div class="mp-row"><button class="btn small" data-act="delej" data-k="'+affId+'|'+m+'" title="Décale l\'EJ engagé à ce mois au mois suivant">Décaler l\'EJ au mois suivant</button> <span class="hint">Réalisé inférieur à l\'engagé (retard) : décale l\'EJ.</span></div>';
+      }
+    } else {
+      if(Math.abs(vCp)>tol){
+        actions+='<div class="mp-row"><button class="btn small" data-act="const-cp" data-k="'+affId+'|'+m+'" title="Le CP réalisé constaté = le CP prévu de ce mois ('+fmt0(cpM)+')">CP = prévu ('+fmt0(cpM)+')</button> <span class="hint">Constate les CP prévus comme payés.</span></div>';
+        if(vCp<0) actions+='<div class="mp-row"><button class="btn small" data-act="delcp" data-k="'+affId+'|'+m+'" title="Reporte au mois suivant les CP prévus non réalisés">Reporter le CP au mois suivant</button> <span class="hint">Retard de paiement : décale le profil de CP.</span></div>';
+        var ejCp=null;
+        ejs.forEach(function(e){ if(!ejCp&&isMaterialise(e)&&cpPrevu(e,m)>0) ejCp=e; });
+        if(!ejCp) ejCp=ejs.filter(isMaterialise)[0]||null;
+        if(ejCp) actions+='<div class="mp-row"><button class="btn small" data-act="prof" data-ej="'+ejCp.id+'" title="Ouvre la fiche de l\'EJ '+esc(ejCp.numero)+' (profil de CP réglable)">Régler le profil CP de '+esc(ejCp.numero)+'</button> <span class="hint">Ajuste la répartition des CP de l\'EJ.</span></div>';
+      }
+    }
+  }
+  var ov=document.createElement('div');
+  ov.className='modal-ov';
+  ov.innerHTML='<div class="modal mp-pop"><h2>Écart '+(isEj?'EJ':'CP')+' — '+esc(aff.nom)+' — '+mLong(m)+'</h2>'+
+    '<p class="hint">'+(isEj?'EJ engagés ce mois':'CP prévus ce mois')+' : <strong>'+fmt0(base)+'</strong> · réalisé saisi : <strong>'+(rv==null?'non saisi':fmt0(rv))+'</strong> · écart = réalisé − prévu = <strong>'+(hasR?fmtSgn(val):'—')+'</strong> '+chip+'</p>'+
+    (inco?'<p class="hint">Un écart en retard comme en avance sur un mois écoulé est une incohérence à traiter :</p><div class="mp-rows">'+actions+'</div>'
+         :'<p class="hint">Pas d\'écart significatif sur ce mois.</p>')+
+    '<div class="formrow" style="margin-top:12px"><button type="button" class="btn" id="ec-cancel">Fermer</button></div></div>';
+  document.body.appendChild(ov);
+  function close(){ ov.remove(); document.removeEventListener('keydown',escH); }
+  function escH(ev){ if(ev.key==='Escape') close(); }
+  document.addEventListener('keydown',escH);
+  ov.addEventListener('click',function(ev){ if(ev.target===ov) close(); });
+  ov.querySelector('#ec-cancel').addEventListener('click',close);
+  ov.addEventListener('click',function(ev){
+    var b=ev.target.closest('button[data-act]'); if(!b) return;
+    var act=b.dataset.act, k=b.dataset.k, pp=k.split('|'), mm=pp[1];
+    if(act==='prof'){ close(); openProfilPopup(b.dataset.ej); return; }
+    var cur3=state.realise[k]?deepCopy(state.realise[k]):{};
+    if(act==='const-ej'){ cur3.ej=ejM; }
+    else if(act==='const-cp'){ cur3.cp=cpM; }
+    else if(act==='ajej'){
+      var vA=parseFloat(b.dataset.v)||0; if(!vA) return;
+      var cand=ejs.filter(function(e){ return isMaterialise(e)&&e.mois===mm; });
+      if(!cand.length) return;
+      cand[0].montant=Math.max(0,(cand[0].montant||0)+vA); recomputeProfils(state); save(); close(); renderAffaireKS(); return;
+    }
+    else if(act==='addej'){
+      var v2=parseFloat(b.dataset.v)||0; if(v2<=0) return;
+      var n=state.ejs.filter(function(e){ return e.affaireId===affId; }).length+1;
+      state.ejs.push({id:uid(),affaireId:affId,numero:'EJ-'+String(n).padStart(2,'0'),libelle:'Écart constaté dans le réalisé',stade:'engage',mois:mm,montant:Math.round(v2)});
+      recomputeProfils(state); save(); close(); renderAffaireKS(); return;
+    }
+    else if(act==='delej'){
+      var candD=ejs.filter(function(e){ return isMaterialise(e)&&e.mois===mm; });
+      if(!candD.length) return;
+      var eD=candD[0]; eD.mois=mAdd(mm,1);
+      var pD=profilOf(eD);
+      if(pD.debut===mm){ pD.debut=mAdd(mm,1); pD.fin=mAdd(mm,1); state.profils[eD.id]=pD; }
+      recomputeProfils(state); save(); close(); renderAffaireKS(); return;
+    }
+    else if(act==='delcp'){
+      var ejC=null;
+      ejs.forEach(function(e){ if(!ejC&&isMaterialise(e)&&cpPrevu(e,mm)>0) ejC=e; });
+      if(!ejC) return;
+      var pC=profilOf(ejC);
+      if(pC.type==='ponctuelle'&&pC.debut===mm){ pC.debut=mAdd(mm,1); pC.fin=pC.debut; state.profils[ejC.id]=pC; }
+      else if(pC.type==='uniforme'&&pC.debut<=mm&&mm<=pC.fin){ pC.debut=mAdd(pC.debut,1); pC.fin=mAdd(pC.fin,1); state.profils[ejC.id]=pC; }
+      recomputeProfils(state); save(); close(); renderAffaireKS(); return;
+    }
+    state.realise[k]=cur3; save(); close(); renderAffaireKS();
+  });
+}
+
 /* renderAffaire avec conservation du scroll horizontal (jamais de retour à gauche
    après une saisie) : on mémorise scrollLeft du .grid-wrap et on le restaure après
    le re-render, et on rend le focus à la cellule saisie pour enchaîner. */
@@ -293,14 +385,6 @@ function renderAffaire(){
     if(past&&!hasR) statut='<span class="badge warn" title="Mois écoulé sans réalisé saisi (saisi à 0 = constatation)">non saisi</span>';
     else if(past||m===cur) statut=hasR?(badgeEcart(eEj,tolEj,'EJ',showEj)+' '+badgeEcart(eCp,tolCp,'CP',showCp)):(m===cur?'<span class="badge info">à saisir</span>':'');
     else statut='';
-    var actions='';
-    if(inco){
-      if(Math.abs(eEj)>tolEj){
-        actions+='<button class="btn small" data-act="const-ej" data-k="'+aff.id+'|'+m+'" title="Constater le prévu comme réalisé (EJ)">EJ = prévu</button> ';
-        actions+='<button class="btn small" data-act="ajej" data-k="'+aff.id+'|'+m+'" data-v="'+Math.round(eEj)+'" title="Ajuster le montant de l\'EJ de l\'écart">Ajuster EJ</button> ';
-      }
-      if(Math.abs(eCp)>tolCp) actions+='<button class="btn small" data-act="const-cp" data-k="'+aff.id+'|'+m+'" title="Constater le prévu comme réalisé (CP)">CP = prévu</button>';
-    }
     var rEjV=(hasR&&Object.prototype.hasOwnProperty.call(r,'ej'))?fmt0(r.ej||0):'';
     var rCpV=(hasR&&Object.prototype.hasOwnProperty.call(r,'cp'))?fmt0(r.cp||0):'';
     body+='<tr data-m="'+m+'"'+(m===cur?' class="gp-cur"':'')+'><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLong(m)+(past?'':' (à venir)')+'</td>';
@@ -329,8 +413,8 @@ function renderAffaire(){
       '<td class="num mono ccell tot gp-cell" data-affdet="synthcp|'+m+'" title="Synthèse CP (toutes les colonnes) — détail au clic">'+fmt0(cpM)+'</td>'+
       '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+aff.id+'|'+m+'" data-f="ej" value="'+rEjV+'"'+(m<=cur?'':' disabled')+' title="EJ réalisé en '+mLong(m)+' (« 0 » = constaté à zéro, distinct de non saisi)"></td>'+
       '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+aff.id+'|'+m+'" data-f="cp" value="'+rCpV+'"'+(m<=cur?'':' disabled')+' title="CP réalisé en '+mLong(m)+' (« 0 » = constaté à zéro)"></td>'+
-      '<td class="num mono gp-cell" data-affdet="ecej|'+m+'" title="Écart EJ = réalisé − engagé — détail au clic ; statut et actions dans la case">'+(past?fmtS(eEj):'')+' '+statut+' '+actions+'</td>'+
-      '<td class="num mono gp-cell" data-affdet="eccp|'+m+'" title="Écart CP = réalisé − prévu — détail au clic">'+(past?fmtS(eCp):'')+'</td>'+
+      '<td class="num mono gp-cell" data-ecart="ej|'+m+'" title="Écart EJ = réalisé − engagé — cliquer sur la chip pour la popup (explication + actions)">'+(past?fmtS(eEj):'')+' '+statut+(inco?badgeEcart(eEj,tolEj,'EJ',true):'')+'</td>'+
+      '<td class="num mono gp-cell" data-ecart="cp|'+m+'" title="Écart CP = réalisé − prévu — cliquer sur la chip pour la popup (explication + actions)">'+(past?fmtS(eCp):'')+(inco?badgeEcart(eCp,tolCp,'CP',true):'')+'</td>'+
       '<td class="num mono ccell tot gp-cell'+(r?' gp-real':'')+'" data-affdet="gpej|'+m+'" title="GP EJ (les 4 options s\'appliquent ici) — détail au clic">'+fmt0(gEj)+'</td>'+
       '<td class="num mono ccell tot gp-cell'+(r?' gp-real':'')+'" data-affdet="gpcp|'+m+'" title="GP CP (les 4 options s\'appliquent ici) — détail au clic">'+fmt0(gCp)+'</td></tr>';
   });
@@ -374,7 +458,7 @@ function renderAffaire(){
     /* les 4 options GP (appliquées aux colonnes GP EJ / GP CP via gpVal) */
     [['gp-rpdec','gpRpDec'],['gp-nocpdec','gpNoCpDec'],['gp-nocpjan','gpNoCpJan'],['gp-ardec','gpARDec']].forEach(function(p){
       var cb=w.querySelector('#'+p[0]);
-      if(cb) cb.addEventListener('change',function(){ state.ui[p[1]]=cb.checked; save(); render(); });
+      if(cb) cb.addEventListener('change',function(){ state.ui[p[1]]=cb.checked; save(); renderAffaireKS(); });
     });
     /* flèches : saisir les cases à proximité (haut/bas/gauche/droite) de la sélectionnée */
     w.addEventListener('keydown', function(ev){
@@ -407,6 +491,8 @@ function renderAffaire(){
     var addal=w.querySelector('#af-addal');
     if(addal) addal.addEventListener('click',function(){ addItem('alea',{aleaPct:5,montantExplicite:false,dateType:'ponctuelle'}); });
     w.addEventListener('click', function(ev){
+      var ec=ev.target.closest('[data-ecart]');
+      if(ec&&ec.dataset&&ec.dataset.ecart){ var ep2=ec.dataset.ecart.split('|'); openEcartPopup(aff.id, ep2[1], ep2[0]); return; }
       var ad=ev.target.closest('[data-affdet]');
       if(ad&&ad.dataset&&ad.dataset.affdet){
         var p=ad.dataset.affdet.split('|'), kind=p[0], m=p[1]||'';

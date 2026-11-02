@@ -491,6 +491,25 @@ const testCode = `
   fire(wK,'change',{target:kin});
   ok(state.cps['e2|2026-12']===123456, 'saisie CP enchaînée: valeur enregistrée et re-render sans retour à gauche (renderAffaireKS)');
   state.ui.op=''; state.ui.aff='a1';
+  // écarts EJ/CP : valeur + chip cliquable -> popup explication + actions ; cases GP sans retour à gauche
+  state = demoState(); recomputeProfils(state);
+  state.realise['a1|2026-09']={ej:100000,cp:0}; // écart EJ (2,4M engagé) et CP (900k prévu) sur mois révolu
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afE=htmlOf('affaire');
+  ok(afE.indexOf('data-ecart="ej|2026-09"')>=0 && afE.indexOf('data-ecart="cp|2026-09"')>=0, 'écarts: colonnes avec data-ecart cliquable');
+  ok(/data-ecart="ej|2026-09"[^>]*>[^<]*[+-]/.test(afE) && afE.indexOf('badge over')>=0, 'écarts: valeur + chip d alerte (over) dans la case');
+  openEcartPopup('a1','2026-09','ej');
+  var ovE=document.body.children[document.body.children.length-1];
+  ok(ovE.innerHTML.indexOf('écart = réalisé − prévu')>=0 && ovE.innerHTML.indexOf('data-act="const-ej"')>=0 && ovE.innerHTML.indexOf('data-act="ajej"')>=0, 'popup écart: explication du calcul + propositions d actions (EJ = prévu, Ajuster…)');
+  var bCE=makeEl('button'); bCE.dataset.act='const-ej'; bCE.dataset.k='a1|2026-09'; bCE._closest=bCE; fire(ovE,'click',{target:bCE});
+  var ejsA=ejsOfAffaire('a1').filter(isMaterialise); var ejM=0; ejsA.forEach(function(e){ if(e.mois==='2026-09') ejM+=montantOf(e); });
+  ok(state.realise['a1|2026-09'].ej===ejM, 'popup écart: action EJ = prévu exécutée (réalisé = prévu)');
+  state = demoState(); recomputeProfils(state);
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render();
+  var wG=document.getElementById('view-affaire').children[0];
+  var cb2=wG.querySelector('#gp-ardec'); cb2.checked=true; fire(cb2,'change',{target:cb2});
+  ok(state.ui.gpARDec===true, 'cases GP (options): cochées sans re-render global -> scroll conservé (renderAffaireKS)');
+  state.ui.gpARDec=false; save();
+  state.ui.op=''; state.ui.aff='a1';
   var thS=af1.slice(0,af1.indexOf('</thead>'));
   var sepPos=[...thS.matchAll(/<th[^>]*class="([^"]*)"[^>]*>([^<]{0,25})/g)].filter(function(m){ return m[1].indexOf("sep")>=0; }).map(function(m){ return m[2]; });
   var sepPos=[...thS.matchAll(/<th[^>]*class="([^"]*)"[^>]*>([^<]{0,25})/g)].filter(function(m){ return m[1].indexOf("sep")>=0; }).map(function(m){ return m[2]; });
