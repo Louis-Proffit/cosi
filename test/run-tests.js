@@ -86,9 +86,9 @@ const testCode = `
   var iM = indiceApplicable(a1,"2026-10");
   ok(revisionMois(a1,"2026-07")===0 && cpMoisAff(a1,"2026-07")===0 && !realOf("a1","2026-07"), "RP = 0 sur un mois sans CP ni réalisé (a1 2026-07), got "+revisionMois(a1,"2026-07"));
   ok(Math.abs(revisionMois(a1,"2026-09") - 900000*(indiceApplicable(a1,"2026-09")/indiceRef(a1)-1))<0.01, "RP sur mois avec réalisé saisi = CP RÉALISÉ x (I/I0-1) (a1 2026-09, base 900000, got "+Math.round(revisionMois(a1,"2026-09"))+")");
-  var cp11=cpMoisAff(a1,"2026-11");
-  ok(cp11>0, "cpMoisAff(a1,2026-11) = CP du mois > 0, got "+cp11);
-  ok(Math.abs(revisionMois(a1,"2026-11") - cp11*(indiceApplicable(a1,"2026-11")/1000-1)) < 0.01, "revisionMois(a1,2026-11) = CP du mois x (I/I0 - 1)");
+  var cp11=cpMoisAffAll(a1,"2026-11");
+  ok(cp11>0, "cpMoisAffAll(a1,2026-11) = CP du mois (EJ+risques+aléas) > 0, got "+cp11);
+  ok(Math.abs(revisionMois(a1,"2026-11") - cp11*(indiceApplicable(a1,"2026-11")/1000-1)) < 0.01, "revisionMois(a1,2026-11) = base CP (EJ+risques+aléas) x (I/I0 - 1)");
   var iNov=indiceApplicable(a1,"2026-11"), i0a=indiceRef(a1);
   ok(Math.abs(revisionMois(a1,"2026-11")-cp11*(iNov/i0a-1))<0.01, "RP a1 2026-11 = CP du mois x (I/I0 - 1) = "+Math.round(cp11*(iNov/i0a-1))+", got "+revisionMois(a1,"2026-11"));
   var rc=revisionCumul(a1,"2026-11"), rs=0; scopeMonths("op1","a1").forEach(function(m){ if(m<="2026-11") rs+=revisionMois(a1,m); });
@@ -370,7 +370,7 @@ const testCode = `
 
   recomputeProfils(state);
   var revAuto=revisionMois(a1,"2026-11");
-  ok(Math.abs(revAuto-cpMoisAff(a1,"2026-11")*(indiceApplicable(a1,"2026-11")/indiceRef(a1)-1))<0.01 && revAuto>0, "RP automatique = CP du mois x (I/I0 - 1) (a1 2026-11 = "+Math.round(revAuto)+")");
+  ok(Math.abs(revAuto-cpMoisAffAll(a1,"2026-11")*(indiceApplicable(a1,"2026-11")/indiceRef(a1)-1))<0.01 && revAuto>0, "RP automatique = base CP (EJ+risques+aléas) x (I/I0 - 1) (a1 2026-11 = "+Math.round(revAuto)+")");
   ok(revisionMois(a1,"2026-07")===0, "pas de RP sur un mois sans CP ni réalisé (a1 2026-07)");
   // ---- options GP : RP en décembre / pas de CP en décembre / pas de CP en janvier ----
   state = demoState(); recomputeProfils(state);
@@ -549,6 +549,27 @@ const testCode = `
   var iX2=afC2.indexOf('EJ-TEST');
   ok(afC2.slice(iX2,iX2+500).indexOf('badge ok')>=0 && afC2.slice(iX2,iX2+500).indexOf('CP à saisir')<0, "check: CP saisis = montant -> 'ok'");
   // (alerte cohérence vérifiée plus haut, avant la saisie du CP)
+  // ---- vue affaire : pied de colonne (sauf indice) + cellules calculées cliquables (détail du calcul) ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afF=htmlOf('affaire');
+  ok((afF.match(/data-affdet=/g)||[]).length>10, "vue affaire: chiffres calculés cliquables (data-affdet) dans le corps et le pied");
+  var ft=afF.slice(afF.indexOf('<tfoot>'), afF.indexOf('</tfoot>'));
+  ok(ft.indexOf('data-affdet="footej|"')>=0 && ft.indexOf('data-affdet="footcpall|"')>=0 && ft.indexOf('data-affdet="footejar|"')>=0 && ft.indexOf('data-affdet="footcpar|"')>=0 && ft.indexOf('data-affdet="foottotalej|"')>=0 && ft.indexOf('data-affdet="foottotalcp|"')>=0 && ft.indexOf('data-affdet="footrp|"')>=0, "pied de colonne: Σ EJ, Σ CP, Σ EJ+AR+RP, Σ CP+AR+RP, Total EJ, Total CP, Σ RP (tous cliquables)");
+  ok(ft.indexOf('data-affdet="footcp|')>=0, "pied de colonne: total CP par item (EJ/risque/aléa), cliquable");
+  var iInd=ft.indexOf('Indice'), iEj=ft.indexOf('data-affdet="footej|"');
+  ok(ft.indexOf('<td></td>')>=0 && afF.indexOf('PAS de pied')>=0, "pied de colonne: aucun total pour la colonne indice");
+  // détail du calcul au clic
+  var dEj=affDetailHTML('ej', affaireById('a1'), '2026-09', 20);
+  ok(dEj.indexOf('GC-01')>=0 && dEj.replace(/[\s\u00a0\u202f]/g,'').indexOf('2400000')>=0, "détail calcul Σ EJ: liste les EJ du mois avec montants (ex: GC-01 2 400 000)");
+  var dRp=affDetailHTML('rp', affaireById('a1'), '2026-11', 20);
+  ok(dRp.indexOf('I/I₀−1')>=0 && dRp.indexOf('base CP')>=0, "détail calcul RP: base CP × (I/I₀−1) avec I et I₀");
+  var dSyn=affDetailHTML('synthej', affaireById('a1'), '2027-12', 20);
+  ok(dSyn.indexOf('aléa')>=0 || dSyn.indexOf('risque')>=0, "détail synthèse EJ: inclut aléas et risques (X aléa de … + Y risque de …)");
+  // RP: base = CP des EJ + risques + aléas du mois
+  var a1=affaireById('a1');
+  var mTest='2027-12'; // al1 (aléa) a des CP répartis jusqu'en 2027-12
+  var cpAll=cpMoisAffAll(a1,mTest), cpEjOnly=cpMoisAff(a1,mTest);
+  ok(cpAll>cpEjOnly && Math.abs(revisionMois(a1,mTest)-cpAll*(indiceApplicable(a1,mTest)/indiceRef(a1)-1))<0.01, "RP = indice × somme des CP des EJ + risques + aléas du mois (base élargie)");
   state = demoState(); recomputeProfils(state);
 
   // ---- ordre des onglets + filtres globaux en en-tête ----
@@ -769,16 +790,16 @@ const testCode = `
   var badRp=0, badCp=0, checked=0;
   state.affaires.forEach(function(a){
     scopeMonths(a.opId,a.id).forEach(function(m){
-      var cp=cpMoisAff(a,m), rp=revisionMois(a,m), i0=indiceRef(a), ind=indiceApplicable(a,m);
-      var rM=realOf(a.id,m), base=(rM!=null)?(rM.cp||0):cp; /* base = CP réalisé si saisi (même 0), sinon CP prévu */
+      var cp=cpMoisAffAll(a,m), rp=revisionMois(a,m), i0=indiceRef(a), ind=indiceApplicable(a,m);
+      var rM=realOf(a.id,m), base=(rM!=null)?(rM.cp||0):cp; /* base = CP réalisé si saisi (même 0), sinon CP prévu (EJ+risques+aléas) */
       checked++;
       var expect=(base>0&&ind!=null&&i0)?base*(ind/i0-1):0;
       if(Math.abs(rp-expect)>0.01) badRp++;
       if((base>0&&rp===0)||(base===0&&rp!==0)) badCp++;
     });
   });
-  ok(badRp===0, "RP(m) = base CP (réalisé si saisi, sinon prévu) x (I/I0-1) pour tous les mois/affaires ("+checked+" mois verifies)");
-  ok(badCp===0, "RP non nul exactement quand il y a une base CP (réalisée ou prévue), "+badCp+" anomalies");
+  ok(badRp===0, "RP(m) = base CP (réalisé si saisi, sinon prévu EJ+risques+aléas) x (I/I0-1), "+checked+" mois verifies");
+  ok(badCp===0, "RP non nul exactement quand il y a une base CP (réalisée ou prévue EJ+risques+aléas), "+badCp+" anomalies");
   // placeholder {c} dans une formule de revision forcee
   state.revisions["a1|2026-11"]="={c}*0.5";
   ok(Math.abs(revisionMois(a1,"2026-11")-cpMoisAff(a1,"2026-11")*0.5)<0.01, "revEval: placeholder {c} = CP du mois dans une formule forcee");

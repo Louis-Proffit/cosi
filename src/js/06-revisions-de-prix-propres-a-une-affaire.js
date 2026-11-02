@@ -110,6 +110,8 @@ function indiceRef(aff){
 }
 /* Somme des CP prévus d'une affaire sur un mois (EJ matérialisés uniquement) */
 function cpMoisAff(aff, m){ var s=0; ejsOfAffaire(aff.id).forEach(function(e){ if(isMaterialise(e)) s+=cpPrevu(e,m); }); return s; }
+/* somme des CP du mois sur TOUS les montants de l'affaire : EJ + risques + aléas */
+function cpMoisAffAll(aff, m){ var s=0; ejsOfAffaire(aff.id).forEach(function(e){ s+=cpPrevu(e,m); }); return s; }
 var DEFAULT_REV_FORMULA='={c}*({i}/{i0}-1)';
 var revFormErr={};
 /* Formule de révision d'une affaire pour un mois, avec placeholders :
@@ -156,7 +158,8 @@ function revEval(aff, f, mois){
    → des RP exactement sur les mois où il y a une base CP (et inversement). */
 function revAuto(aff,mois){
   var r=realOf(aff.id,mois);
-  var cp=(r!=null)?(r.cp||0):cpMoisAff(aff,mois);
+  /* base CP = CP réalisé saisi si présent, sinon somme des CP du mois sur EJ + risques + aléas */
+  var cp=(r!=null)?(r.cp||0):cpMoisAffAll(aff,mois);
   var ind=indiceApplicable(aff,mois), i0=indiceRef(aff);
   if(cp<=0||ind==null||!i0) return 0;
   return cp*(ind/i0-1);
