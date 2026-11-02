@@ -1538,6 +1538,15 @@ co7.indexOf(\x27rowspan="6"\x27)>=0 && !/rowspan="6">Mois</.test(co7)
   ok((afB.match(/col-bad/g)||[]).length>5, "alerte: colonne EJ incohérente (e1, Σ CP 100k vs 2,4M) marquée col-bad (en-tête + cellules, rouge clair)");
   ok(afB.indexOf('ALERTE : Σ CP')>=0 && afB.indexOf('badge over')>=0, "alerte: en-tête e1 en col-bad + badge écart + titre ALERTE");
   state = demoState(); recomputeProfils(state);
+  // ---- dashboard : graphique dédié distribution risques/aléas (favorable/défavorable) + RP risques/aléas ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.view="dashboard"; state.ui.op=""; state.ui.aff=""; state.ui.dashFrom=""; state.ui.dashTo=""; render(); var dhR=htmlOf("dashboard");
+  ok(dhR.indexOf("Distribution des risques")>=0, "dashboard: carte dédiée distribution risques/aléas présente");
+  var svgR=dhR.slice(dhR.indexOf("Distribution des risques"));
+  ok((svgR.match(/<path/g)||[]).length>=4 && (svgR.match(/chart-pt/g)||[]).length>10, "dashboard: 4 courbes (risques défavorable/favorable, aléas, RP risques/aléas) + points avec tooltips");
+  ok(svgR.indexOf("Risques défavorable")>=0 && svgR.indexOf("Risques favorable")>=0 && svgR.indexOf("Aléas")>=0 && svgR.indexOf("RP risques/aléas")>=0, "dashboard: légendes des 4 courbes (favorable/défavorable/aléas/RP)");
+  ok(typeof chartRisquesDist==="function", "chartRisquesDist: fonction présente");
+  state = demoState(); recomputeProfils(state);
   console.log("PASS: "+RESULTS.pass.length); RESULTS.pass.forEach(p=>console.log("  ok - "+p));
   if(RESULTS.fail.length){ console.log("FAIL: "+RESULTS.fail.length); RESULTS.fail.forEach(f=>console.log("  KO - "+f)); process.exitCode=1; }
 }catch(e){ console.log("ERREUR TEST: "+(e&&e.stack||e)); process.exitCode=1; }

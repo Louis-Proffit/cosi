@@ -2843,6 +2843,14 @@ function renderDashboard(){
      '<span><span class="sw" style="background:#b45309"></span>Attendu (aléas + risques pondérés)</span>'+
      '<span><span class="sw" style="background:#dc2626"></span>Tous aléas/risques matérialisés (haut)</span>'+todayLegend+'</div></div>';
 
+  h+='<div class="card"><h2 title="Distribution des risques et aléas dans le temps, en cumulé : cas défavorable (risques à 100 %, haut de la distribution) et cas favorable (risques pondérés par leur probabilité), courbe des aléas, et courbe des révisions de prix calculées sur les CP des risques et aléas.">Distribution des risques &amp; aléas (cas favorables / défavorables) + RP risques/aléas</h2>'+
+     '<p class="hint">Cumul par mois : <strong>risques — défavorable</strong> (montant haut, proba 100 %) et <strong>favorable</strong> (espérance × probabilité), <strong>aléas</strong>, et <strong>RP des risques &amp; aléas</strong> = (I/I₀−1) × CP des risques/aléas du mois, cumulées. Survolez un point pour le détail.</p>'+
+     chartRisquesDist(affs,ejs,months,per)+
+     '<div class="legend"><span><span class="sw" style="background:#dc2626"></span>Risques — cas défavorable (haut, 100 %)</span>'+
+     '<span><span class="sw" style="background:#b45309"></span>Risques — cas favorable (pondéré)</span>'+
+     '<span><span class="sw" style="background:#2563eb"></span>Aléas</span>'+
+     '<span><span class="sw" style="background:#7c3aed"></span>RP des risques &amp; aléas (cumulées)</span>'+todayLegend+'</div></div>';
+
   h+='<div class="card"><h2>Prévisionnel EJ par mois</h2><p class="hint">Par mois : <strong>EJ engagés</strong> (prévu, à leur mois), <strong>risques en hypothèse moyenne</strong> (espérance × probabilité, à leurs apparitions), <strong>aléas</strong> (répartis au hasard sur les mois restants de l\'opération) et <strong>révisions de prix (RP)</strong>. Survolez un mois pour le détail.</p>'+chartBarsEJ(affs,ejs,months,per)+
      '<div class="legend"><span><span class="sw" style="background:#059669"></span>EJ engagés (prévu)</span>'+
      '<span><span class="sw" style="background:#b45309"></span>Risques (hypothèse moyenne)</span>'+
@@ -3060,6 +3068,86 @@ function chartEntonnoir(affs, ejs, months, per){
   labs.forEach(function(L){
     s+='<line x1="'+X(n).toFixed(1)+'" y1="'+(L[2]+3).toFixed(1)+'" x2="'+(X(n)+12).toFixed(1)+'" y2="'+(L[2]+3).toFixed(1)+'" stroke="'+L[0]+'" stroke-width="1" stroke-dasharray="2 2"/>';
     s+='<text x="'+xEnd+'" text-anchor="end" y="'+(L[2]+3).toFixed(1)+'" fill="'+L[0]+'" font-weight="600">'+L[1]+'</text>';
+  });
+  s+='</svg>';
+  return s;
+}
+
+/* Graphique dédié : distribution cumulée des risques (cas défavorable = haut 100 %,
+   cas favorable = espérance × probabilité) et des aléas, + courbe des RP calculées
+   sur les CP des risques et aléas (base CP = CP risques/aléas du mois, I/I₀−1 par affaire). */
+function chartRisquesDist(affs, ejs, months, per){
+  months=applyPeriod(months,per);
+  var W=960,H=260,p={l:80,r:16,t:12,b:32}, n=months.length;
+  var aleas=ejs.filter(isAlea), risques=ejs.filter(isRisque);
+  var ids={}; affs.forEach(function(a){ ids[a.id]=1; });
+  /* RP des risques/aléas par mois et affaire : (I/I₀−1) × Σ CP(risques/aléas du mois) */
+  function rpRAMois(m){
+    var s=0;
+    affs.forEach(function(a){
+      var i0=indiceRef(a), ind=indiceApplicable(a,m);
+      if(!i0||ind==null) return;
+      var cp=0;
+      ejs.forEach(function(e){ if((isAlea(e)||isRisque(e))&&e.affaireId===a.id) cp+=cpPrevu(e,m); });
+      if(cp>0) s+=cp*(ind/i0-1);
+    });
+    return s;
+  }
+  var fav=[], def=[], alea=[], rpC=[], rpCum=0;
+  var maxV=1;
+  for(var i=0;i<n;i++){
+    var m=months[i], f=0, d=0, a=0;
+    risques.forEach(function(e){ f+=risquePondere(e)*cumOcc(e,m); d+=montantHaut(e)*cumOcc(e,m); });
+    aleas.forEach(function(e){ a+=montantOf(e)*cumOcc(e,m); });
+    rpCum+=rpRAMois(m);
+    fav.push(f); def.push(d); alea.push(a); rpC.push(rpCum);
+    maxV=Math.max(maxV,f,d,a,rpCum);
+  }
+  var X=function(i){ return p.l+(W-p.l-p.r)*(n<=1?0:i/n); };
+  var Y=function(v){ return H-p.b-(H-p.t-p.b)*(v/maxV); };
+  var s='<svg viewBox="0 0 '+W+' '+H+'" font-family="Segoe UI,sans-serif" font-size="10">';
+  for(i=0;i<=4;i++){
+    var v=maxV*i/4, y=Y(v);
+    s+='<line x1="'+p.l+'" y1="'+y.toFixed(1)+'" x2="'+(W-p.r)+'" y2="'+y.toFixed(1)+'" stroke="#e7ebf0"/>';
+    s+='<text x="'+(p.l-6)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end" fill="#67788c">'+fmtM(v)+'</text>';
+  }
+  var slot=(W-p.l-p.r)/Math.max(1,n);
+  var step=Math.max(1,Math.ceil(n/14));
+  for(i=0;i<n;i+=step){
+    s+='<text x="'+(X(i)+slot/2).toFixed(1)+'" y="'+(H-p.b+14)+'" text-anchor="middle" fill="#67788c">'+mLabel(months[i])+'</text>';
+  }
+  /* ligne verticale à la date du jour */
+  s+=todayLineSVG(months,function(i){ return X(i); },p,H);
+  function draw(arr,color,dash,w){
+    var d='';
+    for(var j=0;j<arr.length;j++) d+=(j?'L':'M')+X(j).toFixed(1)+' '+Y(arr[j]).toFixed(1)+' ';
+    s+='<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="'+(w||2)+'"'+(dash?' stroke-dasharray="5 4"':'')+'/>';
+  }
+  function pts(arr,color,label){
+    var o='';
+    for(var i2=0;i2<n;i2++){
+      o+='<circle class="chart-pt" data-m="'+months[i2]+'" cx="'+X(i2).toFixed(1)+'" cy="'+Y(arr[i2]).toFixed(1)+'" r="3.5" fill="'+color+'"><title>'+label+' '+mLabel(months[i2])+' : '+fmtM(arr[i2])+'</title></circle>';
+    }
+    return o;
+  }
+  draw(def,'#dc2626',false,2.5); draw(fav,'#b45309',true,2); draw(alea,'#2563eb',false,2); draw(rpC,'#7c3aed',true,2);
+  s+=pts(def,'#dc2626','Risques défavorable (haut)')+pts(fav,'#b45309','Risques favorable (pondéré)')+pts(alea,'#2563eb','Aléas')+pts(rpC,'#7c3aed','RP risques/aléas cumulées');
+  /* étiquettes de fin de courbes, empilées sans se chevaucher */
+  var labs=[
+    ['#dc2626','Risques défavorable '+fmtM(def[n-1]),Y(def[n-1])],
+    ['#b45309','Risques favorable '+fmtM(fav[n-1]),Y(fav[n-1])],
+    ['#2563eb','Aléas '+fmtM(alea[n-1]),Y(alea[n-1])],
+    ['#7c3aed','RP risques/aléas '+fmtM(rpC[n-1]),Y(rpC[n-1])]
+  ];
+  labs.sort(function(a,b){ return a[2]-b[2]; });
+  var minGap=11;
+  for(var li=1;li<labs.length;li++){ if(labs[li][2]<labs[li-1][2]+minGap) labs[li][2]=labs[li-1][2]+minGap; }
+  var yMax=H-p.b-6, yMin=p.t+8;
+  if(labs[labs.length-1][2]>yMax){ var sh=yMax-labs[labs.length-1][2]; for(var lj=0;lj<labs.length;lj++) labs[lj][2]+=sh; }
+  if(labs[0][2]<yMin){ var sh2=yMin-labs[0][2]; for(var lk=0;lk<labs.length;lk++) labs[lk][2]+=sh2; }
+  var xEnd=(W-p.r+4).toFixed(1);
+  labs.forEach(function(L){
+    s+='<text x="'+xEnd+'" y="'+(L[2]+3).toFixed(1)+'" fill="'+L[0]+'" font-weight="600">'+L[1]+'</text>';
   });
   s+='</svg>';
   return s;
