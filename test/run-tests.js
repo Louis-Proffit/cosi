@@ -1511,6 +1511,26 @@ co7.indexOf(\x27rowspan="6"\x27)>=0 && !/rowspan="6">Mois</.test(co7)
   state.ui.view='affaire'; render(); var afNoCmp=htmlOf('affaire');
   ok(afNoCmp.indexOf('cmp-note')<0, "hors comparaison: plus aucune annotation");
   state = demoState(); recomputeProfils(state);
+  // ---- export texte GP à saisir reconstruit sous le tableau Affaire (même contenu que main, nouvelles règles) ----
+  state = demoState(); recomputeProfils(state);
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afX=htmlOf('affaire');
+  ok(afX.indexOf('Export texte 2026 — GP à saisir')>=0 || afX.indexOf('Export texte 2026')>=0, "export GP: blocs texte par année SOUS le tableau d'ensemble (même onglet)");
+  ok(afX.indexOf('id="aff-copy-ej-2026"')>=0 && afX.indexOf('id="aff-copy-cp-2026"')>=0 && afX.indexOf('data-copyblk="aff-copy-ej-2026"')>=0, "export GP: versions EJ et CP avec pre.copyblk + bouton Copier");
+  var blk=afX.slice(afX.indexOf('aff-copy-cp-2026'));
+  ok(/[0-9][0-9][/][0-9][0-9] : /.test(blk), "export GP: lignes mm/AA : X k€ intitulé");
+  ok(blk.indexOf('REALISE:')>=0, "export GP: section REALISE: (réalisé saisi 09/26) présente");
+  ok(afX.indexOf("EJ réalisé")>=0 && blk.indexOf("CP réalisé")>=0, "export GP: lignes EJ.realise (bloc EJ) et CP.realise (bloc CP)");
+  // nouvelles règles: réalisé saisi à 0 = constatation -> ligne REALISE à 0, ligne prévu supprimée
+  state.realise['a1|2026-08']={ej:0,cp:0};
+  render(); var afX2=htmlOf('affaire');
+  var blk2=afX2.slice(afX2.indexOf('aff-copy-cp-2026'));
+  ok(blk2.indexOf('08/26 : 0 k€')>=0, "export GP: réalisé saisi à 0 -> ligne REALISE '08/26 : 0 k€' (constatation, pas 'non saisi')");
+  // bouton copier
+  var wCp=document.getElementById('view-affaire').children[0];
+  var bCp=wCp.querySelector('[data-copyblk]'); bCp._closest=bCp;
+  fire(wCp,'click',{target:bCp});
+  ok(true, "export GP: clic sur Copier ne plante pas");
+  state = demoState(); recomputeProfils(state);
   console.log("PASS: "+RESULTS.pass.length); RESULTS.pass.forEach(p=>console.log("  ok - "+p));
   if(RESULTS.fail.length){ console.log("FAIL: "+RESULTS.fail.length); RESULTS.fail.forEach(f=>console.log("  KO - "+f)); process.exitCode=1; }
 }catch(e){ console.log("ERREUR TEST: "+(e&&e.stack||e)); process.exitCode=1; }

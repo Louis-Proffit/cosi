@@ -6336,6 +6336,17 @@ function renderAffaire(){
      '<p class="hint">UN seul tableau : 1 colonne par EJ (Σ EJ, Σ CP, reste à payer juste après), puis aléas, puis risques (en-tête compact : n° → fiche/popup avec tout le détail), puis Indice, RP, Somme autre (aléa+risque+RP), Synthèses EJ/CP, EJ/CP réalisés, écarts (statut + actions dans la case), et enfin <strong>GP EJ / GP CP</strong> — seules ces 2 dernières colonnes subissent les 4 options cochées. Cellules calculées cliquables (détail juste sous la ligne). Flèches du clavier = saisie des cases voisines.</p>'+
      '<div class="grid-wrap"><table class="grid conso affgrid"><thead>'+blkrow+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div></div>';
 
+  /* ---- export texte « GP à saisir » (même contenu que l'onglet GP de main), sous le tableau ---- */
+  var yt=gpYearText([aff], months);
+  Object.keys(yt).sort().forEach(function(y){
+    h+='<div class="card"><h2>Export texte '+y+' — GP à saisir</h2>'+
+       '<p class="hint">Lignes « mm/AA : X k€ intitulé », une seule fois par mois : <strong>REALISE:</strong> (réalisé saisi — immuable, même à 0) puis <strong>PREVU:</strong> (saisi) quand les deux existent. Les 4 options cochées s\'y appliquent (décalages décembre/janvier, RP en décembre, aléas+risques en décembre).</p>'+
+       '<div class="two-col">'+
+       '<div><h3>Version EJ</h3><pre class="copyblk" id="aff-copy-ej-'+y+'">'+esc(gpYearBlock(yt[y].ej))+'</pre><button type="button" class="btn small" data-copyblk="aff-copy-ej-'+y+'" title="Copier le bloc EJ '+y+' dans le presse-papiers">Copier (EJ)</button></div>'+
+       '<div><h3>Version CP</h3><pre class="copyblk" id="aff-copy-cp-'+y+'">'+esc(gpYearBlock(yt[y].cp))+'</pre><button type="button" class="btn small" data-copyblk="aff-copy-cp-'+y+'" title="Copier le bloc CP '+y+' dans le presse-papiers">Copier (CP)</button></div>'+
+       '</div></div>';
+  });
+
   mount('view-affaire', h, function(w){
     var sel=w.querySelector('#aff-solo');
     if(sel) sel.addEventListener('change',function(){ state.ui.aff=sel.value; save(); render(); });
@@ -6375,6 +6386,13 @@ function renderAffaire(){
     var addal=w.querySelector('#af-addal');
     if(addal) addal.addEventListener('click',function(){ addItem('alea',{aleaPct:5,montantExplicite:false,dateType:'ponctuelle'}); });
     w.addEventListener('click', function(ev){
+      var cbk=ev.target.closest('[data-copyblk]');
+      if(cbk&&cbk.dataset&&cbk.dataset.copyblk){
+        var pre=document.getElementById(cbk.dataset.copyblk);
+        copyTextToClipboard(pre?pre.textContent:'').then(function(){ var old=cbk.textContent; cbk.textContent='Copié !'; setTimeout(function(){ cbk.textContent=old; },1200); },
+          function(){ alert('Copie auto indisponible : sélectionnez le bloc et Ctrl+C.'); });
+        return;
+      }
       var ec=ev.target.closest('[data-ecart]');
       if(ec&&ec.dataset&&ec.dataset.ecart){ var ep2=ec.dataset.ecart.split('|'); openEcartPopup(aff.id, ep2[1], ep2[0]); return; }
       var ad=ev.target.closest('[data-affdet]');
