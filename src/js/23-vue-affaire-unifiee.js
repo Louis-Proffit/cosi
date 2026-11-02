@@ -238,13 +238,18 @@ function renderAffaire(){
     return '<span class="badge warn">'+kind+' avance '+fmtM(val)+'</span>';
   }
 
-  /* en-tête compact : badge de stade + n° (bouton -> fiche EJ / popup risque-aléa).
-     Tout le détail (date, montant, profil, check Σ CP, distribution…) est dans la popup. */
+  /* en-tête compact mais complet, cliquable EN ENTIER -> popup : 1 info par ligne
+     (n° + badge, intitulé, montant — espérance pour un risque, montant pour un aléa).
+     Le reste du détail (date, profil, check Σ CP, distribution…) est dans la popup. */
   var head='<tr><th class="scol sc1">Mois</th>';
   function itemTh(e, sep){
-    var popAttr=(isRisque(e)||isAlea(e))?('data-rkpop="'+e.id+'" title="Popup '+(isRisque(e)?'risque':'aléa')+' '+esc(e.numero)+' : tout modifier (distribution/%, date, proba) + conséquence EJ/CP"'):('data-ejpop="'+e.id+'" title="Fiche de l\'EJ '+esc(e.numero)+' : n°, libellé, montant, date, profil CP, Σ CP — tout modifiable"');
-    return '<th class="dcol'+(foc===e.id?' col-focus':'')+(sep?' sep':'')+'">'+stadeBadge(e)+
-      '<button type="button" class="ej-btn" '+popAttr+'>'+esc(e.numero)+'</button></th>';
+    var popAttr=(isRisque(e)||isAlea(e))?('data-rkpop="'+e.id+'"'):('data-ejpop="'+e.id+'"');
+    var popTip=(isRisque(e)||isAlea(e))?('Popup '+(isRisque(e)?'risque':'aléa')+' '+esc(e.numero)+' : tout modifier (distribution/%, date, proba) + conséquence EJ/CP — CLIC N\'IMPORTE OÙ dans l\'en-tête'):('Fiche de l\'EJ '+esc(e.numero)+' : n°, libellé, montant, date, profil CP, Σ CP — CLIC N\'IMPORTE OÙ dans l\'en-tête');
+    var mtTxt=isRisque(e)?('esp. '+fmt0(espDist(e))):fmt0(montantOf(e));
+    return '<th class="dcol'+(foc===e.id?' col-focus':'')+(sep?' sep':'')+'" '+popAttr+' title="'+popTip+'">'+
+      '<div>'+stadeBadge(e)+' <button type="button" class="ej-btn" tabindex="-1">'+esc(e.numero)+'</button></div>'+
+      '<div class="hdr-sub">'+esc(e.libelle||'—')+'</div>'+
+      '<div class="hdr-sub"><strong>'+mtTxt+'</strong></div></th>';
   }
   ejList.forEach(function(e){ head+=itemTh(e); });
   head+='<th class="num tot-h sep" title="Σ EJ ce mois (EJ seuls) — détail au clic">Σ EJ</th>'+

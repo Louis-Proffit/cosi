@@ -354,3 +354,7 @@ table.affgrid .sep{border-left:3px solid var(--blue)}
 
 /* en-têtes EJ compacts : colonnes plus étroites (détail dans la popup) */
 table.affgrid th.dcol,table.affgrid td.dcol{min-width:92px;width:92px}
+
+/* en-tête d'une colonne EJ/risque/aléa entièrement cliquable -> popup */
+table.affgrid th.dcol{cursor:pointer}
+table.affgrid th.dcol:hover{background:var(--blue-bg)}

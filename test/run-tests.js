@@ -468,6 +468,12 @@ const testCode = `
   var cssN=require("fs").readFileSync(require("path").join(__dirname,"..","src","css","app.css"),"utf8");
   ok(seqH.join(',')==='e1,e2,e3,Σ EJ,Σ CP,Reste à payer,al1,r1,Indice I/I₀,RP,Somme autre,Synthèse EJ,Synthèse CP,EJ réalisé,CP réalisé,Écart EJ,Écart CP,GP EJ,GP CP', 'vue affaire: ordre des colonnes conforme (Σ EJ/Σ CP/reste à payer après les EJ, GP EJ/CP en dernier) : '+seqH.join(','));
   ok(cssN.indexOf('table.affgrid th.dcol,table.affgrid td.dcol{min-width:92px')>=0 && thH.indexOf(' · ') < 0, "en-têtes EJ compacts: colonnes 92px, plus de date/montant en en-tête (détail dans la popup)");
+  var thE1=thH.slice(thH.indexOf('data-ejpop=\"e1\"'));
+  ok(thE1.indexOf('data-ejpop')>=0 && thE1.indexOf('GC-01')>=0 && thE1.indexOf('Installation de chantier')>=0 && /2[s  ]400[s  ]000/.test(thE1.slice(0,400)), 'en-tête EJ: n° + intitulé + montant, une info par ligne, tout l en-tête cliquable (data-ejpop sur le th)');
+  var thR1=thH.slice(thH.indexOf('data-rkpop=\"r1\"'));
+  ok(thR1.indexOf('data-rkpop')>=0 && thR1.indexOf('esp.')>=0, 'en-tête risque: espérance affichée, tout l en-tête cliquable (data-rkpop sur le th)');
+  var thA1=thH.slice(thH.indexOf('data-rkpop=\"al1\"'));
+  ok(thA1.indexOf('data-rkpop')>=0, 'en-tête aléa: montant affiché, tout l en-tête cliquable');
   var cssN=require('fs').readFileSync(require('path').join(__dirname,'..','src','css','app.css'),'utf8');
   // 4 options GP -> uniquement les colonnes GP EJ/CP (via gpVal), pas les autres colonnes
   var a1g=affaireById('a1'); var mD='2026-12';
