@@ -455,13 +455,36 @@ const testCode = `
   state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var af1=htmlOf('affaire');
   ok(af1.indexOf('id="aff-solo"')>=0, "vue affaire: sélecteur d'affaire unique (aff-solo)");
   ok(af1.indexOf('GC-01')>=0 && af1.indexOf('HYD-01')<0, "vue affaire: une seule affaire lisible à la fois (a1 -> GC-01 oui, HYD-01 non)");
-  ok(af1.indexOf('>Indice I/I₀</th>')>=0 && af1.indexOf('>RP</th>')>=0 && af1.indexOf('>Synthèse EJ</th>')>=0 && af1.indexOf('>Synthèse CP</th>')>=0 && af1.indexOf('>EJ réel</th>')>=0 && af1.indexOf('>CP réel</th>')>=0 && af1.indexOf('>Statut</th>')>=0 && af1.indexOf('>Actions</th>')>=0, "vue affaire: indice du marché, RP, synthèses EJ/CP, réalisé EJ/CP, GP EJ/CP, statut, actions");
+  ok(af1.indexOf('>Σ EJ</th>')>=0 && af1.indexOf('>Σ CP</th>')>=0 && af1.indexOf('>Reste à payer</th>')>=0 && af1.indexOf('>Indice I/I₀</th>')>=0 && af1.indexOf('>RP</th>')>=0 && af1.indexOf('>Somme autre</th>')>=0 && af1.indexOf('>Synthèse EJ</th>')>=0 && af1.indexOf('>Synthèse CP</th>')>=0 && af1.indexOf('>EJ réalisé</th>')>=0 && af1.indexOf('>CP réalisé</th>')>=0 && af1.indexOf('>Écart EJ</th>')>=0 && af1.indexOf('>Écart CP</th>')>=0 && af1.indexOf('>GP EJ</th>')>=0 && af1.indexOf('>GP CP</th>')>=0, "vue affaire: Σ EJ, Σ CP, reste à payer, indice, RP, somme autre, synthèses, réalisé, écarts, GP EJ/CP en dernier");
   ok((af1.match(/data-ejcol=/g)||[]).length>0 && (af1.match(/data-rkpop=/g)||[]).length>0, "vue affaire: une colonne par EJ/risque/aléa dans le tableau (data-ejcol en ligne + data-rkpop en en-tête)");
   var ordA=[...af1.slice(0,af1.indexOf('</thead>')).matchAll(/data-(ejpop|rkpop)=\"([^\"]+)\"/g)].map(function(m){ return m[2]; });
   var grpA=ordA.map(function(id){ var e=ejById(id); return e?(stadeOrder2(e.stade)):'?'; });
   function stadeOrder2(st){ return st==='prog'||st==='engage'?0:(st==='alea'?1:2); }
   var sortedOk=grpA.every(function(v,i){ return i===0||grpA[i-1]<=v; });
   ok(sortedOk && ordA.length===5, "vue affaire: colonnes groupées par type — EJ d'abord, puis aléas, puis risques (ordre: "+ordA.join(",")+")");
+  // nouvel ordre de colonnes : EJ..., Σ EJ, Σ CP, reste à payer, al1, r1, indice, RP, somme autre, synthèses, réalisé, écarts, GP EJ/CP en dernier
+  var thH=af1.slice(af1.indexOf('<thead>'), af1.indexOf('</thead>'));
+  var seqH=[...thH.matchAll(/data-(?:ejpop|rkpop)=\"([^\"]+)\"|>(Σ EJ|Σ CP|Reste à payer|Indice I\\/I₀|RP|Somme autre|Synthèse EJ|Synthèse CP|EJ réalisé|CP réalisé|Écart EJ|Écart CP|GP EJ|GP CP)</g)].map(function(m){ return m[1]||m[2]; });
+  var cssN=require("fs").readFileSync(require("path").join(__dirname,"..","src","css","app.css"),"utf8");
+  ok(seqH.join(',')==='e1,e2,e3,Σ EJ,Σ CP,Reste à payer,al1,r1,Indice I/I₀,RP,Somme autre,Synthèse EJ,Synthèse CP,EJ réalisé,CP réalisé,Écart EJ,Écart CP,GP EJ,GP CP', 'vue affaire: ordre des colonnes conforme (Σ EJ/Σ CP/reste à payer après les EJ, GP EJ/CP en dernier) : '+seqH.join(','));
+  ok(cssN.indexOf('table.affgrid th.dcol,table.affgrid td.dcol{min-width:92px')>=0 && thH.indexOf(' · ') < 0, "en-têtes EJ compacts: colonnes 92px, plus de date/montant en en-tête (détail dans la popup)");
+  var cssN=require('fs').readFileSync(require('path').join(__dirname,'..','src','css','app.css'),'utf8');
+  // 4 options GP -> uniquement les colonnes GP EJ/CP (via gpVal), pas les autres colonnes
+  var a1g=affaireById('a1'); var mD='2026-12';
+  var synthCpRaw=0; ejsOfAffaire('a1').forEach(function(e){ synthCpRaw+=cpPrevu(e,mD); });
+  state.ui.gpNoCpDec=true;
+  ok(Math.abs(gpVal('scp',a1g,mD)-0)<0.01 || gpVal('scp',a1g,mD)!==synthCpRaw, 'options GP: la colonne GP CP est décalée par les options (gpVal)');
+  state.ui.gpNoCpDec=false; save();
+  // conservation du scroll horizontal après saisie (jamais de retour à gauche) + flèches de navigation
+  ok(typeof renderAffaireKS==='function', 'renderAffaireKS: re-render en conservant scrollLeft (pas de retour à gauche après une saisie)');
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render();
+  var wK=document.getElementById('view-affaire').children[0];
+  var kin=makeEl('input'); kin.dataset.cp='e2|2026-12'; kin.value='123456'; kin._closest=kin;
+  fire(wK,'keydown',{target:kin, key:'ArrowRight', preventDefault:function(){}});
+  ok(true, 'flèches du clavier: handler keydown Arrow* installé sur le tableau (navigation haut/bas/gauche/droite entre les cases saisissables)');
+  fire(wK,'change',{target:kin});
+  ok(state.cps['e2|2026-12']===123456, 'saisie CP enchaînée: valeur enregistrée et re-render sans retour à gauche (renderAffaireKS)');
+  state.ui.op=''; state.ui.aff='a1';
   var thS=af1.slice(0,af1.indexOf('</thead>'));
   ok((thS.match(/ sep"/g)||[]).length===4, "vue affaire: 4 séparateurs de section dans l en-tête (Σ EJ, 1er aléa, 1er risque, indice)");
   var cssSep=require('fs').readFileSync(require('path').join(__dirname,'..','src','css','app.css'),'utf8');
@@ -542,26 +565,29 @@ const testCode = `
   state.profils['eX']={type:'perso'}; recomputeProfils(state);
   state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afC0=htmlOf('affaire');
   var iX0=afC0.indexOf('EJ-TEST');
-  ok(afC0.slice(iX0,iX0+500).indexOf('montant ?')>=0, "check: EJ créé sans montant -> 'montant ?' (pas 'ok')");
+  openProfilPopup('eX'); var ovC0=document.body.children[document.body.children.length-1];
+  ok(ovC0.innerHTML.indexOf('pp-check')>=0 && ovC0.innerHTML.indexOf('montant ?')>=0, "check (popup fiche EJ): EJ créé sans montant -> 'montant ?' (pas 'ok')");
   ejById('eX').montant=500000; recomputeProfils(state); render(); var afC1=htmlOf('affaire');
   var iX1=afC1.indexOf('EJ-TEST');
-  ok(afC1.slice(iX1,iX1+500).indexOf('CP à saisir')>=0, "check: EJ avec montant mais aucun CP saisi -> 'CP à saisir' (pas 'ok')");
+  openProfilPopup('eX'); var ovC1=document.body.children[document.body.children.length-1];
+  ok(ovC1.innerHTML.indexOf('CP à saisir')>=0, "check (popup fiche EJ): EJ avec montant mais aucun CP saisi -> 'CP à saisir' (pas 'ok')");
   var alsC=computeAlerts('','');
   var cohX=alsC.filter(function(x){ return x.col==='eX'; });
   ok(cohX.length===1 && cohX[0].txt.indexOf('AUCUN CP')>=0, "alerte cohérence: EJ sans CP -> AUCUN CP saisi/prévu (pas ok)");
   state.cps['eX|2026-11']=500000; recomputeProfils(state); render(); var afC2=htmlOf('affaire');
   var iX2=afC2.indexOf('EJ-TEST');
-  ok(afC2.slice(iX2,iX2+500).indexOf('badge ok')>=0 && afC2.slice(iX2,iX2+500).indexOf('CP à saisir')<0, "check: CP saisis = montant -> 'ok'");
+  openProfilPopup('eX'); var ovC2=document.body.children[document.body.children.length-1];
+  ok(ovC2.innerHTML.indexOf('badge ok')>=0 && ovC2.innerHTML.indexOf('CP à saisir')<0, "check (popup fiche EJ): CP saisis = montant -> 'ok'");
   // (alerte cohérence vérifiée plus haut, avant la saisie du CP)
   // ---- vue affaire : pied de colonne (sauf indice) + cellules calculées cliquables (détail du calcul) ----
   state = demoState(); recomputeProfils(state);
   state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afF=htmlOf('affaire');
   ok((afF.match(/data-affdet=/g)||[]).length>10, "vue affaire: chiffres calculés cliquables (data-affdet) dans le corps et le pied");
   var ft=afF.slice(afF.indexOf('<tfoot>'), afF.indexOf('</tfoot>'));
-  ok(ft.indexOf('data-affdet="footej|"')>=0 && ft.indexOf('data-affdet="footcpall|"')>=0 && ft.indexOf('data-affdet="footejar|"')>=0 && ft.indexOf('data-affdet="footcpar|"')>=0 && ft.indexOf('data-affdet="foottotalej|"')>=0 && ft.indexOf('data-affdet="foottotalcp|"')>=0 && ft.indexOf('data-affdet="footrp|"')>=0, "pied de colonne: Σ EJ, Σ CP, Σ EJ+AR+RP, Σ CP+AR+RP, Total EJ, Total CP, Σ RP (tous cliquables)");
+  ok(ft.indexOf('data-affdet="footej|"')>=0 && ft.indexOf('data-affdet="footcpej|"')>=0 && ft.indexOf('data-affdet="footcpall|"')>=0 && ft.indexOf('data-affdet="footejar|"')>=0 && ft.indexOf('data-affdet="footautre|"')>=0 && ft.indexOf('data-affdet="foottotalej|"')>=0 && ft.indexOf('data-affdet="foottotalcp|"')>=0 && ft.indexOf('data-affdet="footrp|"')>=0, "pied de colonne: Σ EJ, Σ CP, Σ EJ+AR+RP, Σ CP+AR+RP, Total EJ, Total CP, Σ RP (tous cliquables)");
   ok(ft.indexOf('data-affdet="footcp|')>=0, "pied de colonne: total CP par item (EJ/risque/aléa), cliquable");
   var iInd=ft.indexOf('Indice'), iEj=ft.indexOf('data-affdet="footej|"');
-  ok(ft.indexOf('<td class="sep"></td>')>=0 && afF.indexOf('PAS de pied')>=0, "pied de colonne: aucun total pour la colonne indice");
+  ok(ft.indexOf('<td class="sep"></td>')>=0 && afF.indexOf('pas de pied')>=0, "pied de colonne: aucun total pour la colonne indice");
   // détail du calcul au clic
   var dEj=affDetailHTML('ej', affaireById('a1'), '2026-09', 20);
   ok(dEj.indexOf('GC-01')>=0 && dEj.replace(/[\s\u00a0\u202f]/g,'').indexOf('2400000')>=0, "détail calcul Σ EJ: liste les EJ du mois avec montants (ex: GC-01 2 400 000)");

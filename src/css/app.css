@@ -351,3 +351,6 @@ table.affgrid thead th{border-bottom:2px solid #8fa0b8}
 table.affgrid tfoot td{border-top:2px solid #8fa0b8}
 /* séparateur de section : EJ | Σ EJ | aléas | risques | synthèse (indice, RP, …) */
 table.affgrid .sep{border-left:3px solid var(--blue)}
+
+/* en-têtes EJ compacts : colonnes plus étroites (détail dans la popup) */
+table.affgrid th.dcol,table.affgrid td.dcol{min-width:92px;width:92px}

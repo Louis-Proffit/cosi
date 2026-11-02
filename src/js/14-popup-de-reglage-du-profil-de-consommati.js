@@ -1,5 +1,14 @@
 /* ================= Popup de réglage du profil de consommation CP ================= */
 
+/* check tri-état Σ CP vs montant d'un EJ (dans la fiche EJ) */
+function checkBadge(e){
+  if(!isMaterialise(e)) return '—';
+  var somCp=cpSumOf(e.id), mtE=montantOf(e);
+  if(mtE<=0) return '<span class="badge warn">montant ?</span>';
+  if(somCp<=0) return '<span class="badge warn">CP à saisir</span>';
+  if(Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001)) return '<span class="badge ok">ok</span>';
+  return '<span class="badge over">écart '+fmt0(mtE-somCp)+'</span>';
+}
 function profilSummary(p){
   if(!p) return '—';
   if(p.type==='ponctuelle') return 'ponctuelle · '+(p.debut?mLong(p.debut):'—');
@@ -56,7 +65,7 @@ function openProfilPopup(ejId){
   var ov=document.createElement('div');
   ov.className='modal-ov';
   ov.innerHTML='<div class="modal"><h2>Fiche de l\'EJ « '+esc(e.numero)+' » — profil de consommation des CP</h2>'+
-    '<p class="hint">'+stadeBadge(e)+' affaire « '+esc(affaireName(e.affaireId))+' » · CP consommés à ce jour : <span id="pp-cpnow">'+fmt(cpSumOf(e.id))+'</span></p>'+
+    '<p class="hint">'+stadeBadge(e)+' affaire « '+esc(affaireName(e.affaireId))+' » · CP consommés à ce jour : <span id="pp-cpnow">'+fmt(cpSumOf(e.id))+'</span> · check Σ CP vs montant : <strong id="pp-check">'+checkBadge(e)+'</strong></p>'+
     /* toutes les caractéristiques de l'EJ sont modifiables ici (la colonne de la
        grille « Consommation CP » n'affiche que intitulé / date / montant / check Σ CP) */
     '<div class="formrow">'+
