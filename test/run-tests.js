@@ -478,8 +478,10 @@ const testCode = `
   var thH=af1.slice(af1.indexOf('<thead>'), af1.indexOf('</thead>'));
   var seqH=[...thH.matchAll(/data-(?:ejpop|rkpop)=\"([^\"]+)\"|>(Σ EJ|Σ CP|Reste à payer|Indice I\\/I₀|RP|Somme autre|Synthèse EJ|Synthèse CP|EJ réalisé|CP réalisé|Écart EJ|Écart CP|GP EJ|GP CP)</g)].map(function(m){ return m[1]||m[2]; });
   var cssN=require("fs").readFileSync(require("path").join(__dirname,"..","src","css","app.css"),"utf8");
-  ok(seqH.join(',')==='e1,e2,e3,Σ EJ,Σ CP,Reste à payer,al1,r1,Indice I/I₀,RP,Somme autre,Synthèse EJ,Synthèse CP,EJ réalisé,CP réalisé,Écart EJ,Écart CP,GP EJ,GP CP', 'vue affaire: ordre des colonnes conforme (Σ EJ/Σ CP/reste à payer après les EJ, GP EJ/CP en dernier) : '+seqH.join(','));
-  ok(cssN.indexOf('table.affgrid th.dcol,table.affgrid td.dcol{min-width:92px')>=0 && thH.indexOf(' · ') < 0, "en-têtes EJ compacts: colonnes 92px, plus de date/montant en en-tête (détail dans la popup)");
+  ok(seqH.join(',')==='e1,e2,e3,Σ EJ,Σ CP,Reste à payer,al1,r1,RP,Somme autre,Indice I/I₀,Synthèse EJ,Synthèse CP,EJ réalisé,CP réalisé,Écart EJ,Écart CP,GP EJ,GP CP', 'vue affaire: blocs — conso CP+sommes (reste à payer) | autre (aléa+risque+RP) | synthèse+réalisé+écart | GP : '+seqH.join(','));
+  ok(cssN.indexOf('table.affgrid th.dcol,table.affgrid td.dcol{min-width:92px')>=0, "en-têtes EJ compacts: colonnes 92px");
+  var blk=af1.slice(af1.indexOf('blkrow'), af1.indexOf('</tr>'));
+  ok(blk.indexOf('Conso CP &amp; sommes (dont reste à payer)')>=0 && blk.indexOf('Autre (aléa + risque + RP)')>=0 && blk.indexOf('Synthèse · réalisé · écart')>=0 && blk.indexOf('>GP</th>')>=0, "tableau découpé en 4 blocs titrés (ligne blkrow): conso CP & sommes | autre | synthèse+réalisé+écart | GP");
   var thE1=thH.slice(thH.indexOf('data-ejpop=\"e1\"'));
   ok(thE1.indexOf('data-ejpop')>=0 && thE1.indexOf('GC-01')>=0 && thE1.indexOf('Installation de chantier')>=0 && /2[s  ]400[s  ]000/.test(thE1.slice(0,400)), 'en-tête EJ: n° + intitulé + montant, une info par ligne, tout l en-tête cliquable (data-ejpop sur le th)');
   var thR1=thH.slice(thH.indexOf('data-rkpop=\"r1\"'));
@@ -525,7 +527,9 @@ const testCode = `
   var thS=af1.slice(0,af1.indexOf('</thead>'));
   var sepPos=[...thS.matchAll(/<th[^>]*class="([^"]*)"[^>]*>([^<]{0,25})/g)].filter(function(m){ return m[1].indexOf("sep")>=0; }).map(function(m){ return m[2]; });
   var sepPos=[...thS.matchAll(/<th[^>]*class="([^"]*)"[^>]*>([^<]{0,25})/g)].filter(function(m){ return m[1].indexOf("sep")>=0; }).map(function(m){ return m[2]; });
-  ok(sepPos.length===4 && sepPos[0].indexOf("Σ EJ")>=0, "séparateurs adaptés au bloc autre: avant Σ EJ, avant le 1er aléa, avant Indice, avant Synthèse EJ — trouvés: "+sepPos.join(" | "));
+  var hdrRow2=thS.slice(thS.indexOf('</tr>'));
+  var sepPos=[...hdrRow2.matchAll(/<th[^>]*class="([^"]*)"[^>]*>([^<]{0,25})/g)].filter(function(m){ return m[1].indexOf("sep")>=0; }).map(function(m){ return m[2]; });
+  ok(sepPos.length===3, "séparateurs de blocs (2e ligne d en-tête): avant 1er aléa, avant Indice, avant GP EJ — trouvés: "+sepPos.join(" | "));
   var iR1=thS.indexOf("data-rkpop="+String.fromCharCode(34)+"r1"+String.fromCharCode(34));
   ok(iR1>=0 && thS.slice(iR1, iR1+300).indexOf(" sep")<0, "plus de séparateur entre aléas et risques (même bloc autre)");
   var cssSep=require('fs').readFileSync(require('path').join(__dirname,'..','src','css','app.css'),'utf8');

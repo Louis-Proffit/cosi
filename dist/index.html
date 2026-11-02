@@ -6160,7 +6160,13 @@ function renderAffaire(){
   /* en-tête compact mais complet, cliquable EN ENTIER -> popup : 1 info par ligne
      (n° + badge, intitulé, montant — espérance pour un risque, montant pour un aléa).
      Le reste du détail (date, profil, check Σ CP, distribution…) est dans la popup. */
-  var head='<tr><th class="scol sc1">Mois</th>';
+  var blk1=ejList.length+3, blk2=alList.length+rkList.length+2;
+  var blkrow='<tr class="blkrow"><th class="scol sc1" rowspan="2">Mois</th>'+
+    '<th colspan="'+blk1+'">Conso CP &amp; sommes (dont reste à payer)</th>'+
+    '<th class="sep" colspan="'+blk2+'">Autre (aléa + risque + RP)</th>'+
+    '<th class="sep" colspan="7">Synthèse · réalisé · écart</th>'+
+    '<th class="sep" colspan="2">GP</th></tr>';
+  var head='<tr>';
   function itemTh(e, sep){
     var popAttr=(isRisque(e)||isAlea(e))?('data-rkpop="'+e.id+'"'):('data-ejpop="'+e.id+'"');
     var popTip=(isRisque(e)||isAlea(e))?('Popup '+(isRisque(e)?'risque':'aléa')+' '+esc(e.numero)+' : tout modifier (distribution/%, date, proba) + conséquence EJ/CP — CLIC N\'IMPORTE OÙ dans l\'en-tête'):('Fiche de l\'EJ '+esc(e.numero)+' : n°, libellé, montant, date, profil CP, Σ CP — CLIC N\'IMPORTE OÙ dans l\'en-tête');
@@ -6171,22 +6177,21 @@ function renderAffaire(){
       '<div class="hdr-sub"><strong>'+mtTxt+'</strong></div></th>';
   }
   ejList.forEach(function(e){ head+=itemTh(e); });
-  head+='<th class="num tot-h sep" title="Σ EJ ce mois (EJ seuls) — détail au clic">Σ EJ</th>'+
+  head+='<th class="num tot-h" title="Σ EJ ce mois (EJ seuls) — détail au clic">Σ EJ</th>'+
     '<th class="num tot-h" title="Σ CP des EJ ce mois — détail au clic">Σ CP</th>'+
     '<th class="num tot-h" title="Reste à payer à cette date = EJ engagés cumulés − CP consommés cumulés (finit à 0) — détail au clic">Reste à payer</th>';
   alList.forEach(function(e,i){ head+=itemTh(e, i===0); });
   rkList.forEach(function(e){ head+=itemTh(e); });
-  head+=
-    '<th class="num tot-h sep" title="Indice du marché ce mois (formule de l\'affaire) ; I/I₀ recalé à 1 à la date de réf. — pas de pied">Indice I/I₀</th>'+
-    '<th class="num tot-h" title="RP du mois = base CP (réalisée si saisie, sinon CP EJ+risques+aléas) × (I/I₀−1) — détail au clic">RP</th>'+
+  head+='<th class="num tot-h" title="RP du mois = base CP (réalisée si saisie, sinon CP EJ+risques+aléas) × (I/I₀−1) — détail au clic">RP</th>'+
     '<th class="num tot-h" title="Somme autre = aléas + risques + RP du mois — détail au clic">Somme autre</th>'+
-    '<th class="num tot-h sep" title="Synthèse EJ du mois (EJ + aléas + risques) — détail au clic">Synthèse EJ</th>'+
+    '<th class="num tot-h sep" title="Indice du marché ce mois (formule de l\'affaire) ; I/I₀ recalé à 1 à la date de réf. — pas de pied">Indice I/I₀</th>'+
+    '<th class="num tot-h" title="Synthèse EJ du mois (EJ + aléas + risques) — détail au clic">Synthèse EJ</th>'+
     '<th class="num tot-h" title="Synthèse CP du mois (toutes les colonnes) — détail au clic">Synthèse CP</th>'+
     '<th class="num tot-h" title="EJ réalisé saisi (vérité quand saisi, même à 0)">EJ réalisé</th>'+
     '<th class="num tot-h" title="CP réalisé saisi (vérité quand saisi, même à 0)">CP réalisé</th>'+
     '<th class="num tot-h" title="Écart EJ = réalisé − engagé (mois écoulés) + statut + actions si nécessaire">Écart EJ</th>'+
     '<th class="num tot-h" title="Écart CP = réalisé − prévu (mois écoulés)">Écart CP</th>'+
-    '<th class="num tot-h" title="GP à saisir, synthèse EJ — les 4 options cochées s\'appliquent ICI">GP EJ</th>'+
+    '<th class="num tot-h sep" title="GP à saisir, synthèse EJ — les 4 options cochées s\'appliquent ICI">GP EJ</th>'+
     '<th class="num tot-h" title="GP à saisir, synthèse CP — les 4 options cochées s\'appliquent ICI">GP CP</th></tr>';
   var NB=1+ejs.length+3+11; /* Mois + items + ΣEJ/ΣCP/RAP + 11 colonnes de synthèse */
 
@@ -6230,21 +6235,21 @@ function renderAffaire(){
       return td;
     }
     ejList.forEach(function(e){ body+=itemTd(e); });
-    body+='<td class="num mono ccell tot gp-cell sep" data-affdet="ej|'+m+'" title="Σ EJ ce mois (EJ seuls) — détail au clic">'+fmt0(ejM)+'</td>'+
+    body+='<td class="num mono ccell tot gp-cell" data-affdet="ej|'+m+'" title="Σ EJ ce mois (EJ seuls) — détail au clic">'+fmt0(ejM)+'</td>'+
       '<td class="num mono ccell tot gp-cell" data-affdet="cpej|'+m+'" title="Σ CP des EJ ce mois — détail au clic">'+fmt0(cpEjM)+'</td>'+
       '<td class="num mono ccell tot gp-cell" data-affdet="rap|'+m+'" title="Reste à payer à '+mLong(m)+' = EJ cumulés − CP cumulés — détail au clic">'+fmt0(resteAPayer(aff,m))+'</td>';
     alList.forEach(function(e,i){ body+=itemTd(e, i===0); });
     rkList.forEach(function(e){ body+=itemTd(e); });
-    body+='<td class="num mono ccell tot sep" title="Indice du marché ce mois (formule de l\'affaire) ; I/I₀ recalé à 1 à la date de réf. '+(aff.dateRefRev||'—')+' — pas de pied pour l\'indice">'+(ind==null?'—':fmtIdx(ind)+' <span class="muted">I/I₀='+(i0?(ind/i0).toLocaleString('fr-FR',{maximumFractionDigits:3}):'?')+'</span>')+'</td>'+
-      '<td class="num mono ccell tot gp-cell'+(r?' gp-real':'')+'" data-affdet="rp|'+m+'" title="RP = base CP × (I/I₀−1) — détail au clic">'+fmt0(rp)+'</td>'+
+    body+='<td class="num mono ccell tot gp-cell'+(r?' gp-real':'')+'" data-affdet="rp|'+m+'" title="RP = base CP × (I/I₀−1) — détail au clic">'+fmt0(rp)+'</td>'+
       '<td class="num mono ccell tot gp-cell" data-affdet="autre|'+m+'" title="Somme autre = aléas + risques + RP du mois — détail au clic">'+fmt0(aeM+rkM+rp)+'</td>'+
+      '<td class="num mono ccell tot sep" title="Indice du marché ce mois (formule de l\'affaire) ; I/I₀ recalé à 1 à la date de réf. '+(aff.dateRefRev||'—')+' — pas de pied pour l\'indice">'+(ind==null?'—':fmtIdx(ind)+' <span class="muted">I/I₀='+(i0?(ind/i0).toLocaleString('fr-FR',{maximumFractionDigits:3}):'?')+'</span>')+'</td>'+
       '<td class="num mono ccell tot gp-cell sep" data-affdet="synthej|'+m+'" title="Synthèse EJ (EJ+aléas+risques) — détail au clic">'+fmt0(ejM+aeM+rkM)+'</td>'+
       '<td class="num mono ccell tot gp-cell" data-affdet="synthcp|'+m+'" title="Synthèse CP (toutes les colonnes) — détail au clic">'+fmt0(cpM)+'</td>'+
       '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+aff.id+'|'+m+'" data-f="ej" value="'+rEjV+'"'+(m<=cur?'':' disabled')+' title="EJ réalisé en '+mLong(m)+' (« 0 » = constaté à zéro, distinct de non saisi)"></td>'+
       '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+aff.id+'|'+m+'" data-f="cp" value="'+rCpV+'"'+(m<=cur?'':' disabled')+' title="CP réalisé en '+mLong(m)+' (« 0 » = constaté à zéro)"></td>'+
       '<td class="num mono gp-cell" data-ecart="ej|'+m+'" title="Écart EJ = réalisé − engagé — cliquer sur la chip pour la popup (explication + actions)">'+(past?fmtS(eEj):'')+' '+statut+(inco?badgeEcart(eEj,tolEj,'EJ',true):'')+'</td>'+
       '<td class="num mono gp-cell" data-ecart="cp|'+m+'" title="Écart CP = réalisé − prévu — cliquer sur la chip pour la popup (explication + actions)">'+(past?fmtS(eCp):'')+(inco?badgeEcart(eCp,tolCp,'CP',true):'')+'</td>'+
-      '<td class="num mono ccell tot gp-cell'+(r?' gp-real':'')+'" data-affdet="gpej|'+m+'" title="GP EJ (les 4 options s\'appliquent ici) — détail au clic">'+fmt0(gEj)+'</td>'+
+      '<td class="num mono ccell tot gp-cell sep'+(r?' gp-real':'')+'" data-affdet="gpej|'+m+'" title="GP EJ (les 4 options s\'appliquent ici) — détail au clic">'+fmt0(gEj)+'</td>'+
       '<td class="num mono ccell tot gp-cell'+(r?' gp-real':'')+'" data-affdet="gpcp|'+m+'" title="GP CP (les 4 options s\'appliquent ici) — détail au clic">'+fmt0(gCp)+'</td></tr>';
   });
   body+=extRow('après', NB);
@@ -6268,10 +6273,10 @@ function renderAffaire(){
   var rpTot=revisionTotale(aff, months);
   var alTot=sommeMontant(ejs.filter(isAlea));
   var rkTot=ejs.filter(isRisque).reduce(function(s,e){ return s+espDist(e); },0);
-  foot+='<td class="sep"></td>'+ /* indice : pas de pied */
-    footCell('footrp|','Σ RP', rpTot, false)+
+  foot+=footCell('footrp|','Σ RP', rpTot, false)+
     footCell('footautre|','Σ autre (aléa+risque+RP)', alTot+rkTot+rpTot, false)+
-    footCell('footejar|','Σ EJ+aléas+risques', sumEj+alTot+rkTot, true)+
+    '<td class="sep"></td>'+ /* indice : pas de pied */
+    footCell('footejar|','Σ EJ+aléas+risques', sumEj+alTot+rkTot, false)+
     footCell('footcpall|','Σ CP (tous montants)', cpAll, false)+
     footCell('foottotalej|','Total EJ (tout : +RP)', sumEj+alTot+rkTot+rpTot, false)+
     footCell('foottotalcp|','Total CP (tout : +RP)', cpAll+rpTot, false)+
@@ -6279,7 +6284,7 @@ function renderAffaire(){
 
   h+='<div class="card"><h2>Affaire « '+esc(aff.nom)+' » — détail par mois</h2>'+
      '<p class="hint">UN seul tableau : 1 colonne par EJ (Σ EJ, Σ CP, reste à payer juste après), puis aléas, puis risques (en-tête compact : n° → fiche/popup avec tout le détail), puis Indice, RP, Somme autre (aléa+risque+RP), Synthèses EJ/CP, EJ/CP réalisés, écarts (statut + actions dans la case), et enfin <strong>GP EJ / GP CP</strong> — seules ces 2 dernières colonnes subissent les 4 options cochées. Cellules calculées cliquables (détail juste sous la ligne). Flèches du clavier = saisie des cases voisines.</p>'+
-     '<div class="grid-wrap"><table class="grid conso affgrid"><thead>'+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div></div>';
+     '<div class="grid-wrap"><table class="grid conso affgrid"><thead>'+blkrow+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div></div>';
 
   mount('view-affaire', h, function(w){
     var sel=w.querySelector('#aff-solo');
