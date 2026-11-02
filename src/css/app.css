@@ -365,3 +365,8 @@ table.affpop th,table.affpop td{border-right:1px solid #b9c4d4;border-bottom:1px
 table.affpop thead th{border-bottom:2px solid #8fa0b8;background:var(--head);font-size:11px}
 table.affpop tfoot td{border-top:2px solid #8fa0b8;font-weight:700}
 table.affpop td.gp-real{background:#ececec;border:1px dashed #b5b5b5}
+
+/* popup risque/aléa : courbes de répartition (montant + dates) */
+.ra-curves{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0}
+.ra-curves svg{width:100%;height:auto;display:block;background:#fbfcfe;border:1px solid var(--line2);border-radius:8px}
+@media (max-width:700px){.ra-curves{grid-template-columns:1fr}}

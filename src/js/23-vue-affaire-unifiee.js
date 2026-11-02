@@ -26,6 +26,7 @@ function openRisqueAleaPopup(ejId){
   }
   ov.innerHTML='<div class="modal"><h2>'+(risque?'Risque ':'Aléa ')+esc(e.numero)+'</h2>'+
     '<p class="hint">'+stadeBadge(e)+' · affaire « '+esc(affaireName(e.affaireId))+' » · conséquence EJ/CP : <strong id="ra-cons">'+cons()+'</strong></p>'+
+    '<div class="ra-curves"><div><div class="hdr-sub">Probabilité de montant</div>'+distCurve(e)+'</div><div><div class="hdr-sub">Répartition dans le temps</div>'+dateCurve(e)+'</div></div>'+
     '<div class="formrow">'+
       '<label class="fld">N°<input type="text" id="ra-num" value="'+esc(e.numero)+'" title="Référence (n°)"></label>'+
       '<label class="fld">Libellé<input type="text" id="ra-lib" value="'+esc(e.libelle||'')+'" title="Libellé"></label>'+
@@ -112,6 +113,40 @@ function openRisqueAleaPopup(ejId){
    liste les contributeurs « X EJ de … + Y aléa de … » etc. */
 function affDetailHTML(kind, aff, m, span){
   var ejs=ejsOfAffaire(aff.id), cur=curMois(), items=[], tot=0, h='';
+  /* détail d'une colonne item (EJ auto, aléa, risque) : le calcul derrière le CP du mois */
+  if(kind==='item'){
+    var pr=String(m).split('@'), ejId=pr[0], mm=pr[1]||'';
+    var e0=ejById(ejId); if(!e0) return '';
+    var p0=profilOf(e0), v0=cpPrevu(e0,mm);
+    if(isAlea(e0)){
+      h='Aléa '+esc(e0.numero)+(mm?' — '+mLong(mm):'');
+      items.push('<div>montant = '+(e0.montantExplicite?('montant explicite '+fmt0(+e0.montant||0)):((e0.aleaPct==null?5:e0.aleaPct)+' % du reste à payer à date'))+' = <strong>'+fmt0(montantOf(e0))+'</strong></div>');
+      items.push('<div>répartition (aléatoire stable) sur les mois restants de l\'opération :</div>');
+      aleaOcc(e0).forEach(function(o){ items.push('<div>· '+mLong(o.m)+' : poids '+(o.w*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' % → '+fmt0(montantOf(e0)*o.w)+'</div>'); });
+      tot=v0;
+    } else if(isRisque(e0)){
+      var dp=distParams(e0);
+      h='Risque '+esc(e0.numero)+(mm?' — '+mLong(mm):'');
+      items.push('<div>distribution '+(e0.distType||'fixe')+' : A='+fmt0(dp.a)+' · B='+(dp.b==null?'—':fmt0(dp.b))+' · C='+(dp.c==null?'—':fmt0(dp.c))+'</div>');
+      items.push('<div>espérance '+fmt0(espDist(e0))+' · haut '+fmt0(montantHaut(e0))+' · proba '+(e0.probabilite==null?100:e0.probabilite)+' % → pondéré <strong>'+fmt0(risquePondere(e0))+'</strong></div>');
+      items.push('<div>apparitions (poids) :</div>');
+      occOf(e0).forEach(function(o){ items.push('<div>· '+mLong(o.m)+' : poids '+(o.w*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' % → EJ esp. '+fmt0(espDist(e0)*o.w)+' / CP pond. '+fmt0(risquePondere(e0)*o.w)+'</div>'); });
+      tot=v0;
+    } else {
+      h='EJ '+esc(e0.numero)+(mm?' — CP en '+mLong(mm):' — profil de CP');
+      var mt0=montantOf(e0);
+      items.push('<div>montant '+fmt0(mt0)+' · profil '+p0.type+(p0.type==='uniforme'?' ('+mLong(p0.debut||e0.mois)+' → '+mLong(p0.fin||p0.debut||e0.mois)+')':'')+(p0.type==='ponctuelle'?' ('+mLong(p0.debut||e0.mois)+')':'')+(p0.type==='perso'?' (saisie libre)':'')+'</div>');
+      if(p0.type==='uniforme'){
+        var a0=p0.debut||e0.mois, b0=p0.fin||a0, ms0=mRange(a0,b0);
+        items.push('<div>calcul auto : '+fmt0(mt0/ms0.length)+' / mois × '+ms0.length+' mois ('+mLabel(a0)+' → '+mLabel(b0)+'), reliquat sur le dernier</div>');
+      } else if(p0.type==='ponctuelle'){
+        items.push('<div>calcul auto : totalité du montant en '+mLong(p0.debut||e0.mois)+'</div>');
+      }
+      items.push('<div><strong>CP ce mois-ci = '+fmt0(v0)+'</strong></div>');
+      tot=v0;
+    }
+    return '<td colspan="'+(span||4)+'" class="gp-detail"><strong>'+h+' = '+fmt0(tot)+' :</strong>'+(items.join('')||'<div>—</div>')+'</td>';
+  }
   function line(lbl, v){ if(v) { items.push('<div>'+lbl+' : <span class="mono">'+fmt0(v)+'</span></div>'); tot+=v; } }
   if(kind==='ej'&&m){ ejs.forEach(function(e){ if(isMaterialise(e)&&e.mois===m) line(esc(e.numero)+' ('+stadeLabel(e)+')', montantOf(e)); }); h='Σ EJ '+mLong(m); }
   else if(kind==='cp'&&m){ ejs.forEach(function(e){ line(esc(e.numero)+' CP', cpPrevu(e,m)); }); h='Σ CP '+mLong(m); }
@@ -167,6 +202,68 @@ function affDetailHTML(kind, aff, m, span){
 }
 
 function fmtSgn(n){ return (n>0?'+': '')+fmt0(n); }
+
+/* Courbe de la distribution du MONTANT d'un risque/aléa (forme selon distType,
+   tiret bleu = espérance, pointillé rouge = haut, proba affichée). */
+function distCurve(e){
+  var W=280,H=86,pad=10,yB=H-8;
+  var p=distParams(e), dt=e.distType||'fixe';
+  var esp=espDist(e), haut=montantHaut(e), proba=(e.probabilite==null?100:e.probabilite);
+  var vals=[esp,haut,0];
+  if(dt==='uniforme'){ vals.push(p.a,p.b==null?p.a:p.b); }
+  else if(dt==='triangulaire'){ vals.push(p.a,p.b==null?p.a:p.b,p.c==null?(p.b==null?p.a:p.b):p.c); }
+  else if(dt==='gauss'){ vals.push(p.a-2.5*(p.b||0),p.a+2.5*(p.b||0)); }
+  else { vals.push(p.a||(+e.montant||0)); }
+  var lo=Math.min.apply(null,vals), hi=Math.max.apply(null,vals.concat([1]));
+  if(hi-lo<1e-9) hi=lo+1;
+  var X=function(v){ return pad+(W-2*pad)*(v-lo)/(hi-lo); };
+  var s='<svg viewBox="0 0 '+W+' '+H+'" font-family="Segoe UI,sans-serif" font-size="9" class="ra-montant">'+
+    '<text x="'+pad+'" y="10" fill="#67788c">Distribution du montant ('+dt+') — proba '+proba+' %</text>';
+  if(dt==='uniforme'){
+    var a=p.a,b=p.b==null?p.a:p.b;
+    s+='<rect x="'+X(Math.min(a,b)).toFixed(1)+'" y="'+(yB-34)+'" width="'+Math.max(2,Math.abs(X(b)-X(a))).toFixed(1)+'" height="34" fill="#f6c48a" stroke="#b45309"/>';
+  } else if(dt==='triangulaire'){
+    var a2=p.a,b2=p.b==null?p.a:p.b,c2=p.c==null?(p.b==null?p.a:p.b):p.c;
+    s+='<polygon points="'+X(Math.min(a2,b2,c2)).toFixed(1)+','+yB+' '+X(b2).toFixed(1)+','+(yB-40)+' '+X(Math.max(a2,b2,c2)).toFixed(1)+','+yB+'" fill="#f6c48a" stroke="#b45309"/>';
+  } else if(dt==='gauss'){
+    var mu=p.a,sg=Math.max(1e-9,+(p.b||0)),d='';
+    for(var i=0;i<=30;i++){ var v=mu-2.5*sg+5*sg*i/30, y=yB-40*Math.exp(-Math.pow(v-mu,2)/(2*sg*sg)); d+=(i?'L':'M')+X(v).toFixed(1)+' '+y.toFixed(1)+' '; }
+    d+='L'+X(mu+2.5*sg).toFixed(1)+' '+yB+' L'+X(mu-2.5*sg).toFixed(1)+' '+yB+' Z';
+    s+='<path d="'+d+'" fill="#f6c48a" stroke="#b45309"/>';
+  } else {
+    var v0=p.a||(+e.montant||0);
+    s+='<rect x="'+(X(v0)-4).toFixed(1)+'" y="'+(yB-40)+'" width="8" height="40" fill="#f6c48a" stroke="#b45309"/>';
+  }
+  s+='<line x1="'+pad+'" y1="'+yB+'" x2="'+(W-pad)+'" y2="'+yB+'" stroke="#d8dde4"/>'+
+    '<line x1="'+X(esp).toFixed(1)+'" y1="14" x2="'+X(esp).toFixed(1)+'" y2="'+yB+'" stroke="#2563eb" stroke-width="1.6" stroke-dasharray="4 3"/>'+
+    '<line x1="'+X(haut).toFixed(1)+'" y1="14" x2="'+X(haut).toFixed(1)+'" y2="'+yB+'" stroke="#dc2626" stroke-width="1.4" stroke-dasharray="3 3"/>'+
+    '<text x="'+(X(esp)+3).toFixed(1)+'" y="20" fill="#2563eb">espérance '+fmt0(esp)+'</text>'+
+    '<text x="'+(X(haut)+3).toFixed(1)+'" y="30" fill="#dc2626">haut '+fmt0(haut)+'</text>'+
+    '<text x="'+(W-pad)+'" y="'+H+'" text-anchor="end" fill="#67788c">pondéré '+fmt0(risquePondere(e))+'</text></svg>';
+  return s;
+}
+/* Courbe de répartition des apparitions dans le temps (poids par mois). */
+function dateCurve(e){
+  var W=280,H=64,pad=10,t0=16,t1=H-8;
+  var occ=occOf(e);
+  var s='<svg viewBox="0 0 '+W+' '+H+'" font-family="Segoe UI,sans-serif" font-size="9" class="ra-dates">'+
+    '<text x="'+pad+'" y="10" fill="#67788c">Répartition des apparitions ('+occ.length+' mois)</text>'+
+    '<line x1="'+pad+'" y1="'+(t0+t1)/2+'" x2="'+(W-pad)+'" y2="'+(t0+t1)/2+'" stroke="#d8dde4"/>';
+  if(occ.length){
+    var m0=occ[0].m, m1=occ[occ.length-1].m;
+    var Tm=function(m){ return mDiff(m0,m1)===0?W/2:pad+(W-2*pad)*mDiff(m0,m)/mDiff(m0,m1); };
+    if((e.dateType||'ponctuelle')==='uniforme'&&e.dateA&&e.dateB){
+      var ua=e.dateA<m0?e.dateA:m0, ub=e.dateB>m1?e.dateB:m1;
+      s+='<rect x="'+Tm(ua).toFixed(1)+'" y="'+t0+'" width="'+Math.max(2,Tm(ub)-Tm(ua)).toFixed(1)+'" height="'+(t1-t0)+'" fill="#fdf3e3" stroke="#b45309" stroke-dasharray="3 2"/>';
+    }
+    occ.forEach(function(o){
+      var hgt=(t1-t0)*(o.w>=1?1:0.5);
+      s+='<line x1="'+Tm(o.m).toFixed(1)+'" y1="'+t1+'" x2="'+Tm(o.m).toFixed(1)+'" y2="'+(t1-hgt).toFixed(1)+'" stroke="#b45309" stroke-width="2.4"/>'+
+        '<text x="'+Tm(o.m).toFixed(1)+'" y="'+(t1+9)+'" text-anchor="middle" fill="#67788c" font-size="7.5">'+mLabel(o.m)+'</text>';
+    });
+  }
+  return s+'</svg>';
+}
 
 /* Popup d'écart EJ/CP sur le réalisé : explication du calcul + chip d'alerte +
    propositions d'actions (avec explications) ; un clic sur l'action l'exécute. */
@@ -280,7 +377,7 @@ function renderAffaireKS(){
 function renderAffaire(){
   var opId=state.ui.op||'';
   var affsAll=scopedAffaires(opId,'');
-  /* une seule affaire à la fois : affaire filtrée, sinon 1ʳᵉ affaire de l'opération */
+  /* une seule affaire à la fois : affaire filtrée, sinon 1ʳᵉ affaire de l opération */
   var affId=state.ui.aff||'';
   if(!affId||!affsAll.some(function(a){ return a.id===affId; })) affId=affsAll.length?affsAll[0].id:'';
   var aff=affaireById(affId);
@@ -391,12 +488,14 @@ function renderAffaire(){
     function itemTd(e, sep){
       var p=profilOf(e), v=cpPrevu(e,m), td;
       var cls='dcol'+(sep?' sep':'')+(isMaterialise(e)&&e.mois&&m<e.mois?' cp-avant':(isMaterialise(e)&&p.type==='perso'?'':' cp-lock'));
+      /* cellule calculée (auto/aléa/risque) cliquable : détail du calcul au clic */
+      var det=(v>0||(isMaterialise(e)&&p.type==='perso'))?(' data-affdet="item|'+e.id+'|'+m+'"') : '';
       if(isMaterialise(e)&&e.mois&&m<e.mois){
         td='<td class="'+cls+'" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
       }else if(isMaterialise(e)&&p.type==='perso'){
-        td='<td class="'+cls+'" data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés en '+mLabel(m)+' pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
+        td='<td class="'+cls+' gp-cell"'+det+' data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés en '+mLabel(m)+' pour '+esc(e.numero)+' (profil personnalisé : saisie libre) — détail du calcul au clic sur la case"></td>';
       }else{
-        td='<td class="'+cls+'" data-ejcol="'+e.id+'" title="'+(isMaterialise(e)?'Calculé selon le profil '+p.type:'CP du '+stadeLabel(e).toLowerCase()+' selon son profil')+'">'+(v?fmt0(v):'')+'</td>';
+        td='<td class="'+cls+' gp-cell"'+det+' data-ejcol="'+e.id+'" title="'+(isMaterialise(e)?'Calculé selon le profil '+p.type+' — détail du calcul au clic':'CP du '+stadeLabel(e).toLowerCase()+' selon son profil — détail du calcul au clic')+'">'+(v?fmt0(v):'')+'</td>';
       }
       return td;
     }
@@ -495,7 +594,7 @@ function renderAffaire(){
       if(ec&&ec.dataset&&ec.dataset.ecart){ var ep2=ec.dataset.ecart.split('|'); openEcartPopup(aff.id, ep2[1], ep2[0]); return; }
       var ad=ev.target.closest('[data-affdet]');
       if(ad&&ad.dataset&&ad.dataset.affdet){
-        var p=ad.dataset.affdet.split('|'), kind=p[0], m=p[1]||'';
+        var p=ad.dataset.affdet.split('|'), kind=p[0], m=(kind==='item')?(p[1]+'@'+(p[2]||'')):(p[1]||'');
         var row=ad.closest('tr'), next=row.nextSibling, key='affdet|'+kind+'|'+m;
         var html=affDetailHTML(kind, aff, m, NB);
         if(next&&next.classList&&next.classList.contains('gp-detail-row')){ if(next.dataset.for===key){ next.parentNode.removeChild(next); return; } next.dataset.for=key; next.innerHTML=html; return; }

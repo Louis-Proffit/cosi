@@ -1475,6 +1475,21 @@ co7.indexOf(\x27rowspan="6"\x27)>=0 && !/rowspan="6">Mois</.test(co7)
   fire(wRs,'dblclick',{target:rsEl});
   ok(!state.ui.colW || state.ui.colW.e1===undefined, "conso: double-clic sur la poignée -> largeur par défaut");
   state = demoState(); recomputeProfils(state);
+  // détail du calcul des CP auto / aléas / risques + courbes dans la popup risque
+  state = demoState(); recomputeProfils(state);
+  var dAuto=affDetailHTML('item', affaireById('a1'), 'e1@2026-11', 20);
+  ok(dAuto.indexOf('calcul auto')>=0 && dAuto.indexOf('profil uniforme')>=0, "détail item EJ auto: calcul du profil (uniforme: montant/n x mois)");
+  var dAl=affDetailHTML('item', affaireById('a1'), 'al1@2027-12', 20);
+  ok(dAl.indexOf('% du reste à payer')>=0 && dAl.indexOf('poids')>=0, "détail item aléa: % du reste à payer + répartition pondérée par mois");
+  var dRk=affDetailHTML('item', affaireById('a1'), 'r1@2026-12', 20);
+  ok(dRk.indexOf('distribution')>=0 && dRk.indexOf('espérance')>=0 && dRk.indexOf('pondéré')>=0, "détail item risque: distribution + espérance/haut/proba/pondéré + apparitions");
+  state.ui.view='affaire'; state.ui.op=''; state.ui.aff='a1'; render(); var afI=htmlOf('affaire');
+  ok((afI.match(/data-affdet="item\|/g)||[]).length>10, "cellules CP auto/aléa/risque cliquables (data-affdet=item|...)");
+  openRisqueAleaPopup('r2');
+  var ovC=document.body.children[document.body.children.length-1];
+  ok(ovC.innerHTML.indexOf('ra-curves')>=0 && ovC.innerHTML.indexOf('ra-montant')>=0 && ovC.innerHTML.indexOf('ra-dates')>=0 && (ovC.innerHTML.match(/<svg/g)||[]).length>=2, "popup risque: 2 courbes (distribution du montant + répartition des apparitions)");
+  ok(ovC.innerHTML.indexOf('espérance')>=0 && ovC.innerHTML.indexOf('haut')>=0 && ovC.innerHTML.indexOf('proba')>=0, "popup risque: courbes annotées (espérance, haut, probabilité)");
+  state = demoState(); recomputeProfils(state);
   console.log("PASS: "+RESULTS.pass.length); RESULTS.pass.forEach(p=>console.log("  ok - "+p));
   if(RESULTS.fail.length){ console.log("FAIL: "+RESULTS.fail.length); RESULTS.fail.forEach(f=>console.log("  KO - "+f)); process.exitCode=1; }
 }catch(e){ console.log("ERREUR TEST: "+(e&&e.stack||e)); process.exitCode=1; }
