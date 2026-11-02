@@ -1531,6 +1531,13 @@ co7.indexOf(\x27rowspan="6"\x27)>=0 && !/rowspan="6">Mois</.test(co7)
   fire(wCp,'click',{target:bCp});
   ok(true, "export GP: clic sur Copier ne plante pas");
   state = demoState(); recomputeProfils(state);
+  // alerte visuelle: colonne EJ dont Σ CP ≠ montant -> rouge clair (col-bad) + badge écart en en-tête
+  state = demoState(); recomputeProfils(state);
+  state.profils["e1"]={type:"perso"}; for(var k in state.cps){ if(k.indexOf("e1|")===0) delete state.cps[k]; } state.cps["e1|2026-10"]=100000;
+  state.ui.view="affaire"; state.ui.op=""; state.ui.aff="a1"; render(); var afB=htmlOf("affaire");
+  ok((afB.match(/col-bad/g)||[]).length>5, "alerte: colonne EJ incohérente (e1, Σ CP 100k vs 2,4M) marquée col-bad (en-tête + cellules, rouge clair)");
+  ok(afB.indexOf('ALERTE : Σ CP')>=0 && afB.indexOf('badge over')>=0, "alerte: en-tête e1 en col-bad + badge écart + titre ALERTE");
+  state = demoState(); recomputeProfils(state);
   console.log("PASS: "+RESULTS.pass.length); RESULTS.pass.forEach(p=>console.log("  ok - "+p));
   if(RESULTS.fail.length){ console.log("FAIL: "+RESULTS.fail.length); RESULTS.fail.forEach(f=>console.log("  KO - "+f)); process.exitCode=1; }
 }catch(e){ console.log("ERREUR TEST: "+(e&&e.stack||e)); process.exitCode=1; }

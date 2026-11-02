@@ -370,3 +370,9 @@ table.affpop td.gp-real{background:#ececec;border:1px dashed #b5b5b5}
 .ra-curves{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0}
 .ra-curves svg{width:100%;height:auto;display:block;background:#fbfcfe;border:1px solid var(--line2);border-radius:8px}
 @media (max-width:700px){.ra-curves{grid-template-columns:1fr}}
+
+/* alerte : colonne EJ dont Σ CP ≠ montant -> rouge clair (en-tête + cellules) */
+table.affgrid th.dcol.col-bad{background:#fdeaea}
+table.affgrid td.dcol.col-bad{background:#fdeaea}
+table.affgrid td.dcol.col-bad.cp-avant{background:#f6d5d5}
+table.affgrid td.dcol.col-bad.cp-lock{background:#fbe3e3}

@@ -441,10 +441,12 @@ function renderAffaire(){
     var popAttr=(isRisque(e)||isAlea(e))?('data-rkpop="'+e.id+'"'):('data-ejpop="'+e.id+'"');
     var popTip=(isRisque(e)||isAlea(e))?('Popup '+(isRisque(e)?'risque':'aléa')+' '+esc(e.numero)+' : tout modifier (distribution/%, date, proba) + conséquence EJ/CP — CLIC N\'IMPORTE OÙ dans l\'en-tête'):('Fiche de l\'EJ '+esc(e.numero)+' : n°, libellé, montant, date, profil CP, Σ CP — CLIC N\'IMPORTE OÙ dans l\'en-tête');
     var mtTxt=isRisque(e)?('esp. '+fmt0(espDist(e))):fmt0(montantOf(e));
-    return '<th class="dcol'+(foc===e.id?' col-focus':'')+(sep?' sep':'')+'" '+popAttr+' title="'+popTip+'">'+
+    /* alerte visuelle : EJ dont Σ CP ≠ montant -> colonne en rouge clair + badge écart */
+    var bad=isMaterialise(e)&&Math.abs(montantOf(e)-cpSumOf(e.id))>Math.max(1,montantOf(e)*0.001);
+    return '<th class="dcol'+(foc===e.id?' col-focus':'')+(sep?' sep':'')+(bad?' col-bad':'')+'" '+popAttr+' title="'+popTip+(bad?' — ALERTE : Σ CP ≠ montant':'')+'">'+
       '<div>'+stadeBadge(e)+' <button type="button" class="ej-btn" tabindex="-1">'+esc(e.numero)+'</button></div>'+
       '<div class="hdr-sub">'+esc(e.libelle||'—')+'</div>'+
-      '<div class="hdr-sub"><strong>'+mtTxt+'</strong>'+cmpCellNote(oldHead&&oldHead[e.id], montantOf(e))+'</div></th>';
+      '<div class="hdr-sub"><strong>'+mtTxt+'</strong>'+(bad?checkBadge(e):'')+cmpCellNote(oldHead&&oldHead[e.id], montantOf(e))+'</div></th>';
   }
   ejList.forEach(function(e){ head+=itemTh(e); });
   head+='<th class="num tot-h" title="Σ EJ ce mois (EJ seuls) — détail au clic">Σ EJ</th>'+
@@ -527,6 +529,7 @@ function renderAffaire(){
     function itemTd(e, sep){
       var p=profilOf(e), v=cpPrevu(e,m), td;
       var cls='dcol'+(sep?' sep':'')+(isMaterialise(e)&&e.mois&&m<e.mois?' cp-avant':(isMaterialise(e)&&p.type==='perso'?'':' cp-lock'));
+      if(isMaterialise(e)&&Math.abs(montantOf(e)-cpSumOf(e.id))>Math.max(1,montantOf(e)*0.001)) cls+=' col-bad'; /* alerte Σ CP ≠ montant : colonne rouge clair */
       /* cellule calculée (auto/aléa/risque) cliquable : détail du calcul au clic */
       var det=(v>0||(isMaterialise(e)&&p.type==='perso'))?(' data-affdet="item|'+e.id+'|'+m+'"') : '';
       if(isMaterialise(e)&&e.mois&&m<e.mois){
