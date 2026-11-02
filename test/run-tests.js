@@ -462,6 +462,10 @@ const testCode = `
   function stadeOrder2(st){ return st==='prog'||st==='engage'?0:(st==='alea'?1:2); }
   var sortedOk=grpA.every(function(v,i){ return i===0||grpA[i-1]<=v; });
   ok(sortedOk && ordA.length===5, "vue affaire: colonnes groupées par type — EJ d'abord, puis aléas, puis risques (ordre: "+ordA.join(",")+")");
+  var thS=af1.slice(0,af1.indexOf('</thead>'));
+  ok((thS.match(/ sep"/g)||[]).length===4, "vue affaire: 4 séparateurs de section dans l en-tête (Σ EJ, 1er aléa, 1er risque, indice)");
+  var cssSep=require('fs').readFileSync(require('path').join(__dirname,'..','src','css','app.css'),'utf8');
+  ok(cssSep.indexOf('table.affgrid .sep{border-left:3px solid var(--blue)}')>=0 && cssSep.indexOf('border-right:1px solid #b9c4d4')>=0 && cssSep.indexOf('table.affgrid thead th{border-bottom:2px solid #8fa0b8}')>=0, 'tableau principal: bordures de colonnes renforcées + en-tête/pied 2px + séparateurs de section 3px bleus');
   var thA=af1.slice(af1.indexOf('<thead>'), af1.indexOf('</thead>'));
   var seqA=[...thA.matchAll(/data-(?:ejpop|rkpop)=\"([^\"]+)\"|>(Σ EJ|Indice I\\/I₀|Synthèse EJ)</g)].map(function(m){ return m[1]||m[2]; });
   var idsA=[...thA.matchAll(/data-ejpop=\"([^\"]+)\"/g)].map(function(m){ return m[1]; });
@@ -557,7 +561,7 @@ const testCode = `
   ok(ft.indexOf('data-affdet="footej|"')>=0 && ft.indexOf('data-affdet="footcpall|"')>=0 && ft.indexOf('data-affdet="footejar|"')>=0 && ft.indexOf('data-affdet="footcpar|"')>=0 && ft.indexOf('data-affdet="foottotalej|"')>=0 && ft.indexOf('data-affdet="foottotalcp|"')>=0 && ft.indexOf('data-affdet="footrp|"')>=0, "pied de colonne: Σ EJ, Σ CP, Σ EJ+AR+RP, Σ CP+AR+RP, Total EJ, Total CP, Σ RP (tous cliquables)");
   ok(ft.indexOf('data-affdet="footcp|')>=0, "pied de colonne: total CP par item (EJ/risque/aléa), cliquable");
   var iInd=ft.indexOf('Indice'), iEj=ft.indexOf('data-affdet="footej|"');
-  ok(ft.indexOf('<td></td>')>=0 && afF.indexOf('PAS de pied')>=0, "pied de colonne: aucun total pour la colonne indice");
+  ok(ft.indexOf('<td class="sep"></td>')>=0 && afF.indexOf('PAS de pied')>=0, "pied de colonne: aucun total pour la colonne indice");
   // détail du calcul au clic
   var dEj=affDetailHTML('ej', affaireById('a1'), '2026-09', 20);
   ok(dEj.indexOf('GC-01')>=0 && dEj.replace(/[\s\u00a0\u202f]/g,'').indexOf('2400000')>=0, "détail calcul Σ EJ: liste les EJ du mois avec montants (ex: GC-01 2 400 000)");

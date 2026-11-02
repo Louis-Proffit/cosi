@@ -343,3 +343,11 @@ table.affgrid th.dcol,table.affgrid td.dcol{min-width:170px;width:170px}
 table.affgrid th.tot-h,table.affgrid td.ccell.tot{min-width:110px}
 table.affgrid th,table.affgrid td{white-space:normal;vertical-align:middle}
 table.affgrid .ej-btn{white-space:normal;overflow:visible;text-overflow:clip;max-width:none}
+
+/* tableau principal (vue Affaire) : colonnes bien séparées + séparateurs de section nets */
+table.affgrid{border-collapse:separate;border-spacing:0}
+table.affgrid th,table.affgrid td{border-right:1px solid #b9c4d4;border-bottom:1px solid #d4dce6}
+table.affgrid thead th{border-bottom:2px solid #8fa0b8}
+table.affgrid tfoot td{border-top:2px solid #8fa0b8}
+/* séparateur de section : EJ | Σ EJ | aléas | risques | synthèse (indice, RP, …) */
+table.affgrid .sep{border-left:3px solid var(--blue)}

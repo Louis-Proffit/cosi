@@ -205,7 +205,7 @@ function renderAffaire(){
   /* en-tête : Mois, puis par EJ (groupe), puis Σ EJ (EJ seuls), puis aléas, puis risques
      (1 colonne par EJ/aléa/risque : n° fiche/popup, date · montant, check Σ CP) */
   var head='<tr><th class="scol sc1">Mois</th>';
-  function itemTh(e){
+  function itemTh(e, sep){
     var somCp=cpSumOf(e.id), mtE=montantOf(e);
     /* check tri-état : pas de montant -> « montant ? » ; montant mais aucun CP -> « CP à saisir » ;
        Σ CP == montant -> « ok » ; sinon « écart » (jamais « ok » si rien n'a été saisi) */
@@ -217,18 +217,18 @@ function renderAffaire(){
     else check='<span class="badge over" title="Écart Σ CP − montant">écart '+fmt0(mtE-somCp)+'</span>';
     var mtTxt=isRisque(e)?('esp. '+fmt0(espDist(e))+' · haut '+fmt0(montantHaut(e))+' · pond. '+fmt0(risquePondere(e))):fmt0(mtE);
     var popAttr=(isRisque(e)||isAlea(e))?('data-rkpop="'+e.id+'" title="Popup '+(isRisque(e)?'risque':'aléa')+' : modifier la distribution / le % et lire la conséquence EJ/CP"'):('data-ejpop="'+e.id+'" title="Fiche de l\'EJ '+esc(e.numero)+' (n°, libellé, montant, date, profil CP modifiables)"');
-    return '<th class="dcol'+(foc===e.id?' col-focus':'')+'" style="min-width:170px">'+stadeBadge(e)+
+    return '<th class="dcol'+(foc===e.id?' col-focus':'')+(sep?' sep':'')+'" style="min-width:170px">'+stadeBadge(e)+
       '<button type="button" class="ej-btn" '+popAttr+'>'+esc(e.numero)+'</button>'+
       '<div class="hdr-sub">'+(e.mois?mLabel(e.mois):'—')+' · '+mtTxt+'</div>'+
       '<div class="hdr-sub" title="Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+'">Σ CP '+fmt0(somCp)+' '+check+'</div></th>';
   }
   var ejList=ejs.filter(isMaterialise), alList=ejs.filter(isAlea), rkList=ejs.filter(isRisque);
   ejList.forEach(function(e){ head+=itemTh(e); });
-  head+='<th class="num tot-h" title="Synthèse EJ : somme des seules colonnes EJ (pas les aléas/risques/RP)">Σ EJ</th>';
-  alList.forEach(function(e){ head+=itemTh(e); });
-  rkList.forEach(function(e){ head+=itemTh(e); });
+  head+='<th class="num tot-h sep" title="Synthèse EJ : somme des seules colonnes EJ (pas les aléas/risques/RP)">Σ EJ</th>';
+  alList.forEach(function(e,i){ head+=itemTh(e, i===0); });
+  rkList.forEach(function(e,i){ head+=itemTh(e, i===0); });
   head+=
-    '<th class="num tot-h" title="Indice du marché applicable à ce mois (formule de l\'affaire), I/I₀ recalé à 1 à la date de réf.">Indice I/I₀</th>'+
+    '<th class="num tot-h sep" title="Indice du marché applicable à ce mois (formule de l\'affaire), I/I₀ recalé à 1 à la date de réf.">Indice I/I₀</th>'+
     '<th class="num tot-h" title="Révision de prix du mois = base CP (réalisée si saisie, sinon prévue) × (I/I₀−1)">RP</th>'+
     '<th class="num tot-h" title="Synthèse EJ du mois : EJ + aléas + risques">Synthèse EJ</th>'+
     '<th class="num tot-h" title="Synthèse CP du mois : somme de toutes les colonnes (écoulement des CP)">Synthèse CP</th>'+
@@ -276,22 +276,23 @@ function renderAffaire(){
     var rEjV=(hasR&&Object.prototype.hasOwnProperty.call(r,'ej'))?fmt0(r.ej||0):'';
     var rCpV=(hasR&&Object.prototype.hasOwnProperty.call(r,'cp'))?fmt0(r.cp||0):'';
     body+='<tr data-m="'+m+'"'+(m===cur?' class="gp-cur"':'')+'><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLong(m)+(past?'':' (à venir)')+'</td>';
-    function itemTd(e){
+    function itemTd(e, sep){
       var p=profilOf(e), v=cpPrevu(e,m), td;
+      var cls='dcol'+(sep?' sep':'')+(isMaterialise(e)&&e.mois&&m<e.mois?' cp-avant':(isMaterialise(e)&&p.type==='perso'?'':' cp-lock'));
       if(isMaterialise(e)&&e.mois&&m<e.mois){
-        td='<td class="dcol cp-avant" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
+        td='<td class="'+cls+'" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
       }else if(isMaterialise(e)&&p.type==='perso'){
-        td='<td class="dcol" data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés en '+mLabel(m)+' pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
+        td='<td class="'+cls+'" data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés en '+mLabel(m)+' pour '+esc(e.numero)+' (profil personnalisé : saisie libre)"></td>';
       }else{
-        td='<td class="dcol cp-lock" data-ejcol="'+e.id+'" title="'+(isMaterialise(e)?'Calculé selon le profil '+p.type:'CP du '+stadeLabel(e).toLowerCase()+' selon son profil')+'">'+(v?fmt0(v):'')+'</td>';
+        td='<td class="'+cls+'" data-ejcol="'+e.id+'" title="'+(isMaterialise(e)?'Calculé selon le profil '+p.type:'CP du '+stadeLabel(e).toLowerCase()+' selon son profil')+'">'+(v?fmt0(v):'')+'</td>';
       }
       return td;
     }
     ejList.forEach(function(e){ body+=itemTd(e); });
-    body+='<td class="num mono ccell tot gp-cell" data-affdet="ej|'+m+'" title="Σ EJ ce mois (EJ seuls) — cliquer pour le détail du calcul">'+fmt0(ejM)+'</td>';
-    alList.forEach(function(e){ body+=itemTd(e); });
-    rkList.forEach(function(e){ body+=itemTd(e); });
-    body+='<td class="num mono ccell tot" title="Indice du marché ce mois (formule de l\'affaire) ; I/I₀ recalé à 1 à la date de réf. '+(aff.dateRefRev||'—')+' — PAS de pied de colonne pour l\'indice">'+(ind==null?'—':fmtIdx(ind)+' <span class="muted">I/I₀='+(i0?(ind/i0).toLocaleString('fr-FR',{maximumFractionDigits:3}):'?')+'</span>')+'</td>'+
+    body+='<td class="num mono ccell tot gp-cell sep" data-affdet="ej|'+m+'" title="Σ EJ ce mois (EJ seuls) — cliquer pour le détail du calcul">'+fmt0(ejM)+'</td>';
+    alList.forEach(function(e,i){ body+=itemTd(e, i===0); });
+    rkList.forEach(function(e,i){ body+=itemTd(e, i===0); });
+    body+='<td class="num mono ccell tot sep" title="Indice du marché ce mois (formule de l\'affaire) ; I/I₀ recalé à 1 à la date de réf. '+(aff.dateRefRev||'—')+' — PAS de pied de colonne pour l\'indice">'+(ind==null?'—':fmtIdx(ind)+' <span class="muted">I/I₀='+(i0?(ind/i0).toLocaleString('fr-FR',{maximumFractionDigits:3}):'?')+'</span>')+'</td>'+
       '<td class="num mono ccell tot gp-cell'+(r?' gp-real':'')+'" data-affdet="rp|'+m+'" title="RP = base CP × (I/I₀−1) — cliquer pour le détail du calcul">'+fmt0(rp)+'</td>'+
       '<td class="num mono ccell tot gp-cell" data-affdet="synthej|'+m+'" title="Synthèse EJ (EJ+aléas+risques) — détail du calcul au clic">'+fmt0(ejM+aeM+rkM)+'</td>'+
       '<td class="num mono ccell tot gp-cell" data-affdet="synthcp|'+m+'" title="Synthèse CP (somme de toutes les colonnes) — détail au clic">'+fmt0(cpM)+'</td>'+
@@ -307,16 +308,16 @@ function renderAffaire(){
   /* pied de colonne pour tout SAUF l'indice : totaux par item (cliquables), Σ EJ,
      puis les sommes demandées : Σ CP, Σ EJ+AR+RP, Σ CP+AR+RP, Total EJ, Total CP, Σ RP */
   var foot='<tr class="gp-tot"><td class="scol sc1">Total</td>';
-  function footTotCell(e){ return '<td class="dcol ccell tot gp-cell" data-affdet="footcp|'+e.id+'" title="Σ CP de '+esc(e.numero)+' (toute la période) — détail au clic">'+fmt0(cpSumOf(e.id))+'</td>'; }
+  function footTotCell(e, sep){ return '<td class="dcol ccell tot gp-cell'+(sep?' sep':'')+'" data-affdet="footcp|'+e.id+'" title="Σ CP de '+esc(e.numero)+' (toute la période) — détail au clic">'+fmt0(cpSumOf(e.id))+'</td>'; }
   ejList.forEach(function(e){ foot+=footTotCell(e); });
   var sumEj=sommeMontant(ejList);
-  foot+='<td class="num mono ccell tot gp-cell" data-affdet="footej|" title="Σ EJ (EJ seuls, toute la période) — détail au clic">'+fmt0(sumEj)+'</td>';
-  alList.forEach(function(e){ foot+=footTotCell(e); });
-  rkList.forEach(function(e){ foot+=footTotCell(e); });
+  foot+='<td class="num mono ccell tot gp-cell sep" data-affdet="footej|" title="Σ EJ (EJ seuls, toute la période) — détail au clic">'+fmt0(sumEj)+'</td>';
+  alList.forEach(function(e,i){ foot+=footTotCell(e, i===0); });
+  rkList.forEach(function(e,i){ foot+=footTotCell(e, i===0); });
   var cpAll=0; ejs.forEach(function(e){ cpAll+=cpSumOf(e.id); });
   var rpTot=revisionTotale(aff, months);
   var earTot=sommeMontant(ejs.filter(isAlea))+ejs.filter(isRisque).reduce(function(s,e){ return s+espDist(e); },0);
-  foot+='<td></td>'+ /* indice : pas de pied */
+  foot+='<td class="sep"></td>'+ /* indice : pas de pied */
     '<td class="num mono ccell tot gp-cell" data-affdet="footrp|" title="Σ RP (toute la période) — détail au clic">'+fmt0(rpTot)+'</td>'+
     '<td class="num mono ccell tot gp-cell" data-affdet="footcpall|" title="Somme des CP (toute la période, après la somme des EJ) — détail au clic">'+fmt0(cpAll)+'</td>'+
     '<td class="num mono ccell tot gp-cell" data-affdet="footejar|" title="Somme EJ comprenant aléas, risques et RP — détail au clic">'+fmt0(sumEj+earTot+rpTot)+'</td>'+
