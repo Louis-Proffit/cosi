@@ -591,6 +591,17 @@ const testCode = `
   ok((afF.match(/data-affdet=/g)||[]).length>10, "vue affaire: chiffres calculés cliquables (data-affdet) dans le corps et le pied");
   var ft=afF.slice(afF.indexOf('<tfoot>'), afF.indexOf('</tfoot>'));
   ok(ft.indexOf('data-affdet="footej|"')>=0 && ft.indexOf('data-affdet="footcpej|"')>=0 && ft.indexOf('data-affdet="footcpall|"')>=0 && ft.indexOf('data-affdet="footejar|"')>=0 && ft.indexOf('data-affdet="footautre|"')>=0 && ft.indexOf('data-affdet="foottotalej|"')>=0 && ft.indexOf('data-affdet="foottotalcp|"')>=0 && ft.indexOf('data-affdet="footrp|"')>=0, "pied de colonne: Σ EJ, Σ CP, Σ EJ+AR+RP, Σ CP+AR+RP, Total EJ, Total CP, Σ RP (tous cliquables)");
+  // pied de colonne libellé et sommes cohérentes
+  ok(ft.indexOf('Σ EJ (EJ seuls)')>=0 && ft.indexOf('Σ CP des EJ')>=0 && ft.indexOf('Σ RP')>=0 && ft.indexOf('Total EJ (tout : +RP)')>=0 && ft.indexOf('Total CP (tout : +RP)')>=0, 'pied de colonne: chaque somme est libellée (Σ EJ, Σ CP, Σ RP, Σ autre, Total EJ, Total CP)');
+  var a1f=affaireById('a1'), mo=scopeMonths('','a1');
+  var sumEjT=sommeMontant(ejsOfAffaire('a1').filter(isMaterialise));
+  var cpAllT=0; ejsOfAffaire('a1').forEach(function(e){ cpAllT+=cpSumOf(e.id); });
+  var rpT=revisionTotale(a1f, mo);
+  var alT=sommeMontant(ejsOfAffaire('a1').filter(isAlea)), rkT=ejsOfAffaire('a1').filter(isRisque).reduce(function(x,e){ return x+espDist(e); },0);
+  var dTot=affDetailHTML('foottotalej', a1f, '', 20);
+  ok(dTot.indexOf(fmt0(sumEjT+alT+rkT+rpT).replace(/[s  ]/g,''))>=0 || dTot.replace(/[s  ]/g,'').indexOf(String(Math.round(sumEjT+alT+rkT+rpT)))>=0, 'Total EJ = Σ EJ + aléas + risques + RP (pas de double comptage)');
+  var dTotC=affDetailHTML('foottotalcp', a1f, '', 20);
+  ok(dTotC.replace(/[s  ]/g,'').indexOf(String(Math.round(cpAllT+rpT)))>=0, 'Total CP = Σ CP (tous montants) + Σ RP');
   ok(ft.indexOf('data-affdet="footcp|')>=0, "pied de colonne: total CP par item (EJ/risque/aléa), cliquable");
   var iInd=ft.indexOf('Indice'), iEj=ft.indexOf('data-affdet="footej|"');
   ok(ft.indexOf('<td class="sep"></td>')>=0 && afF.indexOf('pas de pied')>=0, "pied de colonne: aucun total pour la colonne indice");

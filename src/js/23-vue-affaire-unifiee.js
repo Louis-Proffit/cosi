@@ -336,27 +336,32 @@ function renderAffaire(){
   });
   body+=extRow('après', NB);
 
-  /* pied de colonne pour tout SAUF l'indice : totaux par item (cliquables), Σ EJ, Σ CP,
-     puis Σ RP, somme EJ+AR+RP, somme CP+AR+RP, Total EJ, Total CP */
+  /* pied de colonne pour tout SAUF l'indice : totaux par item (cliquables), puis Σ EJ, Σ CP (des EJ),
+     reste à payer final, Σ RP, Σ autre, Σ EJ+aléas+risques, Σ CP tous montants, Total EJ (+RP), Total CP (+RP) — chaque cellule est libellée */
+  function footCell(kind, label, val, sep){
+    return '<td class="num mono ccell tot gp-cell'+(sep?' sep':'')+'"'+(kind?' data-affdet="'+kind+'"':'')+' title="'+label+' — détail au clic">'+
+      '<div class="hdr-sub">'+label+'</div><strong>'+fmt0(val)+'</strong></td>';
+  }
   var foot='<tr class="gp-tot"><td class="scol sc1">Total</td>';
-  function footTotCell(e, sep){ return '<td class="dcol ccell tot gp-cell'+(sep?' sep':'')+'" data-affdet="footcp|'+e.id+'" title="Σ CP de '+esc(e.numero)+' (toute la période) — détail au clic">'+fmt0(cpSumOf(e.id))+'</td>'; }
+  function footTotCell(e, sep){ return '<td class="dcol ccell tot gp-cell'+(sep?' sep':'')+'" data-affdet="footcp|'+e.id+'" title="Σ CP de '+esc(e.numero)+' (toute la période) — détail au clic"><div class="hdr-sub">Σ CP '+esc(e.numero)+'</div><strong>'+fmt0(cpSumOf(e.id))+'</strong></td>'; }
   ejList.forEach(function(e){ foot+=footTotCell(e); });
   var sumEj=sommeMontant(ejList), cpEjTot=0; ejList.forEach(function(e){ cpEjTot+=cpSumOf(e.id); });
-  foot+='<td class="num mono ccell tot gp-cell sep" data-affdet="footej|" title="Σ EJ (EJ seuls) — détail au clic">'+fmt0(sumEj)+'</td>'+
-    '<td class="num mono ccell tot gp-cell" data-affdet="footcpej|" title="Σ CP des EJ (toute la période) — détail au clic">'+fmt0(cpEjTot)+'</td>'+
-    '<td class="num mono ccell tot" title="Reste à payer en fin de période (0)">'+fmt0(resteAPayer(aff, months[months.length-1]||cur))+'</td>';
+  foot+=footCell('footej|','Σ EJ (EJ seuls)', sumEj, true)+
+    footCell('footcpej|','Σ CP des EJ', cpEjTot, false)+
+    footCell(null,'Reste à payer final', resteAPayer(aff, months[months.length-1]||cur), false);
   alList.forEach(function(e,i){ foot+=footTotCell(e, i===0); });
   rkList.forEach(function(e,i){ foot+=footTotCell(e, i===0); });
   var cpAll=0; ejs.forEach(function(e){ cpAll+=cpSumOf(e.id); });
   var rpTot=revisionTotale(aff, months);
-  var earTot=sommeMontant(ejs.filter(isAlea))+ejs.filter(isRisque).reduce(function(s,e){ return s+espDist(e); },0);
+  var alTot=sommeMontant(ejs.filter(isAlea));
+  var rkTot=ejs.filter(isRisque).reduce(function(s,e){ return s+espDist(e); },0);
   foot+='<td class="sep"></td>'+ /* indice : pas de pied */
-    '<td class="num mono ccell tot gp-cell" data-affdet="footrp|" title="Σ RP (toute la période) — détail au clic">'+fmt0(rpTot)+'</td>'+
-    '<td class="num mono ccell tot gp-cell" data-affdet="footautre|" title="Σ autre (aléas+risques+RP) — détail au clic">'+fmt0(earTot+rpTot)+'</td>'+
-    '<td class="num mono ccell tot gp-cell" data-affdet="footejar|" title="Somme EJ comprenant aléas, risques et RP — détail au clic">'+fmt0(sumEj+earTot+rpTot)+'</td>'+
-    '<td class="num mono ccell tot gp-cell" data-affdet="footcpall|" title="Somme CP (toute la période) — détail au clic">'+fmt0(cpAll)+'</td>'+
-    '<td class="num mono ccell tot gp-cell" data-affdet="foottotalej|" title="TOTAL EJ (tout compris) — détail au clic">'+fmt0(sommeMontant(ejs)+rpTot)+'</td>'+
-    '<td class="num mono ccell tot gp-cell" data-affdet="foottotalcp|" title="TOTAL CP (tout compris) — détail au clic">'+fmt0(cpAll+rpTot)+'</td>'+
+    footCell('footrp|','Σ RP', rpTot, true)+
+    footCell('footautre|','Σ autre (aléa+risque+RP)', alTot+rkTot+rpTot, false)+
+    footCell('footejar|','Σ EJ+aléas+risques', sumEj+alTot+rkTot, false)+
+    footCell('footcpall|','Σ CP (tous montants)', cpAll, false)+
+    footCell('foottotalej|','Total EJ (tout : +RP)', sumEj+alTot+rkTot+rpTot, false)+
+    footCell('foottotalcp|','Total CP (tout : +RP)', cpAll+rpTot, false)+
     '<td colspan="4"></td></tr>';
 
   h+='<div class="card"><h2>Affaire « '+esc(aff.nom)+' » — détail par mois</h2>'+
