@@ -492,7 +492,11 @@ const testCode = `
   ok(state.cps['e2|2026-12']===123456, 'saisie CP enchaînée: valeur enregistrée et re-render sans retour à gauche (renderAffaireKS)');
   state.ui.op=''; state.ui.aff='a1';
   var thS=af1.slice(0,af1.indexOf('</thead>'));
-  ok((thS.match(/ sep"/g)||[]).length===4, "vue affaire: 4 séparateurs de section dans l en-tête (Σ EJ, 1er aléa, 1er risque, indice)");
+  var sepPos=[...thS.matchAll(/<th[^>]*class="([^"]*)"[^>]*>([^<]{0,25})/g)].filter(function(m){ return m[1].indexOf("sep")>=0; }).map(function(m){ return m[2]; });
+  var sepPos=[...thS.matchAll(/<th[^>]*class="([^"]*)"[^>]*>([^<]{0,25})/g)].filter(function(m){ return m[1].indexOf("sep")>=0; }).map(function(m){ return m[2]; });
+  ok(sepPos.length===4 && sepPos[0].indexOf("Σ EJ")>=0, "séparateurs adaptés au bloc autre: avant Σ EJ, avant le 1er aléa, avant Indice, avant Synthèse EJ — trouvés: "+sepPos.join(" | "));
+  var iR1=thS.indexOf("data-rkpop="+String.fromCharCode(34)+"r1"+String.fromCharCode(34));
+  ok(iR1>=0 && thS.slice(iR1, iR1+300).indexOf(" sep")<0, "plus de séparateur entre aléas et risques (même bloc autre)");
   var cssSep=require('fs').readFileSync(require('path').join(__dirname,'..','src','css','app.css'),'utf8');
   ok(cssSep.indexOf('table.affgrid .sep{border-left:3px solid var(--blue)}')>=0 && cssSep.indexOf('border-right:1px solid #b9c4d4')>=0 && cssSep.indexOf('table.affgrid thead th{border-bottom:2px solid #8fa0b8}')>=0, 'tableau principal: bordures de colonnes renforcées + en-tête/pied 2px + séparateurs de section 3px bleus');
   var thA=af1.slice(af1.indexOf('<thead>'), af1.indexOf('</thead>'));
