@@ -506,6 +506,21 @@ function cmpNoteHTML(old,neu,fm){
 function cmpAbsHTML(){
   return cmpVer()?('<span class="cmp-note">absent de '+cmpLabel()+'</span>'):'';
 }
+/* Exécute fn (lecture seule) avec l'état remplacé par celui de la version comparée v */
+function withVer(v, fn){
+  if(!v) return undefined;
+  var stash={};
+  GP_FIELDS.forEach(function(k){ stash[k]=state[k]; state[k]=deepCopy(v[k]!=null?v[k]:defaultState()[k]); });
+  try{ return fn(); }
+  catch(e){ return undefined; }
+  finally{ GP_FIELDS.forEach(function(k){ state[k]=stash[k]; }); }
+}
+/* Note de comparaison sur une valeur courante : « V1 : ancienne valeur +écart / −écart » (+x ou −x) */
+function cmpCellNote(old, cur){
+  if(!cmpVer()) return '';
+  if(old==null||old===undefined) return cmpAbsHTML();
+  return '<span class="cmp-note">'+esc(fmtCmp(old,cur))+'</span>';
+}
 function renderCmpBanner(){
   var host=document.getElementById('cmp-banner');
   if(!host) return;

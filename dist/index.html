@@ -899,6 +899,48 @@ table.grid thead tr.hl5 th.hl-cp:hover{background:#c4ecd7}
 td.gp-real{background:#ececec;color:#3a3a3a;border:1px dashed #b5b5b5}
 td.rev-rp.gp-real,td.rev-tot.gp-real{background:#ececec;border:1px dashed #b5b5b5}
 
+/* vue affaire unifiée : un seul tableau, 1 colonne par EJ/risque/aléa + synthèse */
+table.affgrid .scol.sc1{left:0}
+
+/* vue affaire : colonnes larges pour bien voir chaque EJ/risque/aléa et chaque synthèse */
+table.affgrid th.dcol,table.affgrid td.dcol{min-width:170px;width:170px}
+table.affgrid th.tot-h,table.affgrid td.ccell.tot{min-width:110px}
+table.affgrid th,table.affgrid td{white-space:normal;vertical-align:middle}
+table.affgrid .ej-btn{white-space:normal;overflow:visible;text-overflow:clip;max-width:none}
+
+/* tableau principal (vue Affaire) : colonnes bien séparées + séparateurs de section nets */
+table.affgrid{border-collapse:separate;border-spacing:0}
+table.affgrid th,table.affgrid td{border-right:1px solid #b9c4d4;border-bottom:1px solid #d4dce6}
+table.affgrid thead th{border-bottom:2px solid #8fa0b8}
+table.affgrid tfoot td{border-top:2px solid #8fa0b8}
+/* séparateur de section : EJ | Σ EJ | aléas | risques | synthèse (indice, RP, …) */
+table.affgrid .sep{border-left:3px solid var(--blue)}
+
+/* en-têtes EJ compacts : colonnes plus étroites (détail dans la popup) */
+table.affgrid th.dcol,table.affgrid td.dcol{min-width:92px;width:92px}
+
+/* en-tête d'une colonne EJ/risque/aléa entièrement cliquable -> popup */
+table.affgrid th.dcol{cursor:pointer}
+table.affgrid th.dcol:hover{background:var(--blue-bg)}
+
+/* popup profil CP (onglet personnalisée) : forme cohérente avec le tableau principal */
+table.affpop{border-collapse:separate;border-spacing:0}
+table.affpop th,table.affpop td{border-right:1px solid #b9c4d4;border-bottom:1px solid #d4dce6;padding:4px 6px}
+table.affpop thead th{border-bottom:2px solid #8fa0b8;background:var(--head);font-size:11px}
+table.affpop tfoot td{border-top:2px solid #8fa0b8;font-weight:700}
+table.affpop td.gp-real{background:#ececec;border:1px dashed #b5b5b5}
+
+/* popup risque/aléa : courbes de répartition (montant + dates) */
+.ra-curves{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0}
+.ra-curves svg{width:100%;height:auto;display:block;background:#fbfcfe;border:1px solid var(--line2);border-radius:8px}
+@media (max-width:700px){.ra-curves{grid-template-columns:1fr}}
+
+/* alerte : colonne EJ dont Σ CP ≠ montant -> rouge clair (en-tête + cellules) */
+table.affgrid th.dcol.col-bad{background:#fdeaea}
+table.affgrid td.dcol.col-bad{background:#fdeaea}
+table.affgrid td.dcol.col-bad.cp-avant{background:#f6d5d5}
+table.affgrid td.dcol.col-bad.cp-lock{background:#fbe3e3}
+
 </style>
 </head>
 <body>
@@ -946,12 +988,8 @@ td.rev-rp.gp-real,td.rev-tot.gp-real{background:#ececec;border:1px dashed #b5b5b
   <section id="hist-banner" style="display:none"></section>
   <section id="cmp-banner" style="display:none"></section>
   <section id="view-dashboard"></section>
-  <section id="view-risques"></section>
   <section id="view-structure"></section>
-  <section id="view-conso"></section>
-  <section id="view-gp"></section>
-  <section id="view-revisions"></section>
-  <section id="view-realise"></section>
+  <section id="view-affaire"></section>
   <section id="view-indices"></section>
   <section id="view-donnees"></section>
 </main>
@@ -1792,6 +1830,21 @@ function cmpNoteHTML(old,neu,fm){
 function cmpAbsHTML(){
   return cmpVer()?('<span class="cmp-note">absent de '+cmpLabel()+'</span>'):'';
 }
+/* Exécute fn (lecture seule) avec l'état remplacé par celui de la version comparée v */
+function withVer(v, fn){
+  if(!v) return undefined;
+  var stash={};
+  GP_FIELDS.forEach(function(k){ stash[k]=state[k]; state[k]=deepCopy(v[k]!=null?v[k]:defaultState()[k]); });
+  try{ return fn(); }
+  catch(e){ return undefined; }
+  finally{ GP_FIELDS.forEach(function(k){ state[k]=stash[k]; }); }
+}
+/* Note de comparaison sur une valeur courante : « V1 : ancienne valeur +écart / −écart » (+x ou −x) */
+function cmpCellNote(old, cur){
+  if(!cmpVer()) return '';
+  if(old==null||old===undefined) return cmpAbsHTML();
+  return '<span class="cmp-note">'+esc(fmtCmp(old,cur))+'</span>';
+}
 function renderCmpBanner(){
   var host=document.getElementById('cmp-banner');
   if(!host) return;
@@ -2045,22 +2098,32 @@ function scopeMonths(opId, affId){
   ejs.forEach(function(e){ ids[e.id]=1; add(e.mois); occOf(e).forEach(function(o){ add(o.m); }); });
   for(var k in state.cps){ var p=k.split('|'); if(ids[p[0]]) add(p[1]); }
   scopedAffaires(opId,affId).forEach(function(a){ aids[a.id]=1; });
-  state.affaires.forEach(function(a){ add(a.dateRefRev); }); /* début au moins à la date de réf. de l'affaire la plus ancienne (TOUTES les affaires, même filtrées) */
+  /* PAS de dateRefRev dans le min par défaut : la date de réf. la plus ancienne
+     n'est que le PLANCHER (limite infranchissable) atteint via le bouton « avant » */
   for(var k2 in state.revisions){ var p2=k2.split('|'); if(aids[p2[0]]) add(p2[1]); }
   for(var k3 in state.realise){ var p3=k3.split('|'); if(aids[p3[0]]) add(p3[1]); }
   if(!min) min=mAdd(cur,-6);
   if(!max) max=cur;
   if(min>mAdd(cur,-6)) min=mAdd(cur,-6);
   if(max<mAdd(cur,12)) max=mAdd(cur,12);
-  min=mAdd(min, -(state.ui.extBefore||0)); /* bouton "développer avant" */
+  /* date de réf. la plus ancienne (TOUTES les affaires) = LIMITE infranchissable */
+  var minRefAll=null;
+  state.affaires.forEach(function(a){ if(a.dateRefRev&&(!minRefAll||a.dateRefRev<minRefAll)) minRefAll=a.dateRefRev; });
+  min=mAdd(min, -(state.ui.extBefore||0)); /* bouton "développer avant" (jusqu'à la limite) */
   max=mAdd(max, state.ui.ext||0);          /* bouton "développer après" */
+  if(minRefAll && min<minRefAll) min=minRefAll; /* jamais de dates avant la date de l'affaire la plus ancienne */
   return mRange(min,max);
 }
 
-/* Lignes de boutons "développer" : avant la première ligne de mois / après la dernière */
+/* Lignes de boutons "développer / replier" : avant la première ligne de mois /
+   après la dernière (on peut aussi retirer les mois ajoutés) */
 function extRow(side, colspan){
   var avant=side==='avant';
-  return '<tr class="extrow"><td colspan="'+colspan+'"><button type="button" class="btn small" data-ext="'+(avant?'before':'after')+'" title="'+(avant?'Afficher 12 mois de plus AVANT la première période affichée':'Afficher 12 mois de plus APRÈS la dernière période affichée')+'">'+(avant?'− 12 mois avant':'＋ 12 mois après')+'</button></td></tr>';
+  var h='<tr class="extrow"><td colspan="'+colspan+'">';
+  if(avant&&state.ui.extBefore>0) h+='<button type="button" class="btn small" data-extshrink="before" title="Retirer 12 mois au début de la période affichée">− replier 12 mois avant</button> ';
+  h+='<button type="button" class="btn small" data-ext="'+(avant?'before':'after')+'" title="'+(avant?'Afficher 12 mois de plus AVANT la première période affichée (jusqu\'à la date de réf. de l\'affaire la plus ancienne)':'Afficher 12 mois de plus APRÈS la dernière période affichée')+'">'+(avant?'− 12 mois avant':'＋ 12 mois après')+'</button>';
+  if(!avant&&state.ui.ext>0) h+=' <button type="button" class="btn small" data-extshrink="after" title="Retirer 12 mois à la fin de la période affichée">− replier 12 mois après</button>';
+  return h+'</td></tr>';
 }
 
 function dashPeriod(opId, affId){
@@ -2287,6 +2350,8 @@ function indiceRef(aff){
 }
 /* Somme des CP prévus d'une affaire sur un mois (EJ matérialisés uniquement) */
 function cpMoisAff(aff, m){ var s=0; ejsOfAffaire(aff.id).forEach(function(e){ if(isMaterialise(e)) s+=cpPrevu(e,m); }); return s; }
+/* somme des CP du mois sur TOUS les montants de l'affaire : EJ + risques + aléas */
+function cpMoisAffAll(aff, m){ var s=0; ejsOfAffaire(aff.id).forEach(function(e){ s+=cpPrevu(e,m); }); return s; }
 var DEFAULT_REV_FORMULA='={c}*({i}/{i0}-1)';
 var revFormErr={};
 /* Formule de révision d'une affaire pour un mois, avec placeholders :
@@ -2333,7 +2398,8 @@ function revEval(aff, f, mois){
    → des RP exactement sur les mois où il y a une base CP (et inversement). */
 function revAuto(aff,mois){
   var r=realOf(aff.id,mois);
-  var cp=(r!=null)?(r.cp||0):cpMoisAff(aff,mois);
+  /* base CP = CP réalisé saisi si présent, sinon somme des CP du mois sur EJ + risques + aléas */
+  var cp=(r!=null)?(r.cp||0):cpMoisAffAll(aff,mois);
   var ind=indiceApplicable(aff,mois), i0=indiceRef(aff);
   if(cp<=0||ind==null||!i0) return 0;
   return cp*(ind/i0-1);
@@ -2383,8 +2449,8 @@ function computeAlerts(opId, affId){
     if(!isMaterialise(e)) return;
     var som=cpSumOf(e.id), mt=montantOf(e), tol=Math.max(1,mt*0.001);
     if(Math.abs(mt-som)>tol){
-      out.push({level:'over', view:'conso', col:e.id, ej:e,
-        txt:'EJ « '+e.numero+' » ('+affaireName(e.affaireId)+') : montant '+fmt(mt)+' mais somme des CP '+fmt(som)+' — écart de '+fmt(mt-som)+'.'});
+      out.push({level:'over', view:'affaire', col:e.id, ej:e,
+        txt:'EJ « '+e.numero+' » ('+affaireName(e.affaireId)+') : montant '+fmt(mt)+(som<=0?' mais AUCUN CP saisi/prévu':' mais somme des CP '+fmt(som))+' — écart de '+fmt(mt-som)+'.'});
     }
   });
   ejs.forEach(function(e){
@@ -2393,7 +2459,7 @@ function computeAlerts(opId, affId){
     if(isRisque(e)){
       var no=nextOcc(e);
       if(no&&no<cur){
-        out.push({level:'over', view:'risques', col:e.id, ej:e,
+        out.push({level:'over', view:'affaire', col:e.id, ej:e,
           txt:stadeLabel(e)+' « '+e.numero+' — '+e.libelle+' » ('+affaireName(e.affaireId)+') : apparition prévue en '+mLong(no)+', passée, et non matérialisé.'});
       }
     }
@@ -2411,28 +2477,28 @@ function computeAlerts(opId, affId){
     var rc=realCumul(a.id, mAdd(cur,-1));
     /* un écart en retard comme en avance est une incohérence (mois écoulés) */
     if(ejPast>0 && rc.ej < ejPast - Math.max(1,ejPast*0.01)){
-      out.push({level:'over', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : EJ engagés à hauteur de '+fmt(ejPast)+' sur les mois écoulés, mais seulement '+fmt(rc.ej)+' constatés dans le réalisé (retard de '+fmt(ejPast-rc.ej)+').'});
+      out.push({level:'over', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : EJ engagés à hauteur de '+fmt(ejPast)+' sur les mois écoulés, mais seulement '+fmt(rc.ej)+' constatés dans le réalisé (retard de '+fmt(ejPast-rc.ej)+').'});
     }
     if(ejPast>0 && rc.ej > ejPast + Math.max(1,ejPast*0.01)){
-      out.push({level:'warn', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.ej)+' d\'EJ réalisés sur les mois écoulés contre '+fmt(ejPast)+' d\'EJ engagés (avance de '+fmt(rc.ej-ejPast)+').'});
+      out.push({level:'warn', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.ej)+' d\'EJ réalisés sur les mois écoulés contre '+fmt(ejPast)+' d\'EJ engagés (avance de '+fmt(rc.ej-ejPast)+').'});
     }
     if(cpPast>0 && rc.cp < cpPast - Math.max(1,cpPast*0.02)){
-      out.push({level:'over', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : CP prévus à hauteur de '+fmt(cpPast)+' sur les mois écoulés, mais seulement '+fmt(rc.cp)+' réalisés (retard de '+fmt(cpPast-rc.cp)+').'});
+      out.push({level:'over', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : CP prévus à hauteur de '+fmt(cpPast)+' sur les mois écoulés, mais seulement '+fmt(rc.cp)+' réalisés (retard de '+fmt(cpPast-rc.cp)+').'});
     }
     if(cpPast>0 && rc.cp > cpPast + Math.max(1,cpPast*0.02)){
-      out.push({level:'warn', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.cp)+' de CP réalisés sur les mois écoulés contre '+fmt(cpPast)+' prévus (avance de '+fmt(rc.cp-cpPast)+').'});
+      out.push({level:'warn', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.cp)+' de CP réalisés sur les mois écoulés contre '+fmt(cpPast)+' prévus (avance de '+fmt(rc.cp-cpPast)+').'});
     }
     if(rc.ej>0 && ejPast<=0){
-      out.push({level:'over', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.ej)+' d\'EJ réalisés sans EJ engagé à ces dates.'});
+      out.push({level:'over', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.ej)+' d\'EJ réalisés sans EJ engagé à ces dates.'});
     }
     if(rc.cp>0 && cpPast<=0){
-      out.push({level:'over', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.cp)+' de CP réalisés sans prévision de CP.'});
+      out.push({level:'over', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.cp)+' de CP réalisés sans prévision de CP.'});
     }
     /* info (orange, pas une alerte) : mois en cours pas encore saisi dans Réalisé */
     var ejCur=0, cpCur=0;
     ejs.forEach(function(e){ if(e.affaireId===a.id&&isMaterialise(e)){ if(e.mois===cur) ejCur+=montantOf(e); cpCur+=cpPrevu(e,cur); } });
     if((ejCur>0||cpCur>0)&&!realOf(a.id,cur)){
-      out.push({level:'info', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : mois en cours '+mLong(cur)+' pas encore saisi dans « Réalisé » (prévu : EJ '+fmt0(ejCur)+', CP '+fmt0(cpCur)+') — simple information, à compléter.'});
+      out.push({level:'info', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : mois en cours '+mLong(cur)+' pas encore saisi dans « Réalisé » (prévu : EJ '+fmt0(ejCur)+', CP '+fmt0(cpCur)+') — simple information, à compléter.'});
     }
     /* réalisé NON SAISI pour un mois révolu = alerte (un réalisé saisi à 0 vaut
        constatation « rien » : bien distinct de « non saisi »). On s'arrête à la
@@ -2441,7 +2507,7 @@ function computeAlerts(opId, affId){
       var miss=[];
       for(var mm=minRef; mm<cur; mm=mAdd(mm,1)){ if(!realOf(a.id,mm)) miss.push(mm); if(miss.length>600) break; }
       if(miss.length){
-        out.push({level:'warn', view:'realise', aff:a.id,
+        out.push({level:'warn', view:'affaire', aff:a.id,
           txt:'Affaire « '+a.nom+' » : réalisé non saisi pour '+miss.length+' mois révolu'+(miss.length>1?'s':'')+' ('+mLong(miss[0])+' … '+mLong(miss[miss.length-1])+', depuis la date de réf. '+mLong(minRef)+') — à compléter dans « Réalisé » ; un réalisé saisi à 0 vaut constatation.'});
       }
     }
@@ -2452,7 +2518,9 @@ function computeAlerts(opId, affId){
 /* ===== src/js/08-rendu-navigation.js ===== */
 /* ================= Rendu / navigation ================= */
 
-var VIEWS=[['dashboard','Tableau de bord'],['structure','Opérations & affaires'],['risques','Risques & aléas'],['conso','Consommation CP'],['revisions','Révisions de prix'],['realise','Réalisé'],['gp','GP à saisir'],['indices','Indices'],['donnees','Données']];
+/* Branche onglet-affaire-unique : risques&aléas + conso CP + révisions + réalisé + GP
+   sont fusionnés en UN onglet « Affaire » (une seule affaire à la fois). */
+var VIEWS=[['dashboard','Tableau de bord'],['structure','Opérations & affaires'],['affaire','Affaire (détail)'],['indices','Indices'],['donnees','Données']];
 
 function renderNav(){
   var nav=document.getElementById('nav'), cur=state.ui.view||'dashboard', h='<ul class="fr-nav__list">';
@@ -2499,7 +2567,9 @@ function render(){
   renderNav();
   renderFilters();
   VIEWS.forEach(function(v){ var el=document.getElementById('view-'+v[0]); if(el) el.style.display=(state.ui.view===v[0])?'':'none'; });
-  var r={dashboard:renderDashboard, risques:renderRisques, structure:renderStructure, conso:renderConso, gp:renderGp, revisions:renderRevisions, realise:renderRealise, indices:renderIndices, donnees:renderDonnees};
+  var r={dashboard:renderDashboard, structure:renderStructure, affaire:renderAffaire, indices:renderIndices, donnees:renderDonnees,
+         /* vues historiques conservées (hors navigation) : risques, conso, gp, revisions, realise */
+         risques:renderRisques, conso:renderConso, gp:renderGp, revisions:renderRevisions, realise:renderRealise};
   var cur=state.ui.view||'dashboard';
   try{ (r[cur]||renderDashboard)(); }
   catch(e){ viewError(cur, e); }
@@ -2773,6 +2843,14 @@ function renderDashboard(){
      '<span><span class="sw" style="background:#b45309"></span>Attendu (aléas + risques pondérés)</span>'+
      '<span><span class="sw" style="background:#dc2626"></span>Tous aléas/risques matérialisés (haut)</span>'+todayLegend+'</div></div>';
 
+  h+='<div class="card"><h2 title="Distribution des risques et aléas dans le temps, en cumulé : cas défavorable (risques à 100 %, haut de la distribution) et cas favorable (risques pondérés par leur probabilité), courbe des aléas, et courbe des révisions de prix calculées sur les CP des risques et aléas.">Distribution des risques &amp; aléas (cas favorables / défavorables) + RP risques/aléas</h2>'+
+     '<p class="hint">Cumul par mois : <strong>risques — défavorable</strong> (montant haut, proba 100 %) et <strong>favorable</strong> (espérance × probabilité), <strong>aléas</strong>, et <strong>RP des risques &amp; aléas</strong> = (I/I₀−1) × CP des risques/aléas du mois, cumulées. Survolez un point pour le détail.</p>'+
+     chartRisquesDist(affs,ejs,months,per)+
+     '<div class="legend"><span><span class="sw" style="background:#dc2626"></span>Risques — cas défavorable (haut, 100 %)</span>'+
+     '<span><span class="sw" style="background:#b45309"></span>Risques — cas favorable (pondéré)</span>'+
+     '<span><span class="sw" style="background:#2563eb"></span>Aléas</span>'+
+     '<span><span class="sw" style="background:#7c3aed"></span>RP des risques &amp; aléas (cumulées)</span>'+todayLegend+'</div></div>';
+
   h+='<div class="card"><h2>Prévisionnel EJ par mois</h2><p class="hint">Par mois : <strong>EJ engagés</strong> (prévu, à leur mois), <strong>risques en hypothèse moyenne</strong> (espérance × probabilité, à leurs apparitions), <strong>aléas</strong> (répartis au hasard sur les mois restants de l\'opération) et <strong>révisions de prix (RP)</strong>. Survolez un mois pour le détail.</p>'+chartBarsEJ(affs,ejs,months,per)+
      '<div class="legend"><span><span class="sw" style="background:#059669"></span>EJ engagés (prévu)</span>'+
      '<span><span class="sw" style="background:#b45309"></span>Risques (hypothèse moyenne)</span>'+
@@ -2990,6 +3068,86 @@ function chartEntonnoir(affs, ejs, months, per){
   labs.forEach(function(L){
     s+='<line x1="'+X(n).toFixed(1)+'" y1="'+(L[2]+3).toFixed(1)+'" x2="'+(X(n)+12).toFixed(1)+'" y2="'+(L[2]+3).toFixed(1)+'" stroke="'+L[0]+'" stroke-width="1" stroke-dasharray="2 2"/>';
     s+='<text x="'+xEnd+'" text-anchor="end" y="'+(L[2]+3).toFixed(1)+'" fill="'+L[0]+'" font-weight="600">'+L[1]+'</text>';
+  });
+  s+='</svg>';
+  return s;
+}
+
+/* Graphique dédié : distribution cumulée des risques (cas défavorable = haut 100 %,
+   cas favorable = espérance × probabilité) et des aléas, + courbe des RP calculées
+   sur les CP des risques et aléas (base CP = CP risques/aléas du mois, I/I₀−1 par affaire). */
+function chartRisquesDist(affs, ejs, months, per){
+  months=applyPeriod(months,per);
+  var W=960,H=260,p={l:80,r:16,t:12,b:32}, n=months.length;
+  var aleas=ejs.filter(isAlea), risques=ejs.filter(isRisque);
+  var ids={}; affs.forEach(function(a){ ids[a.id]=1; });
+  /* RP des risques/aléas par mois et affaire : (I/I₀−1) × Σ CP(risques/aléas du mois) */
+  function rpRAMois(m){
+    var s=0;
+    affs.forEach(function(a){
+      var i0=indiceRef(a), ind=indiceApplicable(a,m);
+      if(!i0||ind==null) return;
+      var cp=0;
+      ejs.forEach(function(e){ if((isAlea(e)||isRisque(e))&&e.affaireId===a.id) cp+=cpPrevu(e,m); });
+      if(cp>0) s+=cp*(ind/i0-1);
+    });
+    return s;
+  }
+  var fav=[], def=[], alea=[], rpC=[], rpCum=0;
+  var maxV=1;
+  for(var i=0;i<n;i++){
+    var m=months[i], f=0, d=0, a=0;
+    risques.forEach(function(e){ f+=risquePondere(e)*cumOcc(e,m); d+=montantHaut(e)*cumOcc(e,m); });
+    aleas.forEach(function(e){ a+=montantOf(e)*cumOcc(e,m); });
+    rpCum+=rpRAMois(m);
+    fav.push(f); def.push(d); alea.push(a); rpC.push(rpCum);
+    maxV=Math.max(maxV,f,d,a,rpCum);
+  }
+  var X=function(i){ return p.l+(W-p.l-p.r)*(n<=1?0:i/n); };
+  var Y=function(v){ return H-p.b-(H-p.t-p.b)*(v/maxV); };
+  var s='<svg viewBox="0 0 '+W+' '+H+'" font-family="Segoe UI,sans-serif" font-size="10">';
+  for(i=0;i<=4;i++){
+    var v=maxV*i/4, y=Y(v);
+    s+='<line x1="'+p.l+'" y1="'+y.toFixed(1)+'" x2="'+(W-p.r)+'" y2="'+y.toFixed(1)+'" stroke="#e7ebf0"/>';
+    s+='<text x="'+(p.l-6)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end" fill="#67788c">'+fmtM(v)+'</text>';
+  }
+  var slot=(W-p.l-p.r)/Math.max(1,n);
+  var step=Math.max(1,Math.ceil(n/14));
+  for(i=0;i<n;i+=step){
+    s+='<text x="'+(X(i)+slot/2).toFixed(1)+'" y="'+(H-p.b+14)+'" text-anchor="middle" fill="#67788c">'+mLabel(months[i])+'</text>';
+  }
+  /* ligne verticale à la date du jour */
+  s+=todayLineSVG(months,function(i){ return X(i); },p,H);
+  function draw(arr,color,dash,w){
+    var d='';
+    for(var j=0;j<arr.length;j++) d+=(j?'L':'M')+X(j).toFixed(1)+' '+Y(arr[j]).toFixed(1)+' ';
+    s+='<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="'+(w||2)+'"'+(dash?' stroke-dasharray="5 4"':'')+'/>';
+  }
+  function pts(arr,color,label){
+    var o='';
+    for(var i2=0;i2<n;i2++){
+      o+='<circle class="chart-pt" data-m="'+months[i2]+'" cx="'+X(i2).toFixed(1)+'" cy="'+Y(arr[i2]).toFixed(1)+'" r="3.5" fill="'+color+'"><title>'+label+' '+mLabel(months[i2])+' : '+fmtM(arr[i2])+'</title></circle>';
+    }
+    return o;
+  }
+  draw(def,'#dc2626',false,2.5); draw(fav,'#b45309',true,2); draw(alea,'#2563eb',false,2); draw(rpC,'#7c3aed',true,2);
+  s+=pts(def,'#dc2626','Risques défavorable (haut)')+pts(fav,'#b45309','Risques favorable (pondéré)')+pts(alea,'#2563eb','Aléas')+pts(rpC,'#7c3aed','RP risques/aléas cumulées');
+  /* étiquettes de fin de courbes, empilées sans se chevaucher */
+  var labs=[
+    ['#dc2626','Risques défavorable '+fmtM(def[n-1]),Y(def[n-1])],
+    ['#b45309','Risques favorable '+fmtM(fav[n-1]),Y(fav[n-1])],
+    ['#2563eb','Aléas '+fmtM(alea[n-1]),Y(alea[n-1])],
+    ['#7c3aed','RP risques/aléas '+fmtM(rpC[n-1]),Y(rpC[n-1])]
+  ];
+  labs.sort(function(a,b){ return a[2]-b[2]; });
+  var minGap=11;
+  for(var li=1;li<labs.length;li++){ if(labs[li][2]<labs[li-1][2]+minGap) labs[li][2]=labs[li-1][2]+minGap; }
+  var yMax=H-p.b-6, yMin=p.t+8;
+  if(labs[labs.length-1][2]>yMax){ var sh=yMax-labs[labs.length-1][2]; for(var lj=0;lj<labs.length;lj++) labs[lj][2]+=sh; }
+  if(labs[0][2]<yMin){ var sh2=yMin-labs[0][2]; for(var lk=0;lk<labs.length;lk++) labs[lk][2]+=sh2; }
+  var xEnd=(W-p.r+4).toFixed(1);
+  labs.forEach(function(L){
+    s+='<text x="'+xEnd+'" y="'+(L[2]+3).toFixed(1)+'" fill="'+L[0]+'" font-weight="600">'+L[1]+'</text>';
   });
   s+='</svg>';
   return s;
@@ -3669,7 +3827,7 @@ function renderStructure(){
         state.ejs.push(ej9);
         recomputeProfils(state);
         /* on ramène sur l'onglet Consommation CP, affaire filtrée, colonne du nouvel EJ focalisée */
-        state.ui.op=aff9.opId; state.ui.aff=aid9; state.ui.view='conso'; state.ui.focusCol=ej9.id;
+        state.ui.op=aff9.opId; state.ui.aff=aid9; state.ui.view='affaire'; state.ui.focusCol=ej9.id;
         save(); render(); return;
       }
       if(t.dataset.delop){
@@ -3708,6 +3866,15 @@ function renderStructure(){
 /* ===== src/js/14-popup-de-reglage-du-profil-de-consommati.js ===== */
 /* ================= Popup de réglage du profil de consommation CP ================= */
 
+/* check tri-état Σ CP vs montant d'un EJ (dans la fiche EJ) */
+function checkBadge(e){
+  if(!isMaterialise(e)) return '—';
+  var somCp=cpSumOf(e.id), mtE=montantOf(e);
+  if(mtE<=0) return '<span class="badge warn">montant ?</span>';
+  if(somCp<=0) return '<span class="badge warn">CP à saisir</span>';
+  if(Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001)) return '<span class="badge ok">ok</span>';
+  return '<span class="badge over">écart '+fmt0(mtE-somCp)+'</span>';
+}
 function profilSummary(p){
   if(!p) return '—';
   if(p.type==='ponctuelle') return 'ponctuelle · '+(p.debut?mLong(p.debut):'—');
@@ -3724,47 +3891,52 @@ function openProfilPopup(ejId){
   var cur=curMois();
   var months=scopeMonths(aff?aff.opId:'', aff?aff.id:'');
   var affEjs=ejsOfAffaire(e.affaireId).filter(isMaterialise);
-  /* par mois : CP prévus de l'affaire, CP réalisés (onglet Réalisé), écart et cohérence */
+  /* par mois : CP prévus de l'affaire, CP réalisés (onglet Réalisé), écart et cohérence.
+     Règles du réalisé : saisi à 0 = constatation « rien » (affiché 0, PAS « — ») ;
+     non saisi sur un mois écoulé = « — » + alerte « non saisi » ; si saisi, le réalisé
+     est la vérité (cellule grisée gp-real) et l'écart n'est calculé que s'il est saisi. */
   function rowVals(m){
     var cpM=0;
     affEjs.forEach(function(e2){ cpM+=cpPrevu(e2,m); });
     var past=m<=cur, r=realOf(e.affaireId,m);
-    var rcp=past?(r?r.cp||0:0):null;
-    var ec=past?(rcp-cpM):null;
+    var hasR=!!(r&&Object.prototype.hasOwnProperty.call(r,'cp'));
+    var rcp=(past&&hasR)?(r.cp||0):null; /* null = non saisi */
+    var ec=(past&&hasR)?((r.cp||0)-cpM):null;
     var tol=Math.max(1,cpM*0.02), coh='';
     if(past){
-      if(Math.abs(ec)<=tol) coh='<span class="badge ok">cohérent</span>';
+      if(!hasR) coh='<span class="badge warn" title="Mois écoulé sans réalisé saisi (saisi à 0 = constatation « rien »)">non saisi</span>';
+      else if(Math.abs(ec)<=tol) coh='<span class="badge ok">cohérent</span>';
       else if(ec<0) coh='<span class="badge over">retard '+fmt(-ec)+'</span>';
       else coh='<span class="badge warn">avance '+fmt(ec)+'</span>';
     }
-    return {cpM:cpM, rcp:rcp, ec:ec, coh:coh};
+    return {cpM:cpM, rcp:rcp, hasR:hasR, ec:ec, coh:coh};
   }
   /* onglet « personnalisée » : saisie mensuelle des CP de l'EJ, avec le réalisé
-     de l'affaire rappelé à côté et l'indicateur de cohérence */
+     de l'affaire rappelé à côté (grisé quand saisi = vérité) et l'indicateur de cohérence */
   var persoRows='';
   months.forEach(function(m){
     var v=rowVals(m);
     var cv=state.cps[e.id+'|'+m]||0;
     var past=m<=cur;
     persoRows+='<tr'+(m===cur?' class="gp-cur"':'')+'><td'+(m===cur?' style="background:var(--amber-bg);font-weight:600"':'')+'>'+mLong(m)+(past?'':' (à venir)')+'</td>'+
-      '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-ppcp="'+e.id+'|'+m+'" value="'+(cv?fmt0(cv):'')+'" title="CP consommés pour « '+esc(e.numero)+' » en '+mLong(m)+' (profil personnalisé — saisie libre)"></td>'+
+      '<td class="num dcol"><input type="text" inputmode="decimal" class="real-in" data-ppcp="'+e.id+'|'+m+'" value="'+(cv?fmt0(cv):'')+'" title="CP consommés pour « '+esc(e.numero)+' » en '+mLong(m)+' (profil personnalisé — saisie libre)"></td>'+
       '<td class="num mono" data-cell="prevu" title="CP prévus ce mois pour toute l\'affaire (tous EJ engagés, selon leurs profils)">'+fmt0(v.cpM)+'</td>'+
-      '<td class="num mono" data-cell="real" title="CP réalisés ce mois, saisis dans l\'onglet « Réalisé »">'+(v.rcp==null?'—':fmt0(v.rcp))+'</td>'+
-      '<td class="num mono" data-cell="ecart" title="Écart CP = réalisé − prévu (affaire, ce mois)">'+(v.ec==null?'':((v.ec>0?'+':'')+fmt0(v.ec)))+'</td>'+
-      '<td data-cell="coh" title="Un écart en retard comme en avance est une incohérence">'+v.coh+'</td></tr>';
+      '<td class="num mono'+(v.hasR?' gp-real':'')+'" data-cell="real" title="CP réalisés ce mois (saisi = vérité, même à 0 ; « — » = non saisi)">'+(v.rcp==null?'—':fmt0(v.rcp))+'</td>'+
+      '<td class="num mono" data-cell="ecart" title="Écart CP = réalisé − prévu (affaire, ce mois ; seulement si réalisé saisi)">'+(v.ec==null?'':((v.ec>0?'+':'')+fmt0(v.ec)))+'</td>'+
+      '<td data-cell="coh" title="Non saisi sur un mois écoulé = alerte ; retard comme avance = incohérence">'+v.coh+'</td></tr>';
   });
-  var persoPane='<p class="hint">Saisissez les CP de cet EJ <strong>mois par mois</strong> (ils s\'ajoutent à ceux saisis dans la grille « Consommation CP »). Le <strong>CP réalisé de l\'affaire</strong> est rappelé à côté pour les mois passés, avec l\'indicateur de cohérence.</p>'+
-    '<div class="grid-wrap"><table class="liste"><thead><tr>'+
+  var persoPane='<p class="hint">Saisissez les CP de cet EJ <strong>mois par mois</strong>. Le <strong>CP réalisé de l\'affaire</strong> est rappelé à côté pour les mois passés : grisé quand saisi (c\'est la vérité, même à 0), « — » + alerte « non saisi » sinon.</p>'+
+    '<div class="grid-wrap"><table class="liste affpop"><thead><tr>'+
     '<th>Mois</th><th class="num" title="CP consommés ce mois pour cet EJ (saisie)">CP cet EJ (saisi)</th>'+
     '<th class="num" title="CP prévus ce mois pour toute l\'affaire">CP prévus affaire</th>'+
-    '<th class="num" title="CP réalisés ce mois (onglet « Réalisé »)">CP réalisés affaire</th>'+
-    '<th class="num" title="Écart CP = réalisé − prévu (affaire, ce mois)">Écart CP</th><th title="Cohérence avec le réalisé">Cohérence</th></tr></thead>'+
+    '<th class="num" title="CP réalisés ce mois (saisi = vérité, même à 0 ; — = non saisi)">CP réalisés affaire</th>'+
+    '<th class="num" title="Écart CP = réalisé − prévu (si réalisé saisi)">Écart CP</th><th title="Cohérence avec le réalisé">Cohérence</th></tr></thead>'+
     '<tbody>'+persoRows+'</tbody>'+
     '<tfoot><tr><td>Total</td><td class="num mono" id="pp-total" title="Total des CP saisis pour cet EJ">'+fmt0(cpSumOf(e.id))+'</td><td colspan="4"></td></tr></tfoot></table></div>';
   var ov=document.createElement('div');
   ov.className='modal-ov';
   ov.innerHTML='<div class="modal"><h2>Fiche de l\'EJ « '+esc(e.numero)+' » — profil de consommation des CP</h2>'+
-    '<p class="hint">'+stadeBadge(e)+' affaire « '+esc(affaireName(e.affaireId))+' » · CP consommés à ce jour : <span id="pp-cpnow">'+fmt(cpSumOf(e.id))+'</span></p>'+
+    '<p class="hint">'+stadeBadge(e)+' affaire « '+esc(affaireName(e.affaireId))+' » · CP consommés à ce jour : <span id="pp-cpnow">'+fmt(cpSumOf(e.id))+'</span> · check Σ CP vs montant : <strong id="pp-check">'+checkBadge(e)+'</strong></p>'+
     /* toutes les caractéristiques de l'EJ sont modifiables ici (la colonne de la
        grille « Consommation CP » n'affiche que intitulé / date / montant / check Σ CP) */
     '<div class="formrow">'+
@@ -3822,7 +3994,7 @@ function openProfilPopup(ejId){
       var cEcart=tr.querySelector('[data-cell="ecart"]');
       var cCoh=tr.querySelector('[data-cell="coh"]');
       if(cPrevu) cPrevu.textContent=fmt0(vals.cpM);
-      if(cReal) cReal.textContent=(vals.rcp==null?'—':fmt0(vals.rcp));
+      if(cReal){ cReal.textContent=(vals.rcp==null?'—':fmt0(vals.rcp)); cReal.className='num mono'+(vals.hasR?' gp-real':''); }
       if(cEcart) cEcart.textContent=(vals.ec==null?'':((vals.ec>0?'+':'')+fmt0(vals.ec)));
       if(cCoh) cCoh.innerHTML=vals.coh;
     }
@@ -3962,12 +4134,16 @@ function renderConso(){
       rB+='<th class="dcol hlB rev-h-aff" colspan="'+(c.le.length+1)+'"><button type="button" class="btn btn-prof" data-affbtn="'+c.a.id+'" title="Voir tous les EJ de l\'affaire « '+esc(c.a.nom)+' », avec leurs dates (popup)">'+esc(c.a.nom)+'</button></th>';
       c.le.forEach(function(e){
         var foc=(state.ui.focusCol===e.id?' col-focus':'');
-        var somCp=cpSumOf(e.id), mtE=montantOf(e), cohOk=Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
+        var somCp=cpSumOf(e.id), mtE=montantOf(e);
+        /* check tri-état : rien saisi -> « CP à saisir » / « montant ? », jamais « ok » à vide */
+        var cohOk=mtE>0&&somCp>0&&Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001);
+        var cohWarn=mtE>0&&somCp<=0;
         var ejTip='Fiche de l\'EJ '+esc(e.numero)+' : n°, libellé, montant, date et profil CP modifiables — Σ CP = '+fmt0(somCp)+' vs montant '+fmt0(mtE)+(cohOk?' (cohérent)':' — ÉCART '+fmt0(mtE-somCp)+' = alerte tableau de bord');
         r2+='<th class="dcol hl2'+foc+'"><button type="button" class="ej-btn" data-ejpop="'+e.id+'" title="'+ejTip+'">'+esc(e.numero)+(e.libelle?' — '+esc(e.libelle):'')+'</button>'+colRsH(e.id)+'</th>';
         r3+='<th class="dcol hl3'+foc+'"><button type="button" class="ej-btn" data-ejpop="'+e.id+'" title="Date de l\'EJ : '+(e.mois?mLong(e.mois):'—')+' — modifier dans la fiche EJ">'+(e.mois?mLabel(e.mois):'—')+'</button>'+colRsH(e.id)+'</th>';
         r4+='<th class="dcol hl4 hl-mont'+foc+'"><button type="button" class="ej-btn ej-btn-mont" data-ejpop="'+e.id+'" title="Montant de l\'EJ : '+fmt0(mtE)+' — modifier dans la fiche EJ">'+fmt0(mtE)+'</button>'+colRsH(e.id)+'</th>';
-        r5+='<th class="dcol hl5 hl-cp'+foc+'" data-ejhdr="'+e.id+'"><button type="button" class="ej-btn ej-btn-cp" data-ejpop="'+e.id+'" title="Check Σ CP saisis (calculé) : '+fmt0(somCp)+(cohOk?' — cohérent':' — ÉCART '+fmt0(mtE-somCp)+' = alerte')+' — clic = fiche EJ">'+ '<span class="hdr-sub'+(cohOk?'':' coh-bad')+'">Σ CP '+fmt0(somCp)+(cohOk?'':' <span class="badge over">écart '+fmt0(mtE-somCp)+'</span>')+'</span></button>'+colRsH(e.id)+'</th>';
+        var chkBadge=(!cohOk&&!cohWarn)?'<span class="badge warn">montant ?</span>':(cohWarn?'<span class="badge warn">CP à saisir</span>':(Math.abs(mtE-somCp)<=Math.max(1,mtE*0.001)?'<span class="badge ok">ok</span>':'<span class="badge over">écart '+fmt0(mtE-somCp)+'</span>'));
+        r5+='<th class="dcol hl5 hl-cp'+foc+'" data-ejhdr="'+e.id+'"><button type="button" class="ej-btn ej-btn-cp" data-ejpop="'+e.id+'" title="Check Σ CP saisis (calculé) : '+fmt0(somCp)+(cohOk?' — cohérent':' — ÉCART '+fmt0(mtE-somCp)+' = alerte')+' — clic = fiche EJ">'+ '<span class="hdr-sub'+(cohOk?'':' coh-bad')+'">Σ CP '+fmt0(somCp)+' '+chkBadge+'</span></button>'+colRsH(e.id)+'</th>';
       });
       var tA='Total CP de l\'affaire '+esc(c.a.nom)+' (non modifiable)';
       r2+='<th class="dcol hl2 tot-h" title="'+tA+'">Σ'+colRsH('a:'+c.a.id)+'</th>';
@@ -4649,7 +4825,7 @@ function renderRevisions(){
       h3+='<th class="rev-h-col" title="Indice applicable = formule de l\'affaire'+(a.formule?(' : '+a.formule):' (1ʳᵉ série)')+', recalé I/I₀ à 1 à la date de réf. '+(a.dateRefRev||'—')+'">Indice'+
            ' <button class="btn small" data-go="structure" data-op="'+og.o.id+'" data-aff="'+a.id+'" title="Modifier la formule et la date de réf. de cette affaire dans « Opérations & affaires »">fx</button></th>'+
            '<th class="rev-h-col" title="CP prévisionnels du mois (EJ engagés, selon leurs profils) — à régler dans « Consommation CP »">CP'+
-           ' <button class="btn small" data-go="conso" data-op="'+og.o.id+'" data-aff="'+a.id+'" title="Régler les CP (profils des EJ) de cette affaire dans « Consommation CP »">CP</button></th>'+
+           ' <button class="btn small" data-go="affaire" data-op="'+og.o.id+'" data-aff="'+a.id+'" title="Régler les CP (profils des EJ) de cette affaire dans l\'onglet « Affaire »">CP</button></th>'+
            '<th class="rev-h-col" title="Révision de prix du mois, automatique : '+DEFAULT_REV_FORMULA+' — séries d\'indices à saisir dans « Indices »">RP'+
            ' <button class="btn small" data-go="indices" title="Saisir les séries d\'indices (tableau, collage Excel) dans « Indices »">idx</button></th>';
     });
@@ -4745,7 +4921,7 @@ function renderRevisions(){
       var b=ev.target.closest('button[data-go]'); if(!b) return;
       var kind=b.dataset.go;
       if(kind==='structure'){ state.ui.op=b.dataset.op||''; state.ui.aff=b.dataset.aff||''; state.ui.view='structure'; save(); render(); return; }
-      if(kind==='conso'){ state.ui.op=b.dataset.op||''; state.ui.aff=b.dataset.aff||''; state.ui.view='conso'; save(); render(); return; }
+      if(kind==='affaire'){ state.ui.op=b.dataset.op||''; state.ui.aff=b.dataset.aff||''; state.ui.view='affaire'; save(); render(); return; }
       if(kind==='indices'){ state.ui.view='indices'; save(); render(); return; }
     });
   });
@@ -5341,13 +5517,22 @@ function bootError(e){
   });
 }
 
-/* Boutons "développer la période" (avant/après les mois affichés) */
+/* Boutons "développer / replier la période" (avant/après les mois affichés) */
 document.addEventListener('click', function(ev){
-  var b=ev.target&&ev.target.closest?ev.target.closest('button[data-ext]'):null;
-  if(!b) return;
-  if(b.dataset.ext==='before') state.ui.extBefore=(state.ui.extBefore||0)+12;
-  else state.ui.ext=(state.ui.ext||0)+12;
-  save(); render();
+  var t=ev.target, d=(t&&t.dataset)||{};
+  var b=t&&t.closest?t.closest('button'):null;
+  var bd=(b&&b.dataset)||{};
+  var shr=d.extshrink||bd.extshrink, ext=d.ext||bd.ext;
+  if(shr){
+    if(shr==='before') state.ui.extBefore=Math.max(0,(state.ui.extBefore||0)-12);
+    else state.ui.ext=Math.max(0,(state.ui.ext||0)-12);
+    save(); render(); return;
+  }
+  if(ext){
+    if(ext==='before') state.ui.extBefore=(state.ui.extBefore||0)+12;
+    else state.ui.ext=(state.ui.ext||0)+12;
+    save(); render(); return;
+  }
 });
 
 /* Sélecteurs de mois custom : le bouton ▾ ouvre le calendrier mensuel */
@@ -5648,6 +5833,714 @@ function exportXLSX(){
   var b=buildXLSX();
   var iso=new Date().toISOString().replace(/[:.]/g,'-');
   download('cosi-export-'+iso+'.xlsx', b, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+
+
+/* ===== src/js/23-vue-affaire-unifiee.js ===== */
+/* ================= Vue unifiée « Affaire » (branche onglet-affaire-unique) ================= */
+/* Onglets risques&aléas / conso CP / révisions / réalisé / GP fusionnés en UN SEUL
+   onglet avec UN SEUL tableau, pour UNE SEULE affaire à la fois (sélecteur dédié).
+   Le tableau est mensuel : une colonne par EJ / risque / aléa de l'affaire (saisie
+   de la consommation CP directement dans la cellule du mois), + colonnes de
+   synthèse (EJ engagé, aléa, risque, CP prévu, RP, GP EJ/CP avec les 4 options,
+   EJ/CP réels saisis, écarts, statut, actions). Tout est faisable depuis cet onglet :
+   créer EJ/risque/aléa, fiches EJ, popup risque/aléa, liens vers structure/indices. */
+
+/* Popup risque / aléa (comme la fiche EJ) : modifier la distribution / le % et
+   lire la conséquence en termes d'EJ et de CP (espérance, haut, pondéré, Σ CP,
+   apparitions). */
+function openRisqueAleaPopup(ejId){
+  var e=ejById(ejId); if(!e||(!isRisque(e)&&!isAlea(e))) return;
+  var ov=document.createElement('div');
+  ov.className='modal-ov';
+  var risque=isRisque(e);
+  var distOpts=(typeof DIST_TYPES!=='undefined'?DIST_TYPES:['fixe','uniforme','triangulaire','gauss']).map(function(t){ return '<option value="'+t+'"'+((e.distType||'fixe')===t?' selected':'')+'>'+t+'</option>'; }).join('');
+  var dtOpts=(typeof DATE_TYPES!=='undefined'?DATE_TYPES:['ponctuelle','recurrente','uniforme']).map(function(t){ return '<option value="'+t+'"'+(e.dateType===t?' selected':'')+'>'+t+'</option>'; }).join('');
+  function cons(){
+    var occ=occOf(e);
+    if(risque) return 'espérance '+fmt0(espDist(e))+' · haut '+fmt0(montantHaut(e))+' · pondéré (proba '+((e.probabilite==null?100:e.probabilite))+' %) '+fmt0(risquePondere(e))+
+      ' · Σ CP (profil) '+fmt0(cpSumOf(e.id))+' · apparitions '+occ.length+(occ.length?' ('+mLong(occ[0].m)+' … '+mLong(occ[occ.length-1].m)+')':'');
+    return 'montant aléa '+fmt0(montantOf(e))+' ('+(e.montantExplicite?'montant explicite':' '+(e.aleaPct==null?5:e.aleaPct)+' % du reste à payer')+')'+
+      ' · Σ CP répartis '+fmt0(cpSumOf(e.id))+' · apparitions '+occ.length+(occ.length?' ('+mLong(occ[0].m)+' … '+mLong(occ[occ.length-1].m)+')':'');
+  }
+  ov.innerHTML='<div class="modal"><h2>'+(risque?'Risque ':'Aléa ')+esc(e.numero)+'</h2>'+
+    '<p class="hint">'+stadeBadge(e)+' · affaire « '+esc(affaireName(e.affaireId))+' » · conséquence EJ/CP : <strong id="ra-cons">'+cons()+'</strong></p>'+
+    '<div class="ra-curves"><div><div class="hdr-sub">Probabilité de montant</div>'+distCurve(e)+'</div><div><div class="hdr-sub">Répartition dans le temps</div>'+dateCurve(e)+'</div></div>'+
+    '<div class="formrow">'+
+      '<label class="fld">N°<input type="text" id="ra-num" value="'+esc(e.numero)+'" title="Référence (n°)"></label>'+
+      '<label class="fld">Libellé<input type="text" id="ra-lib" value="'+esc(e.libelle||'')+'" title="Libellé"></label>'+
+      '<label class="fld">Date (mois)'+monthInputHTML('ra-mois',e.mois,'','Date de l\'EJ / d\'apparition ponctuelle, MM/AAAA')+'</label>'+
+    '</div>'+
+    (risque?
+      '<h3>Distribution du montant</h3>'+
+      '<label class="fld" style="max-width:280px">Type de distribution<select id="rk-disttype">'+distOpts+'</select></label>'+
+      '<div class="formrow" id="rk-distparams"></div>'+
+      '<label class="fld" style="max-width:200px">Probabilité (%)<input type="text" inputmode="decimal" id="ra-proba" value="'+(e.probabilite==null?100:e.probabilite)+'" title="Probabilité d\'apparition du risque (0–100)"></label>'+
+      '<h3>Date d\'apparition</h3>'+
+      '<label class="fld" style="max-width:280px">Mode d\'apparition<select id="rk-datetype">'+dtOpts+'</select></label>'+
+      '<div class="formrow" id="rk-dateparams"></div>'
+    :
+      '<h3>Montant de l\'aléa</h3>'+
+      '<div class="formrow">'+
+      '<label class="fld">Mode<input type="checkbox" id="ra-expl"'+(e.montantExplicite?' checked':'')+' title="Cocher = montant explicite en € (sinon % du reste à payer)"> montant explicite</label>'+
+      '<label class="fld">Montant (€)<input type="text" inputmode="decimal" id="ra-montant" value="'+(e.montantExplicite?(+e.montant||0):'')+'" title="Montant explicite de l\'aléa (si coché)"></label>'+
+      '<label class="fld">% du reste à payer<input type="text" inputmode="decimal" id="ra-pct" value="'+(e.montantExplicite?'':(e.aleaPct==null?5:e.aleaPct))+'" title="Pourcentage du reste à payer de l\'affaire (si montant non explicite)"></label>'+
+      '</div>'+
+      '<p class="hint">Un aléa ne se matérialise pas : il reste forfaitaire, réparti sur les mois restants de l\'opération.</p>'
+    )+
+    '<div class="formrow" style="margin-top:14px"><button type="button" class="btn primary" id="ra-save" title="Enregistrer et recalculer">Enregistrer</button>'+
+    (risque?'<button type="button" class="btn" id="ra-mat" title="Matérialiser ce risque : il devient un EJ engagé à sa date (profil de CP réglable ensuite)">Matérialiser (→ EJ engagé)</button>':'')+
+    '<button type="button" class="btn" id="ra-cancel">Annuler</button></div></div>';
+  document.body.appendChild(ov);
+  function fldHtml(f, val){
+    if(f[2]==='month') return '<label class="fld">'+f[0]+monthInputHTML('',val,'',''+f[3],'data-pf="'+f[1]+'"')+'</label>';
+    return '<label class="fld">'+f[0]+'<input type="text" inputmode="decimal" data-pf="'+f[1]+'" value="'+esc(val==null?'':val)+'" title="'+esc(f[3])+'"></label>';
+  }
+  if(risque){
+    function renderParams(){
+      var dt=ov.querySelector('#rk-disttype').value;
+      ov.querySelector('#rk-distparams').innerHTML=((typeof RK_DIST_FIELDS!=='undefined'?RK_DIST_FIELDS:{})[dt]||[]).map(function(f){
+        var val=e[f[1]];
+        if(f[1]==='distA'&&dt==='fixe'&&val==null) val=e.montant;
+        return fldHtml(f,val);
+      }).join('');
+      var dtt=ov.querySelector('#rk-datetype').value;
+      ov.querySelector('#rk-dateparams').innerHTML=((typeof RK_DATE_FIELDS!=='undefined'?RK_DATE_FIELDS:{})[dtt]||[]).map(function(f){ return fldHtml(f,e[f[1]]); }).join('');
+    }
+    ov.querySelector('#rk-disttype').addEventListener('change',renderParams);
+    ov.querySelector('#rk-datetype').addEventListener('change',renderParams);
+    renderParams();
+  }
+  function close(){ ov.remove(); document.removeEventListener('keydown',escH); }
+  function escH(ev){ if(ev.key==='Escape') close(); }
+  document.addEventListener('keydown',escH);
+  ov.addEventListener('click',function(ev){ if(ev.target===ov) close(); });
+  ov.querySelector('#ra-cancel').addEventListener('click',close);
+  var saveBtn=ov.querySelector('#ra-save');
+  if(HIST.on){ saveBtn.disabled=true; Array.prototype.forEach.call(ov.querySelectorAll('input,select'),function(i){ i.disabled=true; }); }
+  var matBtn=ov.querySelector('#ra-mat');
+  if(matBtn) matBtn.addEventListener('click',function(){
+    materialiserAt(e, parseIdxDate(ov.querySelector('#ra-mois').value)||e.mois||curMois());
+    save(); close(); render();
+  });
+  saveBtn.addEventListener('click',function(){
+    var numV=ov.querySelector('#ra-num').value.trim(); if(numV) e.numero=numV;
+    e.libelle=ov.querySelector('#ra-lib').value;
+    var dm3=parseIdxDate(ov.querySelector('#ra-mois').value); if(dm3) e.mois=dm3;
+    if(risque){
+      e.distType=ov.querySelector('#rk-disttype').value;
+      e.dateType=ov.querySelector('#rk-datetype').value;
+      var pr=parseMontant(ov.querySelector('#ra-proba').value); e.probabilite=(pr==null?100:pr);
+      Array.prototype.forEach.call(ov.querySelectorAll('[data-pf]'),function(inp){
+        var f=inp.dataset.pf, raw=String(inp.value).trim();
+        if(f==='mois'||f==='dateA'||f==='dateB'){ var dm2=parseIdxDate(raw); if(raw==='') e[f]=null; else if(dm2) e[f]=dm2; }
+        else if(f==='freq'){ var n3=parseFloat(raw); e[f]=isNaN(n3)?null:n3; }
+        else { var n=parseMontant(raw); e[f]=(n==null?null:n); }
+      });
+      if(e.distType==='fixe') e.montant=(e.distA==null?e.montant:e.distA);
+    } else {
+      e.montantExplicite=!!ov.querySelector('#ra-expl').checked;
+      var mv=parseMontant(ov.querySelector('#ra-montant').value); if(mv!=null) e.montant=mv;
+      var pc=parseMontant(ov.querySelector('#ra-pct').value); if(pc!=null) e.aleaPct=pc;
+    }
+    recomputeProfils(state);
+    save(); close(); render();
+  });
+}
+
+/* Détail du calcul d'une cellule calculée du tableau Affaire (clic) :
+   liste les contributeurs « X EJ de … + Y aléa de … » etc. */
+function affDetailHTML(kind, aff, m, span){
+  var ejs=ejsOfAffaire(aff.id), cur=curMois(), items=[], tot=0, h='';
+  /* détail d'une colonne item (EJ auto, aléa, risque) : le calcul derrière le CP du mois */
+  if(kind==='item'){
+    var pr=String(m).split('@'), ejId=pr[0], mm=pr[1]||'';
+    var e0=ejById(ejId); if(!e0) return '';
+    var p0=profilOf(e0), v0=cpPrevu(e0,mm);
+    if(isAlea(e0)){
+      h='Aléa '+esc(e0.numero)+(mm?' — '+mLong(mm):'');
+      items.push('<div>montant = '+(e0.montantExplicite?('montant explicite '+fmt0(+e0.montant||0)):((e0.aleaPct==null?5:e0.aleaPct)+' % du reste à payer à date'))+' = <strong>'+fmt0(montantOf(e0))+'</strong></div>');
+      items.push('<div>répartition (aléatoire stable) sur les mois restants de l\'opération :</div>');
+      aleaOcc(e0).forEach(function(o){ items.push('<div>· '+mLong(o.m)+' : poids '+(o.w*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' % → '+fmt0(montantOf(e0)*o.w)+'</div>'); });
+      tot=v0;
+    } else if(isRisque(e0)){
+      var dp=distParams(e0);
+      h='Risque '+esc(e0.numero)+(mm?' — '+mLong(mm):'');
+      items.push('<div>distribution '+(e0.distType||'fixe')+' : A='+fmt0(dp.a)+' · B='+(dp.b==null?'—':fmt0(dp.b))+' · C='+(dp.c==null?'—':fmt0(dp.c))+'</div>');
+      items.push('<div>espérance '+fmt0(espDist(e0))+' · haut '+fmt0(montantHaut(e0))+' · proba '+(e0.probabilite==null?100:e0.probabilite)+' % → pondéré <strong>'+fmt0(risquePondere(e0))+'</strong></div>');
+      items.push('<div>apparitions (poids) :</div>');
+      occOf(e0).forEach(function(o){ items.push('<div>· '+mLong(o.m)+' : poids '+(o.w*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' % → EJ esp. '+fmt0(espDist(e0)*o.w)+' / CP pond. '+fmt0(risquePondere(e0)*o.w)+'</div>'); });
+      tot=v0;
+    } else {
+      h='EJ '+esc(e0.numero)+(mm?' — CP en '+mLong(mm):' — profil de CP');
+      var mt0=montantOf(e0);
+      items.push('<div>montant '+fmt0(mt0)+' · profil '+p0.type+(p0.type==='uniforme'?' ('+mLong(p0.debut||e0.mois)+' → '+mLong(p0.fin||p0.debut||e0.mois)+')':'')+(p0.type==='ponctuelle'?' ('+mLong(p0.debut||e0.mois)+')':'')+(p0.type==='perso'?' (saisie libre)':'')+'</div>');
+      if(p0.type==='uniforme'){
+        var a0=p0.debut||e0.mois, b0=p0.fin||a0, ms0=mRange(a0,b0);
+        items.push('<div>calcul auto : '+fmt0(mt0/ms0.length)+' / mois × '+ms0.length+' mois ('+mLabel(a0)+' → '+mLabel(b0)+'), reliquat sur le dernier</div>');
+      } else if(p0.type==='ponctuelle'){
+        items.push('<div>calcul auto : totalité du montant en '+mLong(p0.debut||e0.mois)+'</div>');
+      }
+      items.push('<div><strong>CP ce mois-ci = '+fmt0(v0)+'</strong></div>');
+      tot=v0;
+    }
+    return '<td colspan="'+(span||4)+'" class="gp-detail"><strong>'+h+' = '+fmt0(tot)+' :</strong>'+(items.join('')||'<div>—</div>')+'</td>';
+  }
+  function line(lbl, v){ if(v) { items.push('<div>'+lbl+' : <span class="mono">'+fmt0(v)+'</span></div>'); tot+=v; } }
+  if(kind==='ej'&&m){ ejs.forEach(function(e){ if(isMaterialise(e)&&e.mois===m) line(esc(e.numero)+' ('+stadeLabel(e)+')', montantOf(e)); }); h='Σ EJ '+mLong(m); }
+  else if(kind==='cp'&&m){ ejs.forEach(function(e){ line(esc(e.numero)+' CP', cpPrevu(e,m)); }); h='Σ CP '+mLong(m); }
+  else if(kind==='cpej'&&m){ ejs.forEach(function(e){ if(isMaterialise(e)) line('EJ '+esc(e.numero)+' CP', cpPrevu(e,m)); }); h='Σ CP des EJ '+mLong(m); }
+  else if(kind==='rap'&&m){
+    var ejC2=0, cpC2=0;
+    ejs.forEach(function(e){ if(isMaterialise(e)){ if(e.mois<=m) ejC2+=montantOf(e); cpC2+=cpSumOf(e.id,m); } });
+    h='Reste à payer à '+mLong(m)+' = EJ engagés cumulés − CP consommés cumulés';
+    items.push('<div>EJ engagés cumulés (≤ '+mLabel(m)+') : <span class="mono">'+fmt0(ejC2)+'</span></div>');
+    items.push('<div>CP consommés cumulés : <span class="mono">'+fmt0(cpC2)+'</span></div>');
+    tot=ejC2-cpC2;
+    items.push('<div><strong>Reste à payer = '+fmt0(tot)+'</strong></div>');
+  }
+  else if(kind==='autre'&&m){
+    h='Somme autre '+mLong(m)+' = aléas + risques + RP';
+    ejs.forEach(function(e){ if(isAlea(e)) line('aléa '+esc(e.numero), montantOf(e)*occW(e,m)); else if(isRisque(e)) line('risque '+esc(e.numero)+' (pondéré)', risquePondere(e)*occW(e,m)); });
+    items.push('<div>RP : <span class="mono">'+fmt0(revisionMois(aff,m))+'</span></div>');
+    tot=0; ejs.forEach(function(e){ if(isAlea(e)) tot+=montantOf(e)*occW(e,m); else if(isRisque(e)) tot+=risquePondere(e)*occW(e,m); }); tot+=revisionMois(aff,m);
+  }
+  else if(kind==='footcpej'){ h='Σ CP des EJ (toute la période)'; var t0=0; ejs.forEach(function(e){ if(isMaterialise(e)){ t0+=cpSumOf(e.id); line('EJ '+esc(e.numero)+' Σ CP', cpSumOf(e.id)); } }); tot=t0; }
+  else if(kind==='footautre'){ h='Σ autre = aléas + risques + RP (période)'; ejs.forEach(function(e){ if(isAlea(e)) line('aléa '+esc(e.numero), montantOf(e)); else if(isRisque(e)) line('risque '+esc(e.numero)+' (espérance)', espDist(e)); }); var rpT4=revisionTotale(aff, scopeMonths(aff.opId,aff.id)); items.push('<div>RP : <span class="mono">'+fmt0(rpT4)+'</span></div>'); tot=sommeMontant(ejs.filter(isAlea))+ejs.filter(isRisque).reduce(function(s,e){ return s+espDist(e); },0)+rpT4; }
+  else if(kind==='synthej'&&m){ ejs.forEach(function(e){ if(isMaterialise(e)&&e.mois===m) line('EJ '+esc(e.numero), montantOf(e)); else if(isAlea(e)) line('aléa '+esc(e.numero), montantOf(e)*occW(e,m)); else if(isRisque(e)) line('risque '+esc(e.numero)+' (pondéré)', risquePondere(e)*occW(e,m)); }); h='Synthèse EJ '+mLong(m); }
+  else if(kind==='synthcp'&&m){ ejs.forEach(function(e){ line(esc(e.numero)+' CP', cpPrevu(e,m)); }); h='Synthèse CP '+mLong(m); }
+  else if(kind==='rp'&&m){
+    var r=realOf(aff.id,m), base=(r!=null)?(r.cp||0):cpMoisAffAll(aff,m);
+    var ind=indiceApplicable(aff,m), i0=indiceRef(aff);
+    h='RP '+mLong(m)+' = base CP × (I/I₀−1)';
+    items.push('<div>base CP ('+(r!=null?'réalisé saisi':'prévu: EJ+risques+aléas')+') : <span class="mono">'+fmt0(base)+'</span></div>');
+    ejs.forEach(function(e){ var v=cpPrevu(e,m); if(v>0) items.push('<div>· CP '+esc(e.numero)+' : <span class="mono">'+fmt0(v)+'</span></div>'); });
+    items.push('<div>I = '+fmtIdx(ind)+' · I₀ = '+fmtIdx(i0)+' · I/I₀−1 = '+(ind!=null&&i0?(ind/i0-1).toLocaleString('fr-FR',{maximumFractionDigits:4}):'—')+'</div>');
+    tot=revisionMois(aff,m);
+    items.push('<div><strong>RP = '+fmt0(tot)+'</strong></div>');
+  }
+  else if((kind==='gpej'||kind==='gpcp')&&m){ return gpDetail(kind==='gpej'?'sej':'scp','a:'+aff.id,m,span); }
+  else if((kind==='ecej'||kind==='eccp')&&m){
+    var r2=realOf(aff.id,m), hasR=r2&&(Object.prototype.hasOwnProperty.call(r2,'ej')||Object.prototype.hasOwnProperty.call(r2,'cp'));
+    var ejM=0, cpM=0; ejs.forEach(function(e){ if(isMaterialise(e)){ if(e.mois===m) ejM+=montantOf(e); cpM+=cpPrevu(e,m); } });
+    var val=(kind==='ecej')?((hasR?r2.ej||0:0)-ejM):((hasR?r2.cp||0:0)-cpM);
+    h='Écart '+(kind==='ecej'?'EJ':'CP')+' '+mLong(m);
+    items.push('<div>réalisé saisi : <span class="mono">'+fmt0(hasR?(kind==='ecej'?r2.ej||0:r2.cp||0):0)+'</span> − prévu : <span class="mono">'+fmt0(kind==='ecej'?ejM:cpM)+'</span> = <strong>'+fmtS(val)+'</strong></div>');
+    tot=val;
+  }
+  else if(kind==='footcp'){ /* total CP d'un item sur toute la période */ var e0=ejById(m); h='Σ CP '+esc(e0?e0.numero:'?')+' (toute la période)'; if(e0){ var months0=scopeMonths(aff.opId,aff.id); months0.forEach(function(mm){ var v=cpPrevu(e0,mm); if(v>0) line(mLabel(mm), v); }); tot=cpSumOf(e0.id); } }
+  else if(kind==='footej'){ h='Σ EJ (EJ seuls, toute la période)'; ejs.forEach(function(e){ if(isMaterialise(e)) line(esc(e.numero), montantOf(e)); }); tot=sommeMontant(ejs.filter(isMaterialise)); }
+  else if(kind==='footrp'){ h='Σ RP (toute la période)'; scopeMonths(aff.opId,aff.id).forEach(function(mm){ var v=revisionMois(aff,mm); if(v) line(mLabel(mm), v); }); tot=revisionTotale(aff, scopeMonths(aff.opId,aff.id)); }
+  else if(kind==='footcpall'){ h='Somme des CP (tous EJ/risques/aléas)'; ejs.forEach(function(e){ line(esc(e.numero)+' Σ CP', cpSumOf(e.id)); }); tot=0; ejs.forEach(function(e){ tot+=cpSumOf(e.id); }); }
+  else if(kind==='footejar'){ h='Somme EJ + aléas + risques + RP'; ejs.forEach(function(e){ if(isMaterialise(e)) line('EJ '+esc(e.numero), montantOf(e)); else if(isAlea(e)) line('aléa '+esc(e.numero), montantOf(e)); else if(isRisque(e)) line('risque '+esc(e.numero)+' (espérance)', espDist(e)); }); tot=sommeMontant(ejs.filter(isMaterialise))+sommeMontant(ejs.filter(isAlea))+ejs.filter(isRisque).reduce(function(s,e){ return s+espDist(e); },0)+revisionTotale(aff, scopeMonths(aff.opId,aff.id)); items.push('<div>RP (période) : <span class="mono">'+fmt0(revisionTotale(aff, scopeMonths(aff.opId,aff.id)))+'</span></div>'); }
+  else if(kind==='footcpar'){ h='Somme CP (EJ+risques+aléas) + RP'; tot=0; ejs.forEach(function(e){ tot+=cpSumOf(e.id); }); var rpT=revisionTotale(aff, scopeMonths(aff.opId,aff.id)); items.push('<div>Σ CP tous montants : <span class="mono">'+fmt0(tot)+'</span></div>'); items.push('<div>RP (période) : <span class="mono">'+fmt0(rpT)+'</span></div>'); tot+=rpT; }
+  else if(kind==='foottotalej'){ h='TOTAL EJ (tout compris : EJ + aléas + risques + RP)'; ejs.forEach(function(e){ if(isMaterialise(e)) line('EJ '+esc(e.numero), montantOf(e)); else if(isAlea(e)) line('aléa '+esc(e.numero), montantOf(e)); else if(isRisque(e)) line('risque '+esc(e.numero)+' (haut)', montantHaut(e)); }); var rpT2=revisionTotale(aff, scopeMonths(aff.opId,aff.id)); items.push('<div>RP : <span class="mono">'+fmt0(rpT2)+'</span></div>'); tot=sommeMontant(ejs)+rpT2; }
+  else if(kind==='foottotalcp'){ h='TOTAL CP (tout compris : CP + RP)'; ejs.forEach(function(e){ line(esc(e.numero)+' Σ CP', cpSumOf(e.id)); }); var rpT3=revisionTotale(aff, scopeMonths(aff.opId,aff.id)); items.push('<div>RP : <span class="mono">'+fmt0(rpT3)+'</span></div>'); tot=0; ejs.forEach(function(e){ tot+=cpSumOf(e.id); }); tot+=rpT3; }
+  else return '';
+  return '<td colspan="'+(span||4)+'" class="gp-detail"><strong>'+h+' = '+fmt0(tot)+' :</strong>'+(items.join('')||'<div>—</div>')+'</td>';
+}
+
+function fmtSgn(n){ return (n>0?'+': '')+fmt0(n); }
+
+/* Courbe de la distribution du MONTANT d'un risque/aléa (forme selon distType,
+   tiret bleu = espérance, pointillé rouge = haut, proba affichée). */
+function distCurve(e){
+  var W=280,H=86,pad=10,yB=H-8;
+  var p=distParams(e), dt=e.distType||'fixe';
+  var esp=espDist(e), haut=montantHaut(e), proba=(e.probabilite==null?100:e.probabilite);
+  var vals=[esp,haut,0];
+  if(dt==='uniforme'){ vals.push(p.a,p.b==null?p.a:p.b); }
+  else if(dt==='triangulaire'){ vals.push(p.a,p.b==null?p.a:p.b,p.c==null?(p.b==null?p.a:p.b):p.c); }
+  else if(dt==='gauss'){ vals.push(p.a-2.5*(p.b||0),p.a+2.5*(p.b||0)); }
+  else { vals.push(p.a||(+e.montant||0)); }
+  var lo=Math.min.apply(null,vals), hi=Math.max.apply(null,vals.concat([1]));
+  if(hi-lo<1e-9) hi=lo+1;
+  var X=function(v){ return pad+(W-2*pad)*(v-lo)/(hi-lo); };
+  var s='<svg viewBox="0 0 '+W+' '+H+'" font-family="Segoe UI,sans-serif" font-size="9" class="ra-montant">'+
+    '<text x="'+pad+'" y="10" fill="#67788c">Distribution du montant ('+dt+') — proba '+proba+' %</text>';
+  if(dt==='uniforme'){
+    var a=p.a,b=p.b==null?p.a:p.b;
+    s+='<rect x="'+X(Math.min(a,b)).toFixed(1)+'" y="'+(yB-34)+'" width="'+Math.max(2,Math.abs(X(b)-X(a))).toFixed(1)+'" height="34" fill="#f6c48a" stroke="#b45309"/>';
+  } else if(dt==='triangulaire'){
+    var a2=p.a,b2=p.b==null?p.a:p.b,c2=p.c==null?(p.b==null?p.a:p.b):p.c;
+    s+='<polygon points="'+X(Math.min(a2,b2,c2)).toFixed(1)+','+yB+' '+X(b2).toFixed(1)+','+(yB-40)+' '+X(Math.max(a2,b2,c2)).toFixed(1)+','+yB+'" fill="#f6c48a" stroke="#b45309"/>';
+  } else if(dt==='gauss'){
+    var mu=p.a,sg=Math.max(1e-9,+(p.b||0)),d='';
+    for(var i=0;i<=30;i++){ var v=mu-2.5*sg+5*sg*i/30, y=yB-40*Math.exp(-Math.pow(v-mu,2)/(2*sg*sg)); d+=(i?'L':'M')+X(v).toFixed(1)+' '+y.toFixed(1)+' '; }
+    d+='L'+X(mu+2.5*sg).toFixed(1)+' '+yB+' L'+X(mu-2.5*sg).toFixed(1)+' '+yB+' Z';
+    s+='<path d="'+d+'" fill="#f6c48a" stroke="#b45309"/>';
+  } else {
+    var v0=p.a||(+e.montant||0);
+    s+='<rect x="'+(X(v0)-4).toFixed(1)+'" y="'+(yB-40)+'" width="8" height="40" fill="#f6c48a" stroke="#b45309"/>';
+  }
+  s+='<line x1="'+pad+'" y1="'+yB+'" x2="'+(W-pad)+'" y2="'+yB+'" stroke="#d8dde4"/>'+
+    '<line x1="'+X(esp).toFixed(1)+'" y1="14" x2="'+X(esp).toFixed(1)+'" y2="'+yB+'" stroke="#2563eb" stroke-width="1.6" stroke-dasharray="4 3"/>'+
+    '<line x1="'+X(haut).toFixed(1)+'" y1="14" x2="'+X(haut).toFixed(1)+'" y2="'+yB+'" stroke="#dc2626" stroke-width="1.4" stroke-dasharray="3 3"/>'+
+    '<text x="'+(X(esp)+3).toFixed(1)+'" y="20" fill="#2563eb">espérance '+fmt0(esp)+'</text>'+
+    '<text x="'+(X(haut)+3).toFixed(1)+'" y="30" fill="#dc2626">haut '+fmt0(haut)+'</text>'+
+    '<text x="'+(W-pad)+'" y="'+H+'" text-anchor="end" fill="#67788c">pondéré '+fmt0(risquePondere(e))+'</text></svg>';
+  return s;
+}
+/* Courbe de répartition des apparitions dans le temps (poids par mois). */
+function dateCurve(e){
+  var W=280,H=64,pad=10,t0=16,t1=H-8;
+  var occ=occOf(e);
+  var s='<svg viewBox="0 0 '+W+' '+H+'" font-family="Segoe UI,sans-serif" font-size="9" class="ra-dates">'+
+    '<text x="'+pad+'" y="10" fill="#67788c">Répartition des apparitions ('+occ.length+' mois)</text>'+
+    '<line x1="'+pad+'" y1="'+(t0+t1)/2+'" x2="'+(W-pad)+'" y2="'+(t0+t1)/2+'" stroke="#d8dde4"/>';
+  if(occ.length){
+    var m0=occ[0].m, m1=occ[occ.length-1].m;
+    var Tm=function(m){ return mDiff(m0,m1)===0?W/2:pad+(W-2*pad)*mDiff(m0,m)/mDiff(m0,m1); };
+    if((e.dateType||'ponctuelle')==='uniforme'&&e.dateA&&e.dateB){
+      var ua=e.dateA<m0?e.dateA:m0, ub=e.dateB>m1?e.dateB:m1;
+      s+='<rect x="'+Tm(ua).toFixed(1)+'" y="'+t0+'" width="'+Math.max(2,Tm(ub)-Tm(ua)).toFixed(1)+'" height="'+(t1-t0)+'" fill="#fdf3e3" stroke="#b45309" stroke-dasharray="3 2"/>';
+    }
+    occ.forEach(function(o){
+      var hgt=(t1-t0)*(o.w>=1?1:0.5);
+      s+='<line x1="'+Tm(o.m).toFixed(1)+'" y1="'+t1+'" x2="'+Tm(o.m).toFixed(1)+'" y2="'+(t1-hgt).toFixed(1)+'" stroke="#b45309" stroke-width="2.4"/>'+
+        '<text x="'+Tm(o.m).toFixed(1)+'" y="'+(t1+9)+'" text-anchor="middle" fill="#67788c" font-size="7.5">'+mLabel(o.m)+'</text>';
+    });
+  }
+  return s+'</svg>';
+}
+
+/* Popup d'écart EJ/CP sur le réalisé : explication du calcul + chip d'alerte +
+   propositions d'actions (avec explications) ; un clic sur l'action l'exécute. */
+function openEcartPopup(affId, m, kind){
+  var aff=affaireById(affId); if(!aff) return;
+  var cur=curMois();
+  var ejs=ejsOfAffaire(aff.id);
+  var ejM=0, cpM=0;
+  ejs.forEach(function(e){ if(isMaterialise(e)){ if(e.mois===m) ejM+=montantOf(e); cpM+=cpPrevu(e,m); } });
+  var r=realOf(affId,m);
+  var hasR=r&&(Object.prototype.hasOwnProperty.call(r,'ej')||Object.prototype.hasOwnProperty.call(r,'cp'));
+  var vEj=(hasR?r.ej||0:0)-ejM, vCp=(hasR?r.cp||0:0)-cpM;
+  var isEj=kind==='ej';
+  var base=isEj?ejM:cpM, val=isEj?vEj:vCp, rv=isEj?(hasR?r.ej||0:null):(hasR?r.cp||0:null);
+  var tol=Math.max(1,base*(isEj?0.01:0.02));
+  var inco=Math.abs(val)>tol;
+  var chip=!inco?'<span class="badge ok">'+(isEj?'EJ':'CP')+' ok</span>'
+    :(val<0?'<span class="badge over">'+(isEj?'EJ':'CP')+' retard '+fmtM(-val)+'</span>':'<span class="badge warn">'+(isEj?'EJ':'CP')+' avance '+fmtM(val)+'</span>');
+  var actions='';
+  if(inco){
+    if(isEj){
+      if(Math.abs(vEj)>tol){
+        actions+='<div class="mp-row"><button class="btn small" data-act="const-ej" data-k="'+affId+'|'+m+'" title="Le réalisé constaté = le prévu de ce mois ('+fmt0(ejM)+')">EJ = prévu ('+fmt0(ejM)+')</button> <span class="hint">Constate le montant engagé prévu comme réalisé.</span></div>';
+        actions+='<div class="mp-row"><button class="btn small" data-act="ajej" data-k="'+affId+'|'+m+'" data-v="'+Math.round(vEj)+'" title="Ajuste le montant de l\'EJ engagé à ce mois de l\'écart constaté">Ajuster l\'EJ au réalisé ('+fmtSgn(vEj)+')</button> <span class="hint">Modifie le montant de l\'EJ pour coller au réalisé.</span></div>';
+        if(vEj>0) actions+='<div class="mp-row"><button class="btn small" data-act="addej" data-k="'+affId+'|'+m+'" data-v="'+Math.round(vEj)+'" title="Crée un EJ engagé supplémentaire de l\'écart (réalisé > engagé)">+ EJ engagé '+fmt(vEj)+'</button> <span class="hint">Réalisé supérieur à l\'engagé : crée l\'EJ manquant.</span></div>';
+        else actions+='<div class="mp-row"><button class="btn small" data-act="delej" data-k="'+affId+'|'+m+'" title="Décale l\'EJ engagé à ce mois au mois suivant">Décaler l\'EJ au mois suivant</button> <span class="hint">Réalisé inférieur à l\'engagé (retard) : décale l\'EJ.</span></div>';
+      }
+    } else {
+      if(Math.abs(vCp)>tol){
+        actions+='<div class="mp-row"><button class="btn small" data-act="const-cp" data-k="'+affId+'|'+m+'" title="Le CP réalisé constaté = le CP prévu de ce mois ('+fmt0(cpM)+')">CP = prévu ('+fmt0(cpM)+')</button> <span class="hint">Constate les CP prévus comme payés.</span></div>';
+        if(vCp<0) actions+='<div class="mp-row"><button class="btn small" data-act="delcp" data-k="'+affId+'|'+m+'" title="Reporte au mois suivant les CP prévus non réalisés">Reporter le CP au mois suivant</button> <span class="hint">Retard de paiement : décale le profil de CP.</span></div>';
+        var ejCp=null;
+        ejs.forEach(function(e){ if(!ejCp&&isMaterialise(e)&&cpPrevu(e,m)>0) ejCp=e; });
+        if(!ejCp) ejCp=ejs.filter(isMaterialise)[0]||null;
+        if(ejCp) actions+='<div class="mp-row"><button class="btn small" data-act="prof" data-ej="'+ejCp.id+'" title="Ouvre la fiche de l\'EJ '+esc(ejCp.numero)+' (profil de CP réglable)">Régler le profil CP de '+esc(ejCp.numero)+'</button> <span class="hint">Ajuste la répartition des CP de l\'EJ.</span></div>';
+      }
+    }
+  }
+  var ov=document.createElement('div');
+  ov.className='modal-ov';
+  ov.innerHTML='<div class="modal mp-pop"><h2>Écart '+(isEj?'EJ':'CP')+' — '+esc(aff.nom)+' — '+mLong(m)+'</h2>'+
+    '<p class="hint">'+(isEj?'EJ engagés ce mois':'CP prévus ce mois')+' : <strong>'+fmt0(base)+'</strong> · réalisé saisi : <strong>'+(rv==null?'non saisi':fmt0(rv))+'</strong> · écart = réalisé − prévu = <strong>'+(hasR?fmtSgn(val):'—')+'</strong> '+chip+'</p>'+
+    (inco?'<p class="hint">Un écart en retard comme en avance sur un mois écoulé est une incohérence à traiter :</p><div class="mp-rows">'+actions+'</div>'
+         :'<p class="hint">Pas d\'écart significatif sur ce mois.</p>')+
+    '<div class="formrow" style="margin-top:12px"><button type="button" class="btn" id="ec-cancel">Fermer</button></div></div>';
+  document.body.appendChild(ov);
+  function close(){ ov.remove(); document.removeEventListener('keydown',escH); }
+  function escH(ev){ if(ev.key==='Escape') close(); }
+  document.addEventListener('keydown',escH);
+  ov.addEventListener('click',function(ev){ if(ev.target===ov) close(); });
+  ov.querySelector('#ec-cancel').addEventListener('click',close);
+  ov.addEventListener('click',function(ev){
+    var b=ev.target.closest('button[data-act]'); if(!b) return;
+    var act=b.dataset.act, k=b.dataset.k, pp=k.split('|'), mm=pp[1];
+    if(act==='prof'){ close(); openProfilPopup(b.dataset.ej); return; }
+    var cur3=state.realise[k]?deepCopy(state.realise[k]):{};
+    if(act==='const-ej'){ cur3.ej=ejM; }
+    else if(act==='const-cp'){ cur3.cp=cpM; }
+    else if(act==='ajej'){
+      var vA=parseFloat(b.dataset.v)||0; if(!vA) return;
+      var cand=ejs.filter(function(e){ return isMaterialise(e)&&e.mois===mm; });
+      if(!cand.length) return;
+      cand[0].montant=Math.max(0,(cand[0].montant||0)+vA); recomputeProfils(state); save(); close(); renderAffaireKS(); return;
+    }
+    else if(act==='addej'){
+      var v2=parseFloat(b.dataset.v)||0; if(v2<=0) return;
+      var n=state.ejs.filter(function(e){ return e.affaireId===affId; }).length+1;
+      state.ejs.push({id:uid(),affaireId:affId,numero:'EJ-'+String(n).padStart(2,'0'),libelle:'Écart constaté dans le réalisé',stade:'engage',mois:mm,montant:Math.round(v2)});
+      recomputeProfils(state); save(); close(); renderAffaireKS(); return;
+    }
+    else if(act==='delej'){
+      var candD=ejs.filter(function(e){ return isMaterialise(e)&&e.mois===mm; });
+      if(!candD.length) return;
+      var eD=candD[0]; eD.mois=mAdd(mm,1);
+      var pD=profilOf(eD);
+      if(pD.debut===mm){ pD.debut=mAdd(mm,1); pD.fin=mAdd(mm,1); state.profils[eD.id]=pD; }
+      recomputeProfils(state); save(); close(); renderAffaireKS(); return;
+    }
+    else if(act==='delcp'){
+      var ejC=null;
+      ejs.forEach(function(e){ if(!ejC&&isMaterialise(e)&&cpPrevu(e,mm)>0) ejC=e; });
+      if(!ejC) return;
+      var pC=profilOf(ejC);
+      if(pC.type==='ponctuelle'&&pC.debut===mm){ pC.debut=mAdd(mm,1); pC.fin=pC.debut; state.profils[ejC.id]=pC; }
+      else if(pC.type==='uniforme'&&pC.debut<=mm&&mm<=pC.fin){ pC.debut=mAdd(pC.debut,1); pC.fin=mAdd(pC.fin,1); state.profils[ejC.id]=pC; }
+      recomputeProfils(state); save(); close(); renderAffaireKS(); return;
+    }
+    state.realise[k]=cur3; save(); close(); renderAffaireKS();
+  });
+}
+
+/* renderAffaire avec conservation du scroll horizontal (jamais de retour à gauche
+   après une saisie) : on mémorise scrollLeft du .grid-wrap et on le restaure après
+   le re-render, et on rend le focus à la cellule saisie pour enchaîner. */
+function renderAffaireKS(){
+  var host=document.getElementById('view-affaire');
+  var gw=host&&host.querySelector?host.querySelector('.grid-wrap'):null;
+  var sl=gw&&gw.scrollLeft?gw.scrollLeft:0;
+  var active=document.activeElement, activeKey=active&&active.dataset?(active.dataset.cp||active.dataset.real||''):'';
+  renderAffaire();
+  var host2=document.getElementById('view-affaire');
+  var gw2=host2&&host2.querySelector?host2.querySelector('.grid-wrap'):null;
+  if(gw2){ try{ gw2.scrollLeft=sl; }catch(e){} }
+  if(activeKey){
+    var w2=host2&&host2.children?host2.children[0]:null;
+    var el2=w2&&w2.querySelector? w2.querySelector('[data-cp="'+activeKey+'"]')||w2.querySelector('[data-real="'+activeKey+'"]') : null;
+    if(el2&&el2.focus){ el2.focus(); if(el2.select) el2.select(); }
+  }
+}
+
+function renderAffaire(){
+  var opId=state.ui.op||'';
+  var affsAll=scopedAffaires(opId,'');
+  /* une seule affaire à la fois : affaire filtrée, sinon 1ʳᵉ affaire de l opération */
+  var affId=state.ui.aff||'';
+  if(!affId||!affsAll.some(function(a){ return a.id===affId; })) affId=affsAll.length?affsAll[0].id:'';
+  var aff=affaireById(affId);
+  var cur=curMois();
+
+  var h='<div class="toolbar">'+filtersBarHTML()+
+    '<label class="fld">Affaire affichée<select id="aff-solo" title="Une seule affaire à la fois dans ce tableau">'+
+      affsAll.map(function(a){ return '<option value="'+a.id+'"'+(a.id===affId?' selected':'')+'>'+esc(a.nom)+'</option>'; }).join('')+
+    '</select></label>'+
+    (aff?'<button class="btn" id="af-addej" title="Créer un EJ programmé sur cette affaire (fiche EJ ensuite)">+ EJ</button>'+
+          '<button class="btn" id="af-addrk" title="Créer un risque sur cette affaire (popup risque ensuite)">+ Risque</button>'+
+          '<button class="btn" id="af-addal" title="Créer un aléa forfaitaire sur cette affaire (popup aléa ensuite)">+ Aléa</button>':'')+
+    (aff?'<button class="btn" data-goto="structure" data-aff="'+aff.id+'" title="Modifier cette affaire dans « Opérations & affaires »">Éditer l\'affaire</button>':'')+
+    '<button class="btn" data-goto="indices" title="Saisir les séries d\'indices dans « Indices »">Séries d\'indices</button>'+
+    /* les 4 options s'appliquent UNIQUEMENT aux 2 dernières colonnes (GP EJ / GP CP) */
+    '<label class="gp-chk" title="GP EJ/CP uniquement : la ligne de décembre ne contient que la somme des RP de l\'année ; l\'EJ de décembre est mis en novembre et le CP de décembre en janvier"><input type="checkbox" id="gp-rpdec"'+(state.ui.gpRpDec?' checked':'')+'> RP en décembre seulement</label>'+
+    '<label class="gp-chk" title="GP EJ/CP uniquement : décale les CP de décembre vers janvier de l\'année suivante (pas les RP)"><input type="checkbox" id="gp-nocpdec"'+(state.ui.gpNoCpDec?' checked':'')+'> Pas de CP en décembre</label>'+
+    '<label class="gp-chk" title="GP EJ/CP uniquement : décale les CP de janvier vers février (cumulatif)"><input type="checkbox" id="gp-nocpjan"'+(state.ui.gpNoCpJan?' checked':'')+'> Pas de CP en janvier</label>'+
+    '<label class="gp-chk" title="GP EJ/CP uniquement : aléas ET risques de l\'année regroupés en décembre, EJ et CP"><input type="checkbox" id="gp-ardec"'+(state.ui.gpARDec?' checked':'')+'> Aléa et risque en décembre</label>'+
+    '</div>';
+
+  if(!aff){
+    h+='<div class="card"><div class="empty">Aucune affaire dans cette sélection. Créez-en une dans « Opérations &amp; affaires ».</div></div>';
+    mount('view-affaire', h, function(w){
+      var sel=w.querySelector('#aff-solo');
+      if(sel) sel.addEventListener('change',function(){ state.ui.aff=sel.value; save(); render(); });
+    });
+    return;
+  }
+
+  /* colonnes groupées par type : EJ, puis Σ EJ / Σ CP / reste à payer, puis aléas, puis risques */
+  var stadeOrder={prog:0,engage:1,alea:2,risque:3};
+  var ejs=ejsOfAffaire(aff.id).slice().sort(function(x,y){
+    var sx=stadeOrder[x.stade]||0, sy=stadeOrder[y.stade]||0;
+    if(sx!==sy) return sx-sy;
+    return x.mois<y.mois?-1:(x.mois>y.mois?1:0);
+  });
+  var ejList=ejs.filter(isMaterialise), alList=ejs.filter(isAlea), rkList=ejs.filter(isRisque);
+  var months=scopeMonths(aff.opId, aff.id);
+  var foc=state.ui.focusCol||'';
+
+  function fmtS(n){ return (n>0?'+':'')+fmt0(n); }
+  function badgeEcart(val,tol,kind,show){
+    if(!show) return '<span class="badge">—</span>';
+    if(Math.abs(val)<=tol) return '<span class="badge ok">'+kind+' ok</span>';
+    if(val<0) return '<span class="badge over">'+kind+' retard '+fmtM(-val)+'</span>';
+    return '<span class="badge warn">'+kind+' avance '+fmtM(val)+'</span>';
+  }
+
+  /* en-tête compact mais complet, cliquable EN ENTIER -> popup : 1 info par ligne
+     (n° + badge, intitulé, montant — espérance pour un risque, montant pour un aléa).
+     Le reste du détail (date, profil, check Σ CP, distribution…) est dans la popup. */
+  var blk1=ejList.length+3, blk2=alList.length+rkList.length+2;
+  var blkrow='<tr class="blkrow"><th class="scol sc1" rowspan="2">Mois</th>'+
+    '<th colspan="'+blk1+'">Conso CP &amp; sommes (dont reste à payer)</th>'+
+    '<th class="sep" colspan="'+blk2+'">Autre (aléa + risque + RP)</th>'+
+    '<th class="sep" colspan="7">Synthèse · réalisé · écart</th>'+
+    '<th class="sep" colspan="2">GP</th></tr>';
+  var head='<tr>';
+  function itemTh(e, sep){
+    var popAttr=(isRisque(e)||isAlea(e))?('data-rkpop="'+e.id+'"'):('data-ejpop="'+e.id+'"');
+    var popTip=(isRisque(e)||isAlea(e))?('Popup '+(isRisque(e)?'risque':'aléa')+' '+esc(e.numero)+' : tout modifier (distribution/%, date, proba) + conséquence EJ/CP — CLIC N\'IMPORTE OÙ dans l\'en-tête'):('Fiche de l\'EJ '+esc(e.numero)+' : n°, libellé, montant, date, profil CP, Σ CP — CLIC N\'IMPORTE OÙ dans l\'en-tête');
+    var mtTxt=isRisque(e)?('esp. '+fmt0(espDist(e))):fmt0(montantOf(e));
+    /* alerte visuelle : EJ dont Σ CP ≠ montant -> colonne en rouge clair + badge écart */
+    var bad=isMaterialise(e)&&Math.abs(montantOf(e)-cpSumOf(e.id))>Math.max(1,montantOf(e)*0.001);
+    return '<th class="dcol'+(foc===e.id?' col-focus':'')+(sep?' sep':'')+(bad?' col-bad':'')+'" '+popAttr+' title="'+popTip+(bad?' — ALERTE : Σ CP ≠ montant':'')+'">'+
+      '<div>'+stadeBadge(e)+' <button type="button" class="ej-btn" tabindex="-1">'+esc(e.numero)+'</button></div>'+
+      '<div class="hdr-sub">'+esc(e.libelle||'—')+'</div>'+
+      '<div class="hdr-sub"><strong>'+mtTxt+'</strong>'+(bad?checkBadge(e):'')+cmpCellNote(oldHead&&oldHead[e.id], montantOf(e))+'</div></th>';
+  }
+  ejList.forEach(function(e){ head+=itemTh(e); });
+  head+='<th class="num tot-h" title="Σ EJ ce mois (EJ seuls) — détail au clic">Σ EJ</th>'+
+    '<th class="num tot-h" title="Σ CP des EJ ce mois — détail au clic">Σ CP</th>'+
+    '<th class="num tot-h" title="Reste à payer à cette date = EJ engagés cumulés − CP consommés cumulés (finit à 0) — détail au clic">Reste à payer</th>';
+  alList.forEach(function(e,i){ head+=itemTh(e, i===0); });
+  rkList.forEach(function(e){ head+=itemTh(e); });
+  head+='<th class="num tot-h" title="RP du mois = base CP (réalisée si saisie, sinon CP EJ+risques+aléas) × (I/I₀−1) — détail au clic">RP</th>'+
+    '<th class="num tot-h" title="Somme autre = aléas + risques + RP du mois — détail au clic">Somme autre</th>'+
+    '<th class="num tot-h sep" title="Indice du marché ce mois (formule de l\'affaire) ; I/I₀ recalé à 1 à la date de réf. — pas de pied">Indice I/I₀</th>'+
+    '<th class="num tot-h" title="Synthèse EJ du mois (EJ + aléas + risques) — détail au clic">Synthèse EJ</th>'+
+    '<th class="num tot-h" title="Synthèse CP du mois (toutes les colonnes) — détail au clic">Synthèse CP</th>'+
+    '<th class="num tot-h" title="EJ réalisé saisi (vérité quand saisi, même à 0)">EJ réalisé</th>'+
+    '<th class="num tot-h" title="CP réalisé saisi (vérité quand saisi, même à 0)">CP réalisé</th>'+
+    '<th class="num tot-h" title="Écart EJ = réalisé − engagé (mois écoulés) + statut + actions si nécessaire">Écart EJ</th>'+
+    '<th class="num tot-h" title="Écart CP = réalisé − prévu (mois écoulés)">Écart CP</th>'+
+    '<th class="num tot-h sep" title="GP à saisir, synthèse EJ — les 4 options cochées s\'appliquent ICI">GP EJ</th>'+
+    '<th class="num tot-h" title="GP à saisir, synthèse CP — les 4 options cochées s\'appliquent ICI">GP CP</th></tr>';
+  var NB=1+ejs.length+3+11; /* Mois + items + ΣEJ/ΣCP/RAP + 11 colonnes de synthèse */
+  /* mode comparaison : TOUTES les valeurs de la version comparée, calculées en un seul
+     passage (withVer), puis affichées à côté de chaque valeur courante avec l'écart +x/−x */
+  var cv=cmpVer(), oldM=null, oldFoot=null, oldHead=null;
+  if(cv){
+    var old=withVer(cv, function(){
+      var aff0=affaireById(aff.id), ejs0=ejsOfAffaire(aff.id);
+      var ejL=ejs0.filter(isMaterialise);
+      var o={months:{}, foot:{items:{}, head:{}}, };
+      ejs0.forEach(function(e){ o.foot.head[e.id]=montantOf(e); });
+      months.forEach(function(m){
+        var x={ej:0,cpej:0,cp:0,rap:0,rp:0,autre:0,sej:0,scp:0,gpej:0,gpcp:0,ecej:0,eccp:0,items:{}};
+        ejs0.forEach(function(e){
+          var v=cpPrevu(e,m); x.items[e.id]=v;
+          if(isMaterialise(e)){ if(e.mois===m) x.ej+=montantOf(e); x.cpej+=v; x.cp+=v; }
+          else { x.cp+=v; if(isAlea(e)) x.autre+=montantOf(e)*occW(e,m); else if(isRisque(e)) x.autre+=risquePondere(e)*occW(e,m); }
+        });
+        x.rap=resteAPayer(aff0,m);
+        x.rp=revisionMois(aff0,m); x.autre+=x.rp;
+        ejs0.forEach(function(e){ if(isAlea(e)) x.sej+=montantOf(e)*occW(e,m); else if(isRisque(e)) x.sej+=risquePondere(e)*occW(e,m); });
+        x.sej+=x.ej; x.scp=x.cp;
+        x.gpej=gpVal('sej',aff0,m); x.gpcp=gpVal('scp',aff0,m);
+        var r0=realOf(aff0.id,m), h0=r0&&(Object.prototype.hasOwnProperty.call(r0,'ej')||Object.prototype.hasOwnProperty.call(r0,'cp'));
+        x.ecej=(h0?r0.ej||0:0)-x.ej; x.eccp=(h0?r0.cp||0:0)-x.cp;
+        o.months[m]=x;
+      });
+      var cpAll0=0; ejs0.forEach(function(e){ cpAll0+=cpSumOf(e.id); o.foot.items[e.id]=cpSumOf(e.id); });
+      o.foot.ej=sommeMontant(ejL); o.foot.cpej=ejL.reduce(function(s2,e){ return s2+cpSumOf(e.id); },0);
+      o.foot.cpAll=cpAll0; o.foot.rp=revisionTotale(aff0, months);
+      return o;
+    });
+    oldM=old.months; oldFoot=old.foot; oldHead=old.foot.head;
+  }
+  function cn(oldV, curV){ return cmpCellNote(oldV, curV); }
+  function omAt(m){ return oldM?oldM[m]:null; }
+
+  var body=extRow('avant', NB);
+  months.forEach(function(m){
+    var ejM=0, cpEjM=0, cpM=0, aeM=0, rkM=0;
+    ejs.forEach(function(e){
+      if(isMaterialise(e)){ if(e.mois===m) ejM+=montantOf(e); cpEjM+=cpPrevu(e,m); cpM+=cpPrevu(e,m); }
+      else { cpM+=cpPrevu(e,m); if(isAlea(e)) aeM+=montantOf(e)*occW(e,m); else if(isRisque(e)) rkM+=risquePondere(e)*occW(e,m); }
+    });
+    var rp=revisionMois(aff,m);
+    var ind=indiceApplicable(aff,m), i0=indiceRef(aff);
+    var gEj=gpVal('sej',aff,m), gCp=gpVal('scp',aff,m);
+    var past=m<cur;
+    var r=realOf(aff.id,m);
+    var hasR=r&&(Object.prototype.hasOwnProperty.call(r,'ej')||Object.prototype.hasOwnProperty.call(r,'cp'));
+    var eEj=(hasR?r.ej||0:0)-ejM, eCp=(hasR?r.cp||0:0)-cpM;
+    var tolEj=Math.max(1,ejM*0.01), tolCp=Math.max(1,cpM*0.02);
+    var inco=past&&hasR&&(Math.abs(eEj)>tolEj||Math.abs(eCp)>tolCp);
+    var showEj=ejM>0||(hasR&&Object.prototype.hasOwnProperty.call(r,'ej'));
+    var showCp=cpM>0||(hasR&&Object.prototype.hasOwnProperty.call(r,'cp'));
+    var statut;
+    if(past&&!hasR) statut='<span class="badge warn" title="Mois écoulé sans réalisé saisi (saisi à 0 = constatation)">non saisi</span>';
+    else if(past||m===cur) statut=hasR?(badgeEcart(eEj,tolEj,'EJ',showEj)+' '+badgeEcart(eCp,tolCp,'CP',showCp)):(m===cur?'<span class="badge info">à saisir</span>':'');
+    else statut='';
+    var rEjV=(hasR&&Object.prototype.hasOwnProperty.call(r,'ej'))?fmt0(r.ej||0):'';
+    var rCpV=(hasR&&Object.prototype.hasOwnProperty.call(r,'cp'))?fmt0(r.cp||0):'';
+    body+='<tr data-m="'+m+'"'+(m===cur?' class="gp-cur"':'')+'><td class="scol sc1 mh'+(m===cur?' cur':'')+'">'+mLong(m)+(past?'':' (à venir)')+'</td>';
+    function itemTd(e, sep){
+      var p=profilOf(e), v=cpPrevu(e,m), td;
+      var cls='dcol'+(sep?' sep':'')+(isMaterialise(e)&&e.mois&&m<e.mois?' cp-avant':(isMaterialise(e)&&p.type==='perso'?'':' cp-lock'));
+      if(isMaterialise(e)&&Math.abs(montantOf(e)-cpSumOf(e.id))>Math.max(1,montantOf(e)*0.001)) cls+=' col-bad'; /* alerte Σ CP ≠ montant : colonne rouge clair */
+      /* cellule calculée (auto/aléa/risque) cliquable : détail du calcul au clic */
+      var det=(v>0||(isMaterialise(e)&&p.type==='perso'))?(' data-affdet="item|'+e.id+'|'+m+'"') : '';
+      if(isMaterialise(e)&&e.mois&&m<e.mois){
+        td='<td class="'+cls+'" data-ejcol="'+e.id+'" title="Pas de CP avant '+mLabel(e.mois)+' (mois de l\'EJ '+esc(e.numero)+') — cellule verrouillée">'+(v?fmt0(v):'')+'</td>';
+      }else if(isMaterialise(e)&&p.type==='perso'){
+        td='<td class="'+cls+' gp-cell"'+det+' data-ejcol="'+e.id+'"><input type="text" inputmode="decimal" class="cell" data-cp="'+e.id+'|'+m+'" value="'+(v?v:'')+'" title="CP consommés en '+mLabel(m)+' pour '+esc(e.numero)+' (profil personnalisé : saisie libre) — détail du calcul au clic sur la case"></td>';
+      }else{
+        td='<td class="'+cls+' gp-cell"'+det+' data-ejcol="'+e.id+'" title="'+(isMaterialise(e)?'Calculé selon le profil '+p.type+' — détail du calcul au clic':'CP du '+stadeLabel(e).toLowerCase()+' selon son profil — détail du calcul au clic')+'">'+(v?fmt0(v):'')+'</td>';
+      }
+      if(oldM){ var om2=oldM[m]; if(om2&&om2.items[e.id]!=null&&v>0) td=td.replace('</td>', cn(om2.items[e.id], v)+'</td>'); }
+      return td;
+    }
+    ejList.forEach(function(e){ body+=itemTd(e); });
+    body+='<td class="num mono ccell tot gp-cell" data-affdet="ej|'+m+'" title="Σ EJ ce mois (EJ seuls) — détail au clic">'+fmt0(ejM)+cn(omAt(m)&&omAt(m).ej, ejM)+'</td>'+
+      '<td class="num mono ccell tot gp-cell" data-affdet="cpej|'+m+'" title="Σ CP des EJ ce mois — détail au clic">'+fmt0(cpEjM)+cn(omAt(m)&&omAt(m).cpej, cpEjM)+'</td>'+
+      '<td class="num mono ccell tot gp-cell" data-affdet="rap|'+m+'" title="Reste à payer à '+mLong(m)+' = EJ cumulés − CP cumulés — détail au clic">'+fmt0(resteAPayer(aff,m))+cn(omAt(m)&&omAt(m).rap, resteAPayer(aff,m))+'</td>';
+    alList.forEach(function(e,i){ body+=itemTd(e, i===0); });
+    rkList.forEach(function(e){ body+=itemTd(e); });
+    body+='<td class="num mono ccell tot gp-cell'+(r?' gp-real':'')+'" data-affdet="rp|'+m+'" title="RP = base CP × (I/I₀−1) — détail au clic">'+fmt0(rp)+cn(omAt(m)&&omAt(m).rp, rp)+'</td>'+
+      '<td class="num mono ccell tot gp-cell" data-affdet="autre|'+m+'" title="Somme autre = aléas + risques + RP du mois — détail au clic">'+fmt0(aeM+rkM+rp)+cn(omAt(m)&&omAt(m).autre, aeM+rkM+rp)+'</td>'+
+      '<td class="num mono ccell tot sep" title="Indice du marché ce mois (formule de l\'affaire) ; I/I₀ recalé à 1 à la date de réf. '+(aff.dateRefRev||'—')+' — pas de pied pour l\'indice">'+(ind==null?'—':fmtIdx(ind)+' <span class="muted">I/I₀='+(i0?(ind/i0).toLocaleString('fr-FR',{maximumFractionDigits:3}):'?')+'</span>')+'</td>'+
+      '<td class="num mono ccell tot gp-cell sep" data-affdet="synthej|'+m+'" title="Synthèse EJ (EJ+aléas+risques) — détail au clic">'+fmt0(ejM+aeM+rkM)+cn(omAt(m)&&omAt(m).sej, ejM+aeM+rkM)+'</td>'+
+      '<td class="num mono ccell tot gp-cell" data-affdet="synthcp|'+m+'" title="Synthèse CP (toutes les colonnes) — détail au clic">'+fmt0(cpM)+cn(omAt(m)&&omAt(m).scp, cpM)+'</td>'+
+      '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+aff.id+'|'+m+'" data-f="ej" value="'+rEjV+'"'+(m<=cur?'':' disabled')+' title="EJ réalisé en '+mLong(m)+' (« 0 » = constaté à zéro, distinct de non saisi)"></td>'+
+      '<td class="num"><input type="text" inputmode="decimal" class="real-in" data-real="'+aff.id+'|'+m+'" data-f="cp" value="'+rCpV+'"'+(m<=cur?'':' disabled')+' title="CP réalisé en '+mLong(m)+' (« 0 » = constaté à zéro)"></td>'+
+      '<td class="num mono gp-cell" data-ecart="ej|'+m+'" title="Écart EJ = réalisé − engagé — cliquer sur la chip pour la popup (explication + actions)">'+(past?fmtS(eEj):'')+' '+statut+(inco?badgeEcart(eEj,tolEj,'EJ',true):'')+'</td>'+
+      '<td class="num mono gp-cell" data-ecart="cp|'+m+'" title="Écart CP = réalisé − prévu — cliquer sur la chip pour la popup (explication + actions)">'+(past?fmtS(eCp):'')+(inco?badgeEcart(eCp,tolCp,'CP',true):'')+'</td>'+
+      '<td class="num mono ccell tot gp-cell sep'+(r?' gp-real':'')+'" data-affdet="gpej|'+m+'" title="GP EJ (les 4 options s\'appliquent ici) — détail au clic">'+fmt0(gEj)+cn(omAt(m)&&omAt(m).gpej, gEj)+'</td>'+
+      '<td class="num mono ccell tot gp-cell'+(r?' gp-real':'')+'" data-affdet="gpcp|'+m+'" title="GP CP (les 4 options s\'appliquent ici) — détail au clic">'+fmt0(gCp)+cn(omAt(m)&&omAt(m).gpcp, gCp)+'</td></tr>';
+  });
+  body+=extRow('après', NB);
+
+  /* pied de colonne pour tout SAUF l'indice : totaux par item (cliquables), puis Σ EJ, Σ CP (des EJ),
+     reste à payer final, Σ RP, Σ autre, Σ EJ+aléas+risques, Σ CP tous montants, Total EJ (+RP), Total CP (+RP) — chaque cellule est libellée */
+  function footCell(kind, label, val, sep, oldV){
+    return '<td class="num mono ccell tot gp-cell'+(sep?' sep':'')+'"'+(kind?' data-affdet="'+kind+'"':'')+' title="'+label+' — détail au clic">'+
+      '<div class="hdr-sub">'+label+'</div><strong>'+fmt0(val)+'</strong>'+cmpCellNote(oldV, val)+'</td>';
+  }
+  var foot='<tr class="gp-tot"><td class="scol sc1">Total</td>';
+  function footTotCell(e, sep){ return '<td class="dcol ccell tot gp-cell'+(sep?' sep':'')+'" data-affdet="footcp|'+e.id+'" title="Σ CP de '+esc(e.numero)+' (toute la période) — détail au clic"><div class="hdr-sub">Σ CP '+esc(e.numero)+'</div><strong>'+fmt0(cpSumOf(e.id))+'</strong>'+cmpCellNote(oldFoot&&oldFoot.items[e.id], cpSumOf(e.id))+'</td>'; }
+  ejList.forEach(function(e){ foot+=footTotCell(e); });
+  var sumEj=sommeMontant(ejList), cpEjTot=0; ejList.forEach(function(e){ cpEjTot+=cpSumOf(e.id); });
+  foot+=footCell('footej|','Σ EJ (EJ seuls)', sumEj, true, oldFoot&&oldFoot.ej)+
+    footCell('footcpej|','Σ CP des EJ', cpEjTot, false, oldFoot&&oldFoot.cpej)+
+    footCell(null,'Reste à payer final', resteAPayer(aff, months[months.length-1]||cur), false, null);
+  alList.forEach(function(e,i){ foot+=footTotCell(e, i===0); });
+  rkList.forEach(function(e){ foot+=footTotCell(e); });
+  var cpAll=0; ejs.forEach(function(e){ cpAll+=cpSumOf(e.id); });
+  var rpTot=revisionTotale(aff, months);
+  var alTot=sommeMontant(ejs.filter(isAlea));
+  var rkTot=ejs.filter(isRisque).reduce(function(s,e){ return s+espDist(e); },0);
+  foot+=footCell('footrp|','Σ RP', rpTot, false, oldFoot&&oldFoot.rp)+
+    footCell('footautre|','Σ autre (aléa+risque+RP)', alTot+rkTot+rpTot, false, oldFoot?oldFoot.rp:null)+
+    '<td class="sep"></td>'+ /* indice : pas de pied */
+    footCell('footejar|','Σ EJ+aléas+risques', sumEj+alTot+rkTot, false)+
+    footCell('footcpall|','Σ CP (tous montants)', cpAll, false)+
+    footCell('foottotalej|','Total EJ (tout : +RP)', sumEj+alTot+rkTot+rpTot, false)+
+    footCell('foottotalcp|','Total CP (tout : +RP)', cpAll+rpTot, false)+
+    '<td colspan="4"></td></tr>';
+
+  h+='<div class="card"><h2>Affaire « '+esc(aff.nom)+' » — détail par mois</h2>'+
+     '<p class="hint">UN seul tableau : 1 colonne par EJ (Σ EJ, Σ CP, reste à payer juste après), puis aléas, puis risques (en-tête compact : n° → fiche/popup avec tout le détail), puis Indice, RP, Somme autre (aléa+risque+RP), Synthèses EJ/CP, EJ/CP réalisés, écarts (statut + actions dans la case), et enfin <strong>GP EJ / GP CP</strong> — seules ces 2 dernières colonnes subissent les 4 options cochées. Cellules calculées cliquables (détail juste sous la ligne). Flèches du clavier = saisie des cases voisines.</p>'+
+     '<div class="grid-wrap"><table class="grid conso affgrid"><thead>'+blkrow+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div></div>';
+
+  /* ---- export texte « GP à saisir » (même contenu que l'onglet GP de main), sous le tableau ---- */
+  var yt=gpYearText([aff], months);
+  Object.keys(yt).sort().forEach(function(y){
+    h+='<div class="card"><h2>Export texte '+y+' — GP à saisir</h2>'+
+       '<p class="hint">Lignes « mm/AA : X k€ intitulé », une seule fois par mois : <strong>REALISE:</strong> (réalisé saisi — immuable, même à 0) puis <strong>PREVU:</strong> (saisi) quand les deux existent. Les 4 options cochées s\'y appliquent (décalages décembre/janvier, RP en décembre, aléas+risques en décembre).</p>'+
+       '<div class="two-col">'+
+       '<div><h3>Version EJ</h3><pre class="copyblk" id="aff-copy-ej-'+y+'">'+esc(gpYearBlock(yt[y].ej))+'</pre><button type="button" class="btn small" data-copyblk="aff-copy-ej-'+y+'" title="Copier le bloc EJ '+y+' dans le presse-papiers">Copier (EJ)</button></div>'+
+       '<div><h3>Version CP</h3><pre class="copyblk" id="aff-copy-cp-'+y+'">'+esc(gpYearBlock(yt[y].cp))+'</pre><button type="button" class="btn small" data-copyblk="aff-copy-cp-'+y+'" title="Copier le bloc CP '+y+' dans le presse-papiers">Copier (CP)</button></div>'+
+       '</div></div>';
+  });
+
+  mount('view-affaire', h, function(w){
+    var sel=w.querySelector('#aff-solo');
+    if(sel) sel.addEventListener('change',function(){ state.ui.aff=sel.value; save(); render(); });
+    /* les 4 options GP (appliquées aux colonnes GP EJ / GP CP via gpVal) */
+    [['gp-rpdec','gpRpDec'],['gp-nocpdec','gpNoCpDec'],['gp-nocpjan','gpNoCpJan'],['gp-ardec','gpARDec']].forEach(function(p){
+      var cb=w.querySelector('#'+p[0]);
+      if(cb) cb.addEventListener('change',function(){ state.ui[p[1]]=cb.checked; save(); renderAffaireKS(); });
+    });
+    /* flèches : saisir les cases à proximité (haut/bas/gauche/droite) de la sélectionnée */
+    w.addEventListener('keydown', function(ev){
+      if(!ev.key||ev.key.indexOf('Arrow')!==0) return;
+      var t=ev.target; if(!t||!t.closest) return;
+      var cell=t.closest('td'); if(!cell) return;
+      var ins=[];
+      try{ ins=Array.prototype.slice.call(w.querySelectorAll('table input')); }catch(e){ ins=[]; }
+      if(!ins.length) return;
+      var i=ins.indexOf(t); if(i<0) return;
+      var row=cell.closest('tr');
+      var cols=row&&row.querySelectorAll? row.querySelectorAll('td').length : 1;
+      var ni=i+(ev.key==='ArrowRight'?1:ev.key==='ArrowLeft'?-1:ev.key==='ArrowDown'?cols:-cols);
+      if(ni<0) ni=0; if(ni>=ins.length) ni=ins.length-1;
+      ev.preventDefault();
+      ins[ni].focus(); if(ins[ni].select) ins[ni].select();
+    });
+    function addItem(stade, extra){
+      var n=state.ejs.filter(function(e){ return e.affaireId===aff.id; }).length+1;
+      var ej9={id:uid(),affaireId:aff.id,numero:(stade==='risque'?'RK-':stade==='alea'?'AL-':'EJ-')+String(n).padStart(2,'0'),libelle:'',stade:stade,mois:curMois(),montant:0};
+      for(var k in extra) ej9[k]=extra[k];
+      state.ejs.push(ej9); recomputeProfils(state);
+      state.ui.focusCol=ej9.id; save(); renderAffaireKS();
+      return ej9;
+    }
+    var addb=w.querySelector('#af-addej');
+    if(addb) addb.addEventListener('click',function(){ addItem('prog',{}); });
+    var addrk=w.querySelector('#af-addrk');
+    if(addrk) addrk.addEventListener('click',function(){ addItem('risque',{distType:'fixe',distA:0,probabilite:100,dateType:'ponctuelle'}); });
+    var addal=w.querySelector('#af-addal');
+    if(addal) addal.addEventListener('click',function(){ addItem('alea',{aleaPct:5,montantExplicite:false,dateType:'ponctuelle'}); });
+    w.addEventListener('click', function(ev){
+      var cbk=ev.target.closest('[data-copyblk]');
+      if(cbk&&cbk.dataset&&cbk.dataset.copyblk){
+        var pre=document.getElementById(cbk.dataset.copyblk);
+        copyTextToClipboard(pre?pre.textContent:'').then(function(){ var old=cbk.textContent; cbk.textContent='Copié !'; setTimeout(function(){ cbk.textContent=old; },1200); },
+          function(){ alert('Copie auto indisponible : sélectionnez le bloc et Ctrl+C.'); });
+        return;
+      }
+      var ec=ev.target.closest('[data-ecart]');
+      if(ec&&ec.dataset&&ec.dataset.ecart){ var ep2=ec.dataset.ecart.split('|'); openEcartPopup(aff.id, ep2[1], ep2[0]); return; }
+      var ad=ev.target.closest('[data-affdet]');
+      if(ad&&ad.dataset&&ad.dataset.affdet){
+        var p=ad.dataset.affdet.split('|'), kind=p[0], m=(kind==='item')?(p[1]+'@'+(p[2]||'')):(p[1]||'');
+        var row=ad.closest('tr'), next=row.nextSibling, key='affdet|'+kind+'|'+m;
+        var html=affDetailHTML(kind, aff, m, NB);
+        if(next&&next.classList&&next.classList.contains('gp-detail-row')){ if(next.dataset.for===key){ next.parentNode.removeChild(next); return; } next.dataset.for=key; next.innerHTML=html; return; }
+        var tr=document.createElement('tr'); tr.className='gp-detail-row'; tr.dataset.for=key; tr.innerHTML=html;
+        row.parentNode.insertBefore(tr, row.nextSibling);
+        return;
+      }
+      var rp2=ev.target.closest('[data-rkpop]');
+      if(rp2){ openRisqueAleaPopup(rp2.dataset.rkpop); return; }
+      var ep=ev.target.closest('[data-ejpop]');
+      if(ep){ openProfilPopup(ep.dataset.ejpop); return; }
+      var b=ev.target.closest('button[data-act]'); if(!b) return;
+      var k=b.dataset.k, pp=k.split('|'), m=pp[1], act=b.dataset.act;
+      var cur3=state.realise[k]?deepCopy(state.realise[k]):{};
+      if(act==='const-ej'){ var ejM=0; ejs.forEach(function(e){ if(isMaterialise(e)&&e.mois===m) ejM+=montantOf(e); }); cur3.ej=ejM; }
+      else if(act==='const-cp'){ var cpM=0; ejs.forEach(function(e){ if(isMaterialise(e)) cpM+=cpPrevu(e,m); }); cur3.cp=cpM; }
+      else if(act==='ajej'){
+        var vA=parseFloat(b.dataset.v)||0; if(!vA) return;
+        var cand=ejs.filter(function(e){ return isMaterialise(e)&&e.mois===m; });
+        if(!cand.length) return;
+        cand[0].montant=Math.max(0,(cand[0].montant||0)+vA); recomputeProfils(state); save(); renderAffaireKS(); return;
+      }
+      state.realise[k]=cur3; save(); renderAffaireKS();
+    });
+    w.addEventListener('change', function(ev){
+      var t=ev.target;
+      if(t.dataset&&t.dataset.cp){
+        var k=t.dataset.cp, pp=k.split('|'), ejId=pp[0], m=pp[1];
+        var ejC=ejById(ejId);
+        if(ejC&&isMaterialise(ejC)&&ejC.mois&&m<ejC.mois){ alert('Pas de CP avant le mois de l\'EJ '+ejC.numero+' ('+mLabel(ejC.mois)+') : l\'EJ est engagé intégralement le 1er jour de son mois.'); delete state.cps[k]; save(); renderAffaireKS(); return; }
+        var v2=parseMontant(t.value);
+        if(v2==null||v2<=0) delete state.cps[k]; else state.cps[k]=v2;
+        save(); renderAffaireKS();
+        return;
+      }
+      if(t.dataset&&t.dataset.real){
+        var k=t.dataset.real, pp=k.split('|'), m=pp[1];
+        var cur2=state.realise[k]?deepCopy(state.realise[k]):{};
+        var v=parseMontant(t.value);
+        if(v==null) delete cur2[t.dataset.f]; else cur2[t.dataset.f]=v;
+        if(Object.prototype.hasOwnProperty.call(cur2,'ej')||Object.prototype.hasOwnProperty.call(cur2,'cp')) state.realise[k]=cur2;
+        else delete state.realise[k];
+        save(); renderAffaireKS(); return;
+      }
+    });
+  });
 }
 
 })();

@@ -16,8 +16,8 @@ function computeAlerts(opId, affId){
     if(!isMaterialise(e)) return;
     var som=cpSumOf(e.id), mt=montantOf(e), tol=Math.max(1,mt*0.001);
     if(Math.abs(mt-som)>tol){
-      out.push({level:'over', view:'conso', col:e.id, ej:e,
-        txt:'EJ « '+e.numero+' » ('+affaireName(e.affaireId)+') : montant '+fmt(mt)+' mais somme des CP '+fmt(som)+' — écart de '+fmt(mt-som)+'.'});
+      out.push({level:'over', view:'affaire', col:e.id, ej:e,
+        txt:'EJ « '+e.numero+' » ('+affaireName(e.affaireId)+') : montant '+fmt(mt)+(som<=0?' mais AUCUN CP saisi/prévu':' mais somme des CP '+fmt(som))+' — écart de '+fmt(mt-som)+'.'});
     }
   });
   ejs.forEach(function(e){
@@ -26,7 +26,7 @@ function computeAlerts(opId, affId){
     if(isRisque(e)){
       var no=nextOcc(e);
       if(no&&no<cur){
-        out.push({level:'over', view:'risques', col:e.id, ej:e,
+        out.push({level:'over', view:'affaire', col:e.id, ej:e,
           txt:stadeLabel(e)+' « '+e.numero+' — '+e.libelle+' » ('+affaireName(e.affaireId)+') : apparition prévue en '+mLong(no)+', passée, et non matérialisé.'});
       }
     }
@@ -44,28 +44,28 @@ function computeAlerts(opId, affId){
     var rc=realCumul(a.id, mAdd(cur,-1));
     /* un écart en retard comme en avance est une incohérence (mois écoulés) */
     if(ejPast>0 && rc.ej < ejPast - Math.max(1,ejPast*0.01)){
-      out.push({level:'over', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : EJ engagés à hauteur de '+fmt(ejPast)+' sur les mois écoulés, mais seulement '+fmt(rc.ej)+' constatés dans le réalisé (retard de '+fmt(ejPast-rc.ej)+').'});
+      out.push({level:'over', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : EJ engagés à hauteur de '+fmt(ejPast)+' sur les mois écoulés, mais seulement '+fmt(rc.ej)+' constatés dans le réalisé (retard de '+fmt(ejPast-rc.ej)+').'});
     }
     if(ejPast>0 && rc.ej > ejPast + Math.max(1,ejPast*0.01)){
-      out.push({level:'warn', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.ej)+' d\'EJ réalisés sur les mois écoulés contre '+fmt(ejPast)+' d\'EJ engagés (avance de '+fmt(rc.ej-ejPast)+').'});
+      out.push({level:'warn', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.ej)+' d\'EJ réalisés sur les mois écoulés contre '+fmt(ejPast)+' d\'EJ engagés (avance de '+fmt(rc.ej-ejPast)+').'});
     }
     if(cpPast>0 && rc.cp < cpPast - Math.max(1,cpPast*0.02)){
-      out.push({level:'over', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : CP prévus à hauteur de '+fmt(cpPast)+' sur les mois écoulés, mais seulement '+fmt(rc.cp)+' réalisés (retard de '+fmt(cpPast-rc.cp)+').'});
+      out.push({level:'over', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : CP prévus à hauteur de '+fmt(cpPast)+' sur les mois écoulés, mais seulement '+fmt(rc.cp)+' réalisés (retard de '+fmt(cpPast-rc.cp)+').'});
     }
     if(cpPast>0 && rc.cp > cpPast + Math.max(1,cpPast*0.02)){
-      out.push({level:'warn', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.cp)+' de CP réalisés sur les mois écoulés contre '+fmt(cpPast)+' prévus (avance de '+fmt(rc.cp-cpPast)+').'});
+      out.push({level:'warn', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.cp)+' de CP réalisés sur les mois écoulés contre '+fmt(cpPast)+' prévus (avance de '+fmt(rc.cp-cpPast)+').'});
     }
     if(rc.ej>0 && ejPast<=0){
-      out.push({level:'over', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.ej)+' d\'EJ réalisés sans EJ engagé à ces dates.'});
+      out.push({level:'over', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.ej)+' d\'EJ réalisés sans EJ engagé à ces dates.'});
     }
     if(rc.cp>0 && cpPast<=0){
-      out.push({level:'over', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.cp)+' de CP réalisés sans prévision de CP.'});
+      out.push({level:'over', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : '+fmt(rc.cp)+' de CP réalisés sans prévision de CP.'});
     }
     /* info (orange, pas une alerte) : mois en cours pas encore saisi dans Réalisé */
     var ejCur=0, cpCur=0;
     ejs.forEach(function(e){ if(e.affaireId===a.id&&isMaterialise(e)){ if(e.mois===cur) ejCur+=montantOf(e); cpCur+=cpPrevu(e,cur); } });
     if((ejCur>0||cpCur>0)&&!realOf(a.id,cur)){
-      out.push({level:'info', view:'realise', aff:a.id, txt:'Affaire « '+a.nom+' » : mois en cours '+mLong(cur)+' pas encore saisi dans « Réalisé » (prévu : EJ '+fmt0(ejCur)+', CP '+fmt0(cpCur)+') — simple information, à compléter.'});
+      out.push({level:'info', view:'affaire', aff:a.id, txt:'Affaire « '+a.nom+' » : mois en cours '+mLong(cur)+' pas encore saisi dans « Réalisé » (prévu : EJ '+fmt0(ejCur)+', CP '+fmt0(cpCur)+') — simple information, à compléter.'});
     }
     /* réalisé NON SAISI pour un mois révolu = alerte (un réalisé saisi à 0 vaut
        constatation « rien » : bien distinct de « non saisi »). On s'arrête à la
@@ -74,7 +74,7 @@ function computeAlerts(opId, affId){
       var miss=[];
       for(var mm=minRef; mm<cur; mm=mAdd(mm,1)){ if(!realOf(a.id,mm)) miss.push(mm); if(miss.length>600) break; }
       if(miss.length){
-        out.push({level:'warn', view:'realise', aff:a.id,
+        out.push({level:'warn', view:'affaire', aff:a.id,
           txt:'Affaire « '+a.nom+' » : réalisé non saisi pour '+miss.length+' mois révolu'+(miss.length>1?'s':'')+' ('+mLong(miss[0])+' … '+mLong(miss[miss.length-1])+', depuis la date de réf. '+mLong(minRef)+') — à compléter dans « Réalisé » ; un réalisé saisi à 0 vaut constatation.'});
       }
     }

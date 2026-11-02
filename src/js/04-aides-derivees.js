@@ -235,22 +235,32 @@ function scopeMonths(opId, affId){
   ejs.forEach(function(e){ ids[e.id]=1; add(e.mois); occOf(e).forEach(function(o){ add(o.m); }); });
   for(var k in state.cps){ var p=k.split('|'); if(ids[p[0]]) add(p[1]); }
   scopedAffaires(opId,affId).forEach(function(a){ aids[a.id]=1; });
-  state.affaires.forEach(function(a){ add(a.dateRefRev); }); /* début au moins à la date de réf. de l'affaire la plus ancienne (TOUTES les affaires, même filtrées) */
+  /* PAS de dateRefRev dans le min par défaut : la date de réf. la plus ancienne
+     n'est que le PLANCHER (limite infranchissable) atteint via le bouton « avant » */
   for(var k2 in state.revisions){ var p2=k2.split('|'); if(aids[p2[0]]) add(p2[1]); }
   for(var k3 in state.realise){ var p3=k3.split('|'); if(aids[p3[0]]) add(p3[1]); }
   if(!min) min=mAdd(cur,-6);
   if(!max) max=cur;
   if(min>mAdd(cur,-6)) min=mAdd(cur,-6);
   if(max<mAdd(cur,12)) max=mAdd(cur,12);
-  min=mAdd(min, -(state.ui.extBefore||0)); /* bouton "développer avant" */
+  /* date de réf. la plus ancienne (TOUTES les affaires) = LIMITE infranchissable */
+  var minRefAll=null;
+  state.affaires.forEach(function(a){ if(a.dateRefRev&&(!minRefAll||a.dateRefRev<minRefAll)) minRefAll=a.dateRefRev; });
+  min=mAdd(min, -(state.ui.extBefore||0)); /* bouton "développer avant" (jusqu'à la limite) */
   max=mAdd(max, state.ui.ext||0);          /* bouton "développer après" */
+  if(minRefAll && min<minRefAll) min=minRefAll; /* jamais de dates avant la date de l'affaire la plus ancienne */
   return mRange(min,max);
 }
 
-/* Lignes de boutons "développer" : avant la première ligne de mois / après la dernière */
+/* Lignes de boutons "développer / replier" : avant la première ligne de mois /
+   après la dernière (on peut aussi retirer les mois ajoutés) */
 function extRow(side, colspan){
   var avant=side==='avant';
-  return '<tr class="extrow"><td colspan="'+colspan+'"><button type="button" class="btn small" data-ext="'+(avant?'before':'after')+'" title="'+(avant?'Afficher 12 mois de plus AVANT la première période affichée':'Afficher 12 mois de plus APRÈS la dernière période affichée')+'">'+(avant?'− 12 mois avant':'＋ 12 mois après')+'</button></td></tr>';
+  var h='<tr class="extrow"><td colspan="'+colspan+'">';
+  if(avant&&state.ui.extBefore>0) h+='<button type="button" class="btn small" data-extshrink="before" title="Retirer 12 mois au début de la période affichée">− replier 12 mois avant</button> ';
+  h+='<button type="button" class="btn small" data-ext="'+(avant?'before':'after')+'" title="'+(avant?'Afficher 12 mois de plus AVANT la première période affichée (jusqu\'à la date de réf. de l\'affaire la plus ancienne)':'Afficher 12 mois de plus APRÈS la dernière période affichée')+'">'+(avant?'− 12 mois avant':'＋ 12 mois après')+'</button>';
+  if(!avant&&state.ui.ext>0) h+=' <button type="button" class="btn small" data-extshrink="after" title="Retirer 12 mois à la fin de la période affichée">− replier 12 mois après</button>';
+  return h+'</td></tr>';
 }
 
 function dashPeriod(opId, affId){

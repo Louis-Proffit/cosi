@@ -334,3 +334,45 @@ table.grid thead tr.hl5 th.hl-cp:hover{background:#c4ecd7}
 /* ---- cellules qui s'appuient sur le RÉALISÉ saisi (vérité, pas un calcul) ---- */
 td.gp-real{background:#ececec;color:#3a3a3a;border:1px dashed #b5b5b5}
 td.rev-rp.gp-real,td.rev-tot.gp-real{background:#ececec;border:1px dashed #b5b5b5}
+
+/* vue affaire unifiée : un seul tableau, 1 colonne par EJ/risque/aléa + synthèse */
+table.affgrid .scol.sc1{left:0}
+
+/* vue affaire : colonnes larges pour bien voir chaque EJ/risque/aléa et chaque synthèse */
+table.affgrid th.dcol,table.affgrid td.dcol{min-width:170px;width:170px}
+table.affgrid th.tot-h,table.affgrid td.ccell.tot{min-width:110px}
+table.affgrid th,table.affgrid td{white-space:normal;vertical-align:middle}
+table.affgrid .ej-btn{white-space:normal;overflow:visible;text-overflow:clip;max-width:none}
+
+/* tableau principal (vue Affaire) : colonnes bien séparées + séparateurs de section nets */
+table.affgrid{border-collapse:separate;border-spacing:0}
+table.affgrid th,table.affgrid td{border-right:1px solid #b9c4d4;border-bottom:1px solid #d4dce6}
+table.affgrid thead th{border-bottom:2px solid #8fa0b8}
+table.affgrid tfoot td{border-top:2px solid #8fa0b8}
+/* séparateur de section : EJ | Σ EJ | aléas | risques | synthèse (indice, RP, …) */
+table.affgrid .sep{border-left:3px solid var(--blue)}
+
+/* en-têtes EJ compacts : colonnes plus étroites (détail dans la popup) */
+table.affgrid th.dcol,table.affgrid td.dcol{min-width:92px;width:92px}
+
+/* en-tête d'une colonne EJ/risque/aléa entièrement cliquable -> popup */
+table.affgrid th.dcol{cursor:pointer}
+table.affgrid th.dcol:hover{background:var(--blue-bg)}
+
+/* popup profil CP (onglet personnalisée) : forme cohérente avec le tableau principal */
+table.affpop{border-collapse:separate;border-spacing:0}
+table.affpop th,table.affpop td{border-right:1px solid #b9c4d4;border-bottom:1px solid #d4dce6;padding:4px 6px}
+table.affpop thead th{border-bottom:2px solid #8fa0b8;background:var(--head);font-size:11px}
+table.affpop tfoot td{border-top:2px solid #8fa0b8;font-weight:700}
+table.affpop td.gp-real{background:#ececec;border:1px dashed #b5b5b5}
+
+/* popup risque/aléa : courbes de répartition (montant + dates) */
+.ra-curves{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0}
+.ra-curves svg{width:100%;height:auto;display:block;background:#fbfcfe;border:1px solid var(--line2);border-radius:8px}
+@media (max-width:700px){.ra-curves{grid-template-columns:1fr}}
+
+/* alerte : colonne EJ dont Σ CP ≠ montant -> rouge clair (en-tête + cellules) */
+table.affgrid th.dcol.col-bad{background:#fdeaea}
+table.affgrid td.dcol.col-bad{background:#fdeaea}
+table.affgrid td.dcol.col-bad.cp-avant{background:#f6d5d5}
+table.affgrid td.dcol.col-bad.cp-lock{background:#fbe3e3}

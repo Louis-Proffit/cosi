@@ -289,7 +289,7 @@ function renderStructure(){
         state.ejs.push(ej9);
         recomputeProfils(state);
         /* on ramène sur l'onglet Consommation CP, affaire filtrée, colonne du nouvel EJ focalisée */
-        state.ui.op=aff9.opId; state.ui.aff=aid9; state.ui.view='conso'; state.ui.focusCol=ej9.id;
+        state.ui.op=aff9.opId; state.ui.aff=aid9; state.ui.view='affaire'; state.ui.focusCol=ej9.id;
         save(); render(); return;
       }
       if(t.dataset.delop){

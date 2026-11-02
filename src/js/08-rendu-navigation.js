@@ -1,6 +1,8 @@
 /* ================= Rendu / navigation ================= */
 
-var VIEWS=[['dashboard','Tableau de bord'],['structure','Opérations & affaires'],['risques','Risques & aléas'],['conso','Consommation CP'],['revisions','Révisions de prix'],['realise','Réalisé'],['gp','GP à saisir'],['indices','Indices'],['donnees','Données']];
+/* Branche onglet-affaire-unique : risques&aléas + conso CP + révisions + réalisé + GP
+   sont fusionnés en UN onglet « Affaire » (une seule affaire à la fois). */
+var VIEWS=[['dashboard','Tableau de bord'],['structure','Opérations & affaires'],['affaire','Affaire (détail)'],['indices','Indices'],['donnees','Données']];
 
 function renderNav(){
   var nav=document.getElementById('nav'), cur=state.ui.view||'dashboard', h='<ul class="fr-nav__list">';
@@ -47,7 +49,9 @@ function render(){
   renderNav();
   renderFilters();
   VIEWS.forEach(function(v){ var el=document.getElementById('view-'+v[0]); if(el) el.style.display=(state.ui.view===v[0])?'':'none'; });
-  var r={dashboard:renderDashboard, risques:renderRisques, structure:renderStructure, conso:renderConso, gp:renderGp, revisions:renderRevisions, realise:renderRealise, indices:renderIndices, donnees:renderDonnees};
+  var r={dashboard:renderDashboard, structure:renderStructure, affaire:renderAffaire, indices:renderIndices, donnees:renderDonnees,
+         /* vues historiques conservées (hors navigation) : risques, conso, gp, revisions, realise */
+         risques:renderRisques, conso:renderConso, gp:renderGp, revisions:renderRevisions, realise:renderRealise};
   var cur=state.ui.view||'dashboard';
   try{ (r[cur]||renderDashboard)(); }
   catch(e){ viewError(cur, e); }

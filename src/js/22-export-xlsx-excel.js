@@ -268,4 +268,3 @@ function exportXLSX(){
   download('cosi-export-'+iso+'.xlsx', b, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
-})();
